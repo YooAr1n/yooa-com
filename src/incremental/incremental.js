@@ -1,4 +1,4 @@
-import Decimal from "break_eternity.js";
+import Decimal from "./break_eternity.js";
 import Header from '@/components/Header.vue'
 
 var timer
@@ -38,7 +38,6 @@ export function gameLoop() {
     let gain = getYooAGain()
     player.YooAPoints = player.YooAPoints.add(gain.mul(diff))
     player.time = now
-    Header.methods.update()
     //getProgress()
 }
 

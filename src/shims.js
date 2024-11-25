@@ -1,4 +1,4 @@
-import Decimal from "break_eternity.js";
+import Decimal from "@/incremental/break_eternity.js";
 import Vue from "vue";
 
 window.Decimal = Decimal;

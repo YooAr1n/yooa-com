@@ -13,6 +13,9 @@ import { getYooAGain } from '@/incremental/incremental.js';
 
 export default {
   name: 'Header',
+  mounted() {
+    setInterval(() => this.update(), 33); // Use Vue instance's method
+  },
   data() {
     return {
       points: new Decimal(0),
