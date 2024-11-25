@@ -1,15 +1,18 @@
 <template>
   <div class="main">
     <Main></Main>
+    <ProgressBar></ProgressBar>
   </div>
 </template>
 
 <script>
 import Main from '@/components/Main.vue'
+import ProgressBar from '@/components/ProgressBar.vue'
 
 export default {
   components: {
-    Main
+    Main,
+    ProgressBar
   },
   methods:{
   }

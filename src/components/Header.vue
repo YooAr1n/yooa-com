@@ -35,7 +35,6 @@ export default {
   },
   methods: {
     update() {
-      console.log(format(this.points))
       this.points = player.YooAPoints
       this.pointsPerSecond = getYooAGain()
     },

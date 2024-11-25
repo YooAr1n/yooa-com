@@ -22,7 +22,7 @@ export function start() {
 }
 
 export function getYooAGain() {
-    let gain = new Decimal(124).mul(player.YooAPoints.add(1).pow(0.9985))
+    let gain = new Decimal(124).mul(player.YooAPoints.add(1).pow(0.995)).mul(player.YooAPoints.add(1).log10().pow(0.75).pow10())
     return gain
 }
 
