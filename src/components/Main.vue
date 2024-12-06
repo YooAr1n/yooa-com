@@ -1,9 +1,8 @@
 <template>
-  <Header msg = "YooA Incremental" ref="header"></Header>
+  <p></p>
 </template>
 
 <script>
-import Header from './Header.vue'
 
 import { start } from '@/incremental/incremental.js';
 
@@ -13,7 +12,7 @@ export default {
     start();
   },
   components: {
-    Header
+    
   },
   methods: {
   }

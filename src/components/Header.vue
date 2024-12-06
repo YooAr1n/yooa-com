@@ -1,5 +1,6 @@
 <template>
   <div class="header">
+    <span style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;" @click="openNav()">☰</span>
     <h1>{{ msg }}</h1>
     <p class="points">You have <span v-html="pointsText"></span> YooA Points<br>
     ({{ ppsText }}/s)<br>
@@ -9,6 +10,7 @@
 </template>
 
 <script>
+import { player } from '@/incremental/incremental.js'
 import { getYooAGain } from '@/incremental/incremental.js';
 
 export default {
@@ -18,6 +20,7 @@ export default {
   },
   data() {
     return {
+      player,
       points: new Decimal(0),
       pointsPerSecond: new Decimal(0)
     }
@@ -38,6 +41,10 @@ export default {
       this.points = player.YooAPoints
       this.pointsPerSecond = getYooAGain()
     },
+    openNav() {
+      let nav = document.getElementById("mySidenav")
+      nav.style.width = "250px";
+    }
   },
   props: {
     msg: String,

@@ -1,11 +1,14 @@
-function save(click = false) {
+import { getStartPlayer } from "./incremental.js";
+import { getStartOptions } from "./options.js";
+
+export function save(click = false) {
 	localStorage.setItem("YooA", btoa(unescape(encodeURIComponent(JSON.stringify(player)))))
 	localStorage.setItem("YooA_options", btoa(unescape(encodeURIComponent(JSON.stringify(options)))));
 	if (click) alert("Saved!")
 }
 
-function fixData(defaultData, newData) {
-	for (item in defaultData){
+export function fixData(defaultData, newData) {
+	for (let item in defaultData){
 		if (defaultData[item] == null) {
 			if (newData[item] === undefined) newData[item] = null
 		}
@@ -28,12 +31,12 @@ function fixData(defaultData, newData) {
 	}	
 }
 
-function fixSave() {
-	defaultData = getStartPlayer()
+export function fixSave() {
+	let defaultData = getStartPlayer()
 	fixData(defaultData, player)
 }
 
-function load() {
+export function load() {
 	let get = localStorage.getItem("YooA");
 	if (get === null || get === undefined) {
 		player = getStartPlayer();
@@ -47,7 +50,7 @@ function load() {
 	player.time = Date.now();
 }
 
-function loadOptions() {
+export function loadOptions() {
 	let get2 = localStorage.getItem("YooA_options");
 	if (get2) 
 		options = Object.assign(getStartOptions(), JSON.parse(decodeURIComponent(escape(atob(get2)))));
@@ -57,7 +60,7 @@ function loadOptions() {
 	fixData(options, getStartOptions())
 }
 
-function exportSave() {
+export function exportSave() {
 	let str = btoa(JSON.stringify(player));
 	const el = document.createElement("textarea");
 	el.value = str;
@@ -69,10 +72,10 @@ function exportSave() {
 	alert("Exported!")
 }
 
-function importSave(imported=undefined) {
+export function importSave(imported=undefined) {
 	if (imported===undefined) imported = prompt("Paste your save here")
 	try {
-		tempPlr = Object.assign(getStartPlayer(), JSON.parse(atob(imported)))
+		let tempPlr = Object.assign(getStartPlayer(), JSON.parse(atob(imported)))
 		player = tempPlr;
 		fixSave();
 		save();
@@ -82,7 +85,7 @@ function importSave(imported=undefined) {
 	}
 }
 
-function hardReset() {
+export function hardReset() {
 	if (!confirm("Are you sure you want to do this? You will lose all your progress!")) return
 	player = null
 	options = null

@@ -9,25 +9,21 @@ window.exponentialFormat = function exponentialFormat(num, precision) {
 	let e = num.log10().floor()
 	let m = num.div(Decimal.pow(10, e))
 	if (m.toStringWithDecimalPlaces(precision) == 10) {
-        m = new Decimal(1)
-        e = e.add(1)
-    }
-    if (e.lt(0)) {
-        m = m.mul(10)
-        e = e.sub(1)
-    }
+		m = new Decimal(1)
+		e = e.add(1)
+	}
 	let start = ""
 	if (e.abs().lt(1e9)) {
 		if (m.toStringWithDecimalPlaces(precision) == 10) {
-            m = new Decimal(1)
-            e = e.add(1)
-        }
+			m = new Decimal(1)
+			e = e.add(1)
+		}
 		start = m.toStringWithDecimalPlaces(precision)
 	}
 	
 	let end = e.toStringWithDecimalPlaces(0)
 	if (!end.includes("e")) end = addCommas(end.replace(/-/g, ''))
-	if (e.lt(0)) end = "-"+end
+	if (e.lt(0)) end = "-" + end
 	return start + "e" + end
 }
 
