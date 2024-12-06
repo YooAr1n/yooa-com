@@ -14,4 +14,9 @@
 
 <script>
 // @ is an alias to /src
+export default {
+  mounted() {
+	document.title = "YooA"
+  },
+}
 </script>

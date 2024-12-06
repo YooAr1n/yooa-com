@@ -79,12 +79,13 @@ import Cryptography from '../cryptography'
 
 export default {
   mounted() {
-      Cryptography.start();
+	document.title = "Cryptography"
+    Cryptography.start();
   },
   methods:{
-      submit() {
-        Cryptography.submit();
-      }
+    submit() {
+    	Cryptography.submit();
+    }
   }
 }
 </script>

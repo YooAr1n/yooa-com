@@ -24,6 +24,9 @@
 import Numbers from '../numbers'
 
 export default {
+  mounted() {
+	  document.title = "YooA Numbers"
+  },
   methods:{
       start() {
         Numbers.start(this.$refs.submit, this.$refs.knum, this.$refs.number);

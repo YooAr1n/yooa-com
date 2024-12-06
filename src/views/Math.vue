@@ -44,6 +44,9 @@
 import Math from '../math'
 
 export default {
+  mounted() {
+	  document.title = "YooA Math"
+  },
   methods:{
       submit() {
           Math.submit();

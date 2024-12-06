@@ -12,6 +12,9 @@
 import Illions from '../illions'
 
 export default {
+  mounted() {
+	  document.title = "YooA-illions"
+  },
   methods:{
       submit() {
         Illions.submit();

@@ -20,6 +20,9 @@ import Options from '@/components/Options.vue'
 import ProgressBar from '@/components/ProgressBar.vue'
 
 export default {
+  mounted() {
+	document.title = "YooA Incremental"
+  },
   components: {
 	Header,
     Main,

@@ -47,6 +47,9 @@
 import Statistics from '../statistics'
 
 export default {
+  mounted() {
+	document.title = "YooA Statistics"
+  },
   methods:{
       submit() {
         Statistics.submit();
