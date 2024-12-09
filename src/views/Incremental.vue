@@ -8,6 +8,7 @@
 	<Header :msg="headerMessage"  ref="header"></Header>
     <Main v-if="player.tab == 'Main'"></Main>
 	<Options v-if="player.tab == 'Options'"></Options>
+	<Notification></Notification>
     <ProgressBar></ProgressBar>
   </div>
 </template>
@@ -17,6 +18,7 @@ import { player } from '@/incremental/incremental.js'; // Import player from inc
 import Header from '@/components/Header.vue'
 import Main from '@/components/Main.vue'
 import Options from '@/components/Options.vue'
+import Notification from '@/components/Notification.vue'
 import ProgressBar from '@/components/ProgressBar.vue'
 
 export default {
@@ -27,6 +29,7 @@ export default {
 	Header,
     Main,
 	Options,
+	Notification,
     ProgressBar
   },
   data() {

@@ -1,10 +1,17 @@
 import { getStartPlayer } from "./incremental.js";
-import { getStartOptions } from "./options.js";
+import { options, getStartOptions } from './options.js';
 
 export function save(click = false) {
-	localStorage.setItem("YooA", btoa(unescape(encodeURIComponent(JSON.stringify(player)))))
+	// Save player data to localStorage
+	localStorage.setItem("YooA", btoa(unescape(encodeURIComponent(JSON.stringify(player)))));
+	
+	// Save options data to localStorage
 	localStorage.setItem("YooA_options", btoa(unescape(encodeURIComponent(JSON.stringify(options)))));
-	if (click) alert("Saved!")
+  
+	if (click) {
+	  const event = new CustomEvent('game-saved');
+	  window.dispatchEvent(event);
+	}
 }
 
 export function fixData(defaultData, newData) {
@@ -39,26 +46,29 @@ export function fixSave() {
 export function load() {
 	let get = localStorage.getItem("YooA");
 	if (get === null || get === undefined) {
-		player = getStartPlayer();
-		options = getStartOptions();
-	}
-	else {
-		player = Object.assign(getStartPlayer(), JSON.parse(decodeURIComponent(escape(atob(get)))));
-        fixSave()
-		loadOptions()
+	  player = getStartPlayer();
+	  Object.assign(options, getStartOptions()); // Ensure options is initialized
+	} else {
+	  player = Object.assign(getStartPlayer(), JSON.parse(decodeURIComponent(escape(atob(get)))));
+	  fixSave();
+	  loadOptions(); // Load the options from localStorage
 	}
 	player.time = Date.now();
-}
+  }
 
 export function loadOptions() {
 	let get2 = localStorage.getItem("YooA_options");
-	if (get2) 
-		options = Object.assign(getStartOptions(), JSON.parse(decodeURIComponent(escape(atob(get2)))));
-	else 
-		options = getStartOptions()
-	//if (themes.indexOf(options.theme) < 0) theme = "default"
-	fixData(options, getStartOptions())
-}
+	if (get2) {
+	  // Update the reactive options object
+	  Object.assign(options, JSON.parse(decodeURIComponent(escape(atob(get2)))));
+	} else {
+	  // If no saved options, initialize with defaults
+	  Object.assign(options, getStartOptions());
+	}
+	// Fix data to ensure default values are applied
+	fixData(options, getStartOptions());
+  }
+  
 
 export function exportSave() {
 	let str = btoa(JSON.stringify(player));
@@ -69,7 +79,8 @@ export function exportSave() {
     el.setSelectionRange(0, 99999);
 	document.execCommand("copy");
 	document.body.removeChild(el);
-	alert("Exported!")
+	const event = new CustomEvent('export-completed');
+  	window.dispatchEvent(event);
 }
 
 export function importSave(imported=undefined) {
@@ -79,16 +90,19 @@ export function importSave(imported=undefined) {
 		player = tempPlr;
 		fixSave();
 		save();
-		window.location.reload();
+		const event = new CustomEvent('import-completed');
+  		window.dispatchEvent(event);
 	} catch (e) {
 		return;
 	}
 }
 
 export function hardReset() {
-	if (!confirm("Are you sure you want to do this? You will lose all your progress!")) return
-	player = null
-	options = null
-	save();
-	window.location.reload();
-}
+	if (!confirm("Are you sure you want to do this? You will lose all your progress!")) return;
+  
+	player = getStartPlayer(); // Reset player data
+	Object.assign(options, getStartOptions()); // Reset options
+  
+	save(); // Save the reset state
+	window.location.reload(); // Reload the page to reflect the changes
+  }

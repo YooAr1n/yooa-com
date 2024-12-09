@@ -1,3 +1,4 @@
+import { options } from './options.js';  // Ensure options is imported correctly
 import Decimal from "./break_eternity.js";
 import { load } from "./save.js";
 
@@ -18,7 +19,7 @@ export function getStartPlayer() {
 
 export function start() {
     load()
-    timer = setInterval(gameLoop, 33)
+    timer = setInterval(gameLoop, 33);
 }
 
 export function getYooAGain() {
@@ -29,7 +30,7 @@ export function getYooAGain() {
 
 export function gameLoop() {
     let now = Date.now()
-	let diff = (now - player.time) / 1e3
+    let diff = (now - player.time) / 1e3
     let gain = getYooAGain()
     player = window.player
     player.YooAPoints = player.YooAPoints.add(gain.mul(diff))
