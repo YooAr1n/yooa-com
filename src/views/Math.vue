@@ -62,8 +62,9 @@ h3 {
 
 div.main {
   min-height: 100vh;
+  min-width: 100vh;
   background-color: powderblue;
-  padding: 45px 15px;
+  padding: 1px 15px;
 }
 
 div.game {

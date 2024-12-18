@@ -1,63 +1,90 @@
 <template>
-  <div class="main">
-    <div id = "mySidenav" class = "sidenav">
-		<a href = "javascript:void(0)" class="closebtn" @click="closeNav()">&times;</a>
-		<a href="javascript:void(0)" @click="changeTab('Main')">Main</a>
-    	<a href="javascript:void(0)" @click="changeTab('Options')">Options</a>
+	<div class="main">
+		<!-- Sidebar Navigation -->
+		<div id="mySidenav" class="sidenav">
+		<a href="javascript:void(0)" class="closebtn" @click="closeNav()">&times;</a>
+		<a href="javascript:void(0)" 
+			@click="changeTab('Main')" 
+			:class="{ active: currentTab === 'Main' }">
+			Main
+		</a>
+		<a href="javascript:void(0)" 
+			@click="changeTab('Options')" 
+			:class="{ active: currentTab === 'Options' }">
+			Options
+		</a>
+		</div>
+
+		<!-- Header Component -->
+		<Header :msg="headerMessage" ref="header"></Header>
+
+		<!-- Main Content -->
+		<Main v-show="currentTab === 'Main'"></Main>
+		<Options v-show="currentTab === 'Options'"></Options>
+		<Notification></Notification>
+		<ProgressBar></ProgressBar>
 	</div>
-	<Header :msg="headerMessage"  ref="header"></Header>
-    <Main v-if="player.tab == 'Main'"></Main>
-	<Options v-if="player.tab == 'Options'"></Options>
-	<Notification></Notification>
-    <ProgressBar></ProgressBar>
-  </div>
 </template>
 
 <script>
-import { player } from '@/incremental/incremental.js'; // Import player from incremental.js
-import Header from '@/components/Header.vue'
-import Main from '@/components/Main.vue'
-import Options from '@/components/Options.vue'
-import Notification from '@/components/Notification.vue'
-import ProgressBar from '@/components/ProgressBar.vue'
+import { player } from '@/incremental/incremental.js'; // Import player as reactive state
+import Header from '@/components/Header.vue';
+import Main from '@/components/Main.vue';
+import Options from '@/components/Options.vue';
+import Notification from '@/components/Notification.vue';
+import ProgressBar from '@/components/ProgressBar.vue';
 
 export default {
-  mounted() {
-	document.title = "YooA Incremental"
-  },
-  components: {
-	Header,
-    Main,
-	Options,
-	Notification,
-    ProgressBar
-  },
-  data() {
-    return {
-      player,
-	  headerMessage: "YooA Incremental"
-    };
-  },
-  methods:{
-    closeNav() {
-      let nav = document.getElementById("mySidenav")
-      nav.style.width = "0";
-    },
-	changeTab(tabName) {
-      this.player.tab = tabName;
-	  this.headerMessage = tabName == "Main" ? "YooA Incremental" : tabName
-    }
-  }
-}
+	components: {
+		Header,
+		Main,
+		Options,
+		Notification,
+		ProgressBar,
+	},
+	data() {
+		return {
+			player, // Reactive player object
+			headerMessage: 'YooA Incremental',
+		};
+	},
+	computed: {
+		// Bind player.tab to a computed property for better reactivity
+		currentTab() {
+			return this.player.tab;
+		},
+	},
+	mounted() {
+		document.title = 'YooA Incremental';
+		this.headerMessage = this.currentTab === 'Main' ? 'YooA Incremental' : this.currentTab;
+	},
+	methods: {
+		closeNav() {
+			// Close the navigation sidebar
+			let nav = document.getElementById('mySidenav');
+			nav.style.width = '0';
+		},
+		changeTab(tabName) {
+			// Update player.tab to switch tabs
+			this.player.tab = tabName;
+
+			// Update header message based on active tab
+			this.headerMessage = tabName === 'Main' ? 'YooA Incremental' : tabName;
+		}
+	}
+
+};
 </script>
 
 <style scoped>
+/* Main Container */
 div.main {
-  text-align: center;
-  color: white;
-  background-color: black;
+	text-align: center;
+	color: white;
+	background-color: black;
 }
 
+/* Sidebar Navigation */
 .sidenav {
 	height: 100%;
 	width: 0;
@@ -70,9 +97,9 @@ div.main {
 	transition: 0.5s;
 	padding-top: 60px;
 }
-  
+
 .sidenav a {
-	padding: 8px 8px 8px 32px;
+	padding: 8px;
 	text-decoration: none;
 	font-size: 25px;
 	color: #b9e5ff;
@@ -89,8 +116,13 @@ div.main {
 	top: 0;
 	right: 25px;
 	font-size: 36px;
-	margin-left: 50px;
 	color: #b9e5ff;
 }
-</style>
 
+/* Active Tab Styling */
+.sidenav a.active {
+	background-color: #b9e5ff;
+	color: #991893;
+}
+</style>
+  

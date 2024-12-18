@@ -22,7 +22,6 @@
 
 nav {
   overflow: hidden;
-	position: fixed;
 	top: 0;
 	background-color: #333;
 	width: 100%;

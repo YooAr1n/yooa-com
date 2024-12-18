@@ -12,6 +12,7 @@
 <script>
 import { player } from '@/incremental/incremental.js'
 import { getYooAGain } from '@/incremental/incremental.js';
+import { hasUpgrade } from '@/incremental/main.js';
 
 export default {
   name: 'Header',
@@ -39,7 +40,7 @@ export default {
   methods: {
     update() {
       this.points = player.YooAPoints
-      this.pointsPerSecond = getYooAGain()
+      this.pointsPerSecond = hasUpgrade("YooA", 11) ? getYooAGain() : new Decimal(0)
     },
     openNav() {
       let nav = document.getElementById("mySidenav")
