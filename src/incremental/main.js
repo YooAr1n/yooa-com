@@ -36,7 +36,7 @@ export const gameLayers = {
               costInternal: "YooAPoints",
               //maxLvl: new Decimal(10),
               effect() {
-                return Decimal.pow(player.YooAPoints.max(10).log10().div(100).add(1.5), getUpgLevels("YooA", 12));
+                return Decimal.pow(2, getUpgLevels("YooA", 12));
               },
               effectDisplay() {
                 return "x" + format(this.effect());
