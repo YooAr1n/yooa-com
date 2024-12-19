@@ -3,7 +3,7 @@
     <span style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;" @click="openNav()">☰</span>
     <h1>{{ msg }}</h1>
     <p class="points">You have <span v-html="pointsText"></span> YooA Points<br>
-    ({{ ppsText }}/s)<br>
+    <span v-if="pointsPerSecond.gt(0)">({{ ppsText }}/s)<br></span>
     Current Endgame: <span v-html="endgameText"></span> YooAmatter
     </p>
   </div>
@@ -40,7 +40,7 @@ export default {
   methods: {
     update() {
       this.points = player.YooAPoints
-      this.pointsPerSecond = hasUpgrade("YooA", 11) ? getYooAGain() : new Decimal(0)
+      this.pointsPerSecond = hasUpgrade("YooA", 21) ? getYooAGain() : new Decimal(0)
     },
     openNav() {
       let nav = document.getElementById("mySidenav")

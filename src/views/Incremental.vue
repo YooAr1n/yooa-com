@@ -19,15 +19,15 @@
 		<Header :msg="headerMessage" ref="header"></Header>
 
 		<!-- Main Content -->
-		<Main v-show="currentTab === 'Main'"></Main>
-		<Options v-show="currentTab === 'Options'"></Options>
+		<Main v-if="currentTab === 'Main'"></Main>
+		<Options v-if="currentTab === 'Options'"></Options>
 		<Notification></Notification>
 		<ProgressBar></ProgressBar>
 	</div>
 </template>
 
 <script>
-import { player } from '@/incremental/incremental.js'; // Import player as reactive state
+import { player, start } from '@/incremental/incremental.js'; // Import player as reactive state
 import Header from '@/components/Header.vue';
 import Main from '@/components/Main.vue';
 import Options from '@/components/Options.vue';
@@ -51,11 +51,13 @@ export default {
 	computed: {
 		// Bind player.tab to a computed property for better reactivity
 		currentTab() {
-			return this.player.tab;
+			// Get the first part of player.tab before the '-'
+			return this.player.tab.split('-')[0];
 		},
 	},
 	mounted() {
 		document.title = 'YooA Incremental';
+		start();
 		this.headerMessage = this.currentTab === 'Main' ? 'YooA Incremental' : this.currentTab;
 	},
 	methods: {
@@ -66,7 +68,7 @@ export default {
 		},
 		changeTab(tabName) {
 			// Update player.tab to switch tabs
-			this.player.tab = tabName;
+			this.player.tab = tabName + "-" + this.player.subtab;
 
 			// Update header message based on active tab
 			this.headerMessage = tabName === 'Main' ? 'YooA Incremental' : tabName;

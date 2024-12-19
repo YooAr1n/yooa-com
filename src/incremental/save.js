@@ -1,5 +1,6 @@
 import { getStartPlayer } from "./incremental.js";
 import { options, getStartOptions } from './options.js';
+import Dimension from "./dimensions.js"; 
 
 function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -29,6 +30,10 @@ export function fixData(defaultData, newData) {
         } else if (defaultData[item] instanceof Decimal) {
             if (newData[item] === undefined) newData[item] = new Decimal(defaultData[item].toString());
             else newData[item] = new Decimal(newData[item].toString());
+        } else if (defaultData[item] instanceof Dimension) {
+            if (newData[item] === undefined) newData[item] = new Dimension(defaultData[item].name, defaultData[item].amt, defaultData[item].level, defaultData[item].tier);
+            else newData[item] = new Dimension(newData[item].name, newData[item].amt, newData[item].level, newData[item].tier);
+            fixData(defaultData[item], newData[item]);
         } else if ((!!defaultData[item]) && (typeof defaultData[item] === "object")) {
             if (newData[item] === undefined) {
                 newData[item] = defaultData[item];
@@ -108,6 +113,9 @@ export function importSave(imported = undefined) {
         save();
         const event = new CustomEvent('import-completed');
         window.dispatchEvent(event);
+        setTimeout(() => {
+            window.location.reload(); // Reload after the notification is shown
+        }, 1000);
     } catch (e) {
         alert("Import failed: Invalid save data.");
     }

@@ -6,9 +6,14 @@
     @click="buy"
   >
     <h2>{{ upgrade.title }}</h2>
-    <p>{{ upgrade.description() }}</p>
-    <p>Cost: {{ formatCost(typeof upgrade.cost === 'function' ? upgrade.cost() : upgrade.cost) }} {{ upgrade.costCurrency }}</p>
-    <p>{{ lvlDisplay }}</p>
+    <p>
+      {{ upgrade.description() }}
+      </p>
+    <p>
+      Cost: {{ formatCost(typeof upgrade.cost === 'function' ? upgrade.cost() : upgrade.cost) }} {{ upgrade.costCurrency }}
+      <br>
+      {{ lvlDisplay }}
+    </p>
     <p v-if="upgrade.effectDisplay">Effect: {{ upgrade.effectDisplay() }}</p>
   </div>
 </template>

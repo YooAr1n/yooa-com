@@ -1,75 +1,110 @@
 <template>
-  <div class="grid-container">
-    <!-- Loop through rows -->
-    <div v-for="row in gridRows" :key="row" class="grid-row">
-      <!-- Loop through columns in each row, only for valid upgrades -->
-      <div 
-        v-for="col in getValidColumnsForRow(row)" 
-        :key="col" 
-        class="grid-item"
+  <div class="tabs-container">
+    <!-- Tab Navigation -->
+    <div class="tabs">
+      <button 
+        :class="{ active: currentTab === 'Main-main' }" 
+        @click="changeTab('Main-main')"
       >
-        <Upgrade :layerName="'YooA'" :upgradeId="`${row}${col}`"></Upgrade>
-      </div>
+        Main
+      </button>
+      <button 
+        :class="{ active: currentTab === 'Main-upgrade' }" 
+        @click="changeTab('Main-upgrade')"
+      >
+        Upgrades
+      </button>
     </div>
+
+    <!-- Tab Content -->
+    <div v-if="currentTab === 'Main-main'" class="tab-content">
+      <!-- Main tab content goes here -->
+      <h2>Solve math problems to get YooA Points! (+{{ YooAGain }}/solve)</h2>
+      <h3>You have solved {{ solved }} math problems.</h3>
+      <MathProblem ref="MainMath"></MathProblem>
+      <Dimension :dimension="player.dimensions.YooA[0]" :allDimensions="allDimensions" />
+      <Dimension :dimension="player.dimensions.YooA[1]" :allDimensions="allDimensions" />
+    </div>
+
+    <div v-if="currentTab === 'Main-upgrade'" class="tab-content">
+      <UpgradeGrid :layerName="'YooA'" />
+    </div>
+    <br><br><br><br>
   </div>
 </template>
 
 <script>
-import Upgrade from './Upgrade.vue';
-import { start } from '@/incremental/incremental.js';
-import { gameLayers } from '@/incremental/main.js';  // Adjust path as needed
+import UpgradeGrid from './UpgradeGrid.vue';  // Import the new UpgradeGrid component
+import MathProblem from './MathProblem.vue'; 
+import Dimension from './Dimension.vue'; 
+import { player, getYooAGain } from '@/incremental/incremental.js';    // Import the player object from incremental.js
 
 export default {
   name: 'Main',
-  mounted() {
-    start();
-  },
+  data() {
+		return {
+			player, // Reactive player object
+		};
+	},
   computed: {
-    gridRows() {
-      return Array.from({ length: gameLayers.YooA.upgrades.rows }, (_, i) => i + 1); // Row indices
+		// Bind player.tab to a computed property for better reactivity
+		currentTab() {
+			return this.player.tab;
+		},
+    YooAGain() {
+			return format(getYooAGain());
+		},
+    solved () {
+      return formatWhole(player.math.YooA.solved)
+    },
+    allDimensions() {
+      return player.dimensions.YooA;  // Assuming YooA is where all dimensions are stored
     }
+	},
+  components: {
+    UpgradeGrid,
+    MathProblem,
+    Dimension
   },
   methods: {
-    // Get valid columns for a specific row (based on upgrades availability)
-    getValidColumnsForRow(row) {
-      // Loop through columns and return only those that have an upgrade
-      return Array.from({ length: gameLayers.YooA.upgrades.cols }, (_, col) => col + 1)
-        .filter(col => this.hasUpgradeForGrid(row, col));
+    changeTab(tabName) {
+      player.tab = tabName; // Change the player tab directly
+      player.subtab = this.player.tab.split('-')[1]
     },
-    
-    // Check if an upgrade exists for the given row and col
-    hasUpgradeForGrid(row, col) {
-      // Construct the upgradeId (e.g., "11", "12", "21", etc.)
-      const upgradeId = `${row}${col}`;
-      // Use Object.prototype.hasOwnProperty.call to safely check if upgrade exists
-      return Object.prototype.hasOwnProperty.call(gameLayers.YooA.upgrades, upgradeId);
-    }
-  },
-  components: {
-    Upgrade
   }
 }
 </script>
 
 <style scoped>
-.grid-container {
+.tabs-container {
   display: flex;
   flex-direction: column;
-  gap: 16px; /* Space between rows */
-  padding: 16px;
+  align-items: center; /* Centers the tab container horizontally */
 }
 
-.grid-row {
+.tabs {
   display: flex;
-  justify-content: center;
-  gap: 16px; /* Space between upgrades in a row */
+  gap: 16px;
+  justify-content: center; /* Centers the buttons horizontally */
 }
 
-.grid-item {
-  width: 250px;  /* Fixed width */
-  height: 250px; /* Fixed height */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.tabs button {
+  padding: 8px 16px;
+  border: none;
+  background-color: #d17be2;
+  color: #b9e5ff;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 4px;
+  font-size: 16pt;
+}
+
+.tabs button.active {
+  background-color: #b9e5ff;
+  color: #d17be2;
+}
+
+.tab-content {
+  width: 100%;
 }
 </style>
