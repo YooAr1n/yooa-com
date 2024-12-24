@@ -6,13 +6,14 @@ export default class Dimension {
         this.amt = new Decimal(amt);    // Amount of the dimension
         this.tier = tier
 
-        const BASE_COSTS = [null, 10, 100];
+        const BASE_COSTS = [null, 10, 10000];
         const BASE_COST_MULTIPLIERS = [null, 1.15, 1.5];
         this.baseCost = new Decimal(BASE_COSTS[tier]);  // The cost to purchase or upgrade this dimension
         this.costMultiplier = new Decimal(BASE_COST_MULTIPLIERS[tier]);  // The cost to purchase or upgrade this dimension
 
-        this.mult = new Decimal(1);
-        this.effect = new Decimal(1);           // The effect the dimension provides (e.g., YooA Points multiplier)
+        this.mult = new Decimal(0);
+        this.allMult = new Decimal(0);
+        this.effect = new Decimal(0);           // The effect the dimension provides (e.g., YooA Points multiplier)
 
         this.currency = currency;       // The currency used to purchase the dimension
         this.level = level;    // The current level of the dimension
@@ -49,13 +50,13 @@ export default class Dimension {
     // Method to update the effect based on the level
     updateEffect() {
         let eff = Decimal.pow(1.01, this.level)
-        this.mult = eff;
+        this.mult = eff.mul(this.allMult);
 
         if (this.tier == 1) {
-            eff = eff.mul(this.amt).div(10).add(1)
+            eff = this.mult.mul(this.amt).div(10).add(1)
         }
         else {
-            eff = eff.mul(this.amt).div(10)
+            eff = this.mult.mul(this.amt).div(100)
         }
         this.effect = eff
     }

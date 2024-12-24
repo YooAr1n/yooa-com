@@ -70,7 +70,7 @@ window.format = function format(decimal, precision = 2) {
 		if (slog.gte(1e9)) return "F" + formatWhole(slog.floor())
 		if (slog.gte(100)) return Decimal.pow(10, slog.sub(slog.floor())).toStringWithDecimalPlaces(3) + "F" + commaFormat(slog.floor(), 0)
 		else return Decimal.pow(10, slog.sub(slog.floor())).toStringWithDecimalPlaces(4) + "F" + commaFormat(slog.floor(), 0)
-	} else if (decimal.layer > 2 || (Math.abs(decimal.mag) > 308 && decimal.layer == 2)) {
+	} else if (decimal.layer > 2 || (Math.abs(decimal.mag) > 100 && decimal.layer == 2)) {
 		return "e" + format(decimal.log10(), precision)
 	} else if (decimal.layer > 1 || (Math.abs(decimal.mag) >= 1e12 && decimal.layer == 1)) {
 		return "e" + format(decimal.log10(), 4)

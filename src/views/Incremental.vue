@@ -13,6 +13,21 @@
 			:class="{ active: currentTab === 'Options' }">
 			Options
 		</a>
+		<a href="javascript:void(0)" 
+			@click="changeTab('Stats')" 
+			:class="{ active: currentTab === 'Stats' }">
+			Stats
+		</a>
+		<a href="javascript:void(0)" 
+			@click="changeTab('Achievements')" 
+			:class="{ active: currentTab === 'Achievements' }">
+			Achievements
+		</a>
+		<a href="javascript:void(0)" 
+			@click="changeTab('Changelog')" 
+			:class="{ active: currentTab === 'Changelog' }">
+			Changelog
+		</a>
 		</div>
 
 		<!-- Header Component -->
@@ -21,7 +36,11 @@
 		<!-- Main Content -->
 		<Main v-if="currentTab === 'Main'"></Main>
 		<Options v-if="currentTab === 'Options'"></Options>
+		<Stats v-if="currentTab === 'Stats'"></Stats>
+		<Achievements v-if="currentTab === 'Achievements'"></Achievements>
+		<Changelog v-if="currentTab === 'Changelog'"></Changelog>
 		<Notification></Notification>
+		<br><br><br><br>
 		<ProgressBar></ProgressBar>
 	</div>
 </template>
@@ -31,6 +50,9 @@ import { player, start } from '@/incremental/incremental.js'; // Import player a
 import Header from '@/components/Header.vue';
 import Main from '@/components/Main.vue';
 import Options from '@/components/Options.vue';
+import Stats from '@/components/Stats.vue';
+import Achievements from '@/components/Achievements.vue';
+import Changelog from '@/components/Changelog.vue';
 import Notification from '@/components/Notification.vue';
 import ProgressBar from '@/components/ProgressBar.vue';
 
@@ -39,6 +61,9 @@ export default {
 		Header,
 		Main,
 		Options,
+		Stats,
+		Achievements,
+		Changelog,
 		Notification,
 		ProgressBar,
 	},
@@ -54,11 +79,14 @@ export default {
 			// Get the first part of player.tab before the '-'
 			return this.player.tab.split('-')[0];
 		},
+		gameName() {
+			return 'YooA Incremental v0.1'
+		}
 	},
 	mounted() {
-		document.title = 'YooA Incremental';
+		document.title = this.gameName;
 		start();
-		this.headerMessage = this.currentTab === 'Main' ? 'YooA Incremental' : this.currentTab;
+		this.headerMessage = this.currentTab === 'Main' ? this.gameName : this.currentTab;
 	},
 	methods: {
 		closeNav() {
@@ -71,7 +99,7 @@ export default {
 			this.player.tab = tabName + "-" + this.player.subtab;
 
 			// Update header message based on active tab
-			this.headerMessage = tabName === 'Main' ? 'YooA Incremental' : tabName;
+			this.headerMessage = tabName === 'Main' ? this.gameName : tabName;
 		}
 	}
 

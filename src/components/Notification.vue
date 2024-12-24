@@ -1,21 +1,12 @@
 <template>
   <div class="notification-container">
-    <TransitionGroup 
-      name="fade" 
-      tag="div"
-    >
-      <div
-        v-for="notif in notifications"
-        :key="notif.id"
-        class="notification"
-        :class="{
-          'notification-import': notif.type === 'import',
-          'notification-export': notif.type === 'export',
-          'notification-saved': notif.type === 'saved'
-        }"
-        @click="removeNotification(notif.id)"
-      >
-        <span>{{ notif.message }}</span> 
+    <TransitionGroup name="fade" tag="div">
+      <div v-for="notif in notifications" :key="notif.id" class="notification" :class="{
+        'notification-import': notif.type === 'import',
+        'notification-export': notif.type === 'export',
+        'notification-saved': notif.type === 'saved'
+      }" @click="removeNotification(notif.id)">
+        <span>{{ notif.message }}</span>
       </div>
     </TransitionGroup>
   </div>
@@ -124,62 +115,79 @@ export default {
 };
 </script>
 
-  
-  <style scoped>
-  .notification-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column; /* Stack notifications vertically */
-    align-items: flex-end;
-  }
-  
-  .notification {
-    background-color: #28a745;
-    color: white;
-    font-size: 14pt;
-    padding: 15px;
-    border-radius: 5px;
-    box-shadow: 0 4px 6px rgba(255, 255, 255, 0.151);
-    opacity: 0;
-    transform: translateX(20px); /* Initially off-screen horizontally */
-    transition: opacity 0.5s, transform 0.5s; /* Smooth fade and slide in/out */
-    white-space: nowrap; /* Prevent text from wrapping */
-    display: block; /* Keep notifications as block elements, stacked vertically */
-    width: fit-content; /* Ensure width only as needed based on the content */
-    margin-bottom: 10px;
-    margin-left: auto; /* Align notifications to the right of their container */
-    cursor: pointer; /* Indicate that the notification is clickable */
-  }
-  
-  .notification-saved {
-    background-color: #28a745; /* Green */
-  }
-  
-  .notification-export {
-    background-color: #007bff; /* Blue */
-  }
-  
-  .notification-import {
-    background-color: #78009c; /* Purple */
-  }
-  
-  /* Transitions for fade-in and fade-out */
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: opacity 0.5s ease, transform 0.5s ease;
-  }
-  
-  .fade-enter, .fade-leave-to /* .fade-leave-active in <2.1.8 */ {
-    opacity: 0;
-    transform: translateX(20px); /* Slide in/out effect */
-  }
-  
-  .fade-enter-to, .fade-leave {
-    opacity: 1;
-    transform: translateX(0); /* Normal position */
-  }
-  </style>
-  
+
+<style scoped>
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  /* Stack notifications vertically */
+  align-items: flex-end;
+}
+
+.notification {
+  background-color: #28a745;
+  color: white;
+  font-size: 14pt;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.151);
+  opacity: 0;
+  transform: translateX(20px);
+  /* Initially off-screen horizontally */
+  transition: opacity 0.5s, transform 0.5s;
+  /* Smooth fade and slide in/out */
+  white-space: nowrap;
+  /* Prevent text from wrapping */
+  display: block;
+  /* Keep notifications as block elements, stacked vertically */
+  width: fit-content;
+  /* Ensure width only as needed based on the content */
+  margin-bottom: 10px;
+  margin-left: auto;
+  /* Align notifications to the right of their container */
+  cursor: pointer;
+  /* Indicate that the notification is clickable */
+}
+
+.notification-saved {
+  background-color: #28a745;
+  /* Green */
+}
+
+.notification-export {
+  background-color: #007bff;
+  /* Blue */
+}
+
+.notification-import {
+  background-color: #78009c;
+  /* Purple */
+}
+
+/* Transitions for fade-in and fade-out */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.fade-enter,
+.fade-leave-to
+
+/* .fade-leave-active in <2.1.8 */
+  {
+  opacity: 0;
+  transform: translateX(20px);
+  /* Slide in/out effect */
+}
+
+.fade-enter-to,
+.fade-leave {
+  opacity: 1;
+  transform: translateX(0);
+  /* Normal position */
+}
+</style>

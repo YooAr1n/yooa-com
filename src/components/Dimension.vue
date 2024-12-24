@@ -1,11 +1,11 @@
 <template>
-    <div class="dimension" :class="{'disabled': !canAfford}">
+    <div class="dimension" :class="{ 'disabled': !canAfford }">
         <h2>{{ dimHeader }}</h2>
         <p v-if="dimension.tier === 1">Boosts YooA Point gain.</p>
         <p v-else-if="dimension.tier > 1">Produces {{ getPrevDimensionName(dimension.tier) }}.</p>
         <p>Cost: {{ formatCost(dimension.cost) }} YooA Points</p>
         <p>{{ getEffectDisplay(dimension) }}</p> <!-- Call the method directly -->
-        <button @click="buyDimension" :disabled=" !canAfford">Buy</button>
+        <button @click="buyDimension" :disabled="!canAfford">Buy</button>
     </div>
 </template>
 
@@ -24,7 +24,7 @@ export default {
         canAfford() {
             return player[this.dimension.currency].gte(this.dimension.cost)
         }
-    }, 
+    },
     methods: {
         buyDimension() {
             this.dimension.buy(player);
@@ -59,7 +59,7 @@ export default {
 }
 
 .dimension.disabled {
-  background: linear-gradient(to right, #c51313, #ff5757);
-  cursor: not-allowed;
+    background: linear-gradient(to right, #c51313, #ff5757);
+    cursor: not-allowed;
 }
 </style>

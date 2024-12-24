@@ -1,0 +1,219 @@
+<template>
+    <div class="changelog">
+        <!-- Loop through the major versions -->
+        <div v-for="(majorInfo, majorVersion) in groupedChangelog" :key="majorVersion" class="version-group">
+            <h3 @click="toggleVersion(majorVersion)" :class="{ 'expanded': isVersionExpanded(majorVersion) }">
+                {{ majorVersion }} - {{ majorInfo.title }} ({{ majorInfo.date }})
+            </h3>
+
+            <!-- Show Major version description with animation -->
+            <transition name="expand-collapse">
+                <div v-if="isVersionExpanded(majorVersion)" class="major-desc">
+                    <!-- Bullet points for Major version description -->
+                    <ul>
+                        <li v-for="(desc, index) in majorInfo.description" :key="index">{{ desc }}</li>
+                    </ul>
+
+                    <!-- Loop through minor versions under the major version -->
+                    <div v-for="(minorInfo, minorVersion) in majorInfo.minors" :key="minorVersion"
+                        class="minor-version-group">
+                        <h4 @click="toggleVersion(minorVersion, majorVersion)"
+                            :class="{ 'expanded': isVersionExpanded(minorVersion, majorVersion) }">
+                            {{ minorVersion }} - {{ minorInfo.title }} ({{ getVersionDate(minorVersion) }})
+                        </h4>
+
+                        <!-- Show Minor version description with animation -->
+                        <transition name="expand-collapse">
+                            <div v-if="isVersionExpanded(minorVersion, majorVersion)" class="minor-desc">
+                                <!-- Bullet points for Minor version description -->
+                                <ul>
+                                    <li v-for="(desc, index) in minorInfo.description" :key="index">{{ desc }}</li>
+                                </ul>
+
+                                <!-- Loop through patch versions under the minor version -->
+                                <div v-for="patchEntry in minorInfo.patches" :key="patchEntry.version"
+                                    class="patch-version-group">
+                                    <h5 @click="toggleVersion(patchEntry.version, minorVersion)"
+                                        :class="{ 'expanded': isVersionExpanded(patchEntry.version, minorVersion) }">
+                                        {{ patchEntry.version }} - {{ patchEntry.title }} ({{ patchEntry.date }})
+                                    </h5>
+
+                                    <!-- Show Patch version description with animation -->
+                                    <transition name="expand-collapse">
+                                        <ul v-if="isVersionExpanded(patchEntry.version, minorVersion)">
+                                            <li v-for="(desc, index) in patchEntry.description" :key="index">{{ desc }}
+                                            </li>
+                                        </ul>
+                                    </transition>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+                </div>
+            </transition>
+        </div>
+    </div>
+</template>
+
+<script>
+export default {
+    name: "Changelog",
+    data() {
+        return {
+            changelogEntries: [
+                {
+                    version: "v0", title: "Start of Game", date: "2024-11-25",
+                    description: [
+                        "Start. – The initial release of the game framework.",
+                        "Added main menu. – Introduced the main screen where players can start the game.",
+                        "Added options menu. – Added settings like Save, Export, Import, Auto Save, and HARD RESET.",
+                        "Implemented basic UI. – Designed the user interface for navigating the game.",
+                        "Auto Save Feature. – Auto Save is now ON by default with an interval of 30 seconds."
+                    ]
+                },
+                {
+                    version: "v0.1", title: "First Steps", date: "2024-12-24",
+                    description: [
+                        "Added Achievements. – Introduced a tracking system for player milestones and rewards.",
+                        "Added Changelog. – Added a changelog feature to track updates and changes in the game.",
+                        "Added Statistics. – Introduced a statistics system to track player progress and game data.",
+                        "Save/Load functionality. – Players can now save, load, and export their game progress.",
+                        "Added HARD RESET option. – Players can now reset the game to its default state.",
+                        "Bug fixes and stability improvements. – Fixed minor issues to improve the overall stability of the game."
+                    ]
+                },
+            ],
+            expandedVersions: [],
+        };
+    },
+    computed: {
+        groupedChangelog() {
+            return this.changelogEntries.reduce((groups, entry) => {
+                const versionParts = entry.version.split('.');
+                const majorVersion = versionParts[0];
+                const minorVersion = versionParts.length > 1 ? `${versionParts[0]}.${versionParts[1]}` : null;
+                const patchVersion = versionParts.length > 2 ? `${minorVersion}.${versionParts[2]}` : null;
+
+                if (!groups[majorVersion]) {
+                    groups[majorVersion] = { title: entry.title, date: entry.date, description: null, minors: {} };
+                }
+
+                if (!minorVersion && !patchVersion) {
+                    groups[majorVersion].description = entry.description;
+                }
+
+                if (minorVersion && !groups[majorVersion].minors[minorVersion]) {
+                    groups[majorVersion].minors[minorVersion] = { title: entry.title, description: null, patches: [] };
+                }
+
+                if (minorVersion && !patchVersion) {
+                    groups[majorVersion].minors[minorVersion].description = entry.description;
+                }
+
+                if (patchVersion) {
+                    groups[majorVersion].minors[minorVersion].patches.push(entry);
+                }
+
+                return groups;
+            }, {});
+        },
+    },
+    methods: {
+        toggleVersion(version, parentVersion = null) {
+            const versionKey = parentVersion ? `${parentVersion}:${version}` : version;
+            const index = this.expandedVersions.indexOf(versionKey);
+            if (index === -1) {
+                this.expandedVersions.push(versionKey);
+            } else {
+                this.expandedVersions.splice(index, 1);
+            }
+        },
+
+        isVersionExpanded(version, parentVersion = null) {
+            const versionKey = parentVersion ? `${parentVersion}:${version}` : version;
+            return this.expandedVersions.includes(versionKey);
+        },
+
+        getVersionDate(version) {
+            const entry = this.changelogEntries.find(e => e.version === version);
+            return entry ? entry.date : "No date available.";
+        },
+    },
+};
+</script>
+
+<style scoped>
+.changelog {
+    margin: 20px;
+}
+
+h2 {
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.version-group,
+.minor-version-group,
+.patch-version-group {
+    margin-bottom: 20px;
+}
+
+h3,
+h4,
+h5 {
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+h3 {
+    font-size: 20pt;
+    color: #0056b3;
+}
+
+h4 {
+    font-size: 18pt;
+    color: #007bff;
+}
+
+h5 {
+    font-size: 16pt;
+    color: #008080;
+}
+
+h3.expanded,
+h4.expanded,
+h5.expanded {
+    color: #d17be2;
+}
+
+ul {
+    list-style-type: disc;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+li {
+    margin: 5px 0;
+    padding: 8px;
+    border-radius: 4px;
+    text-align: center;
+    /* Centers the text within each list item */
+    font-size: 14pt;
+}
+
+strong {
+    font-weight: bold;
+}
+
+.expand-collapse-enter-active,
+.expand-collapse-leave-active {
+    transition: all 0.5s ease;
+}
+
+.expand-collapse-enter,
+.expand-collapse-leave-to {
+    opacity: 0;
+}
+</style>

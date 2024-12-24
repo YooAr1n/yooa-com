@@ -1,7 +1,7 @@
 <template>
   <div class="progress">
     <div id="percentbar" class="percent">
-      <span data-text = "Percentage to YooAity" id="percent" class="tooltip">{{ percent }}</span>
+      <span data-text = "Percentage to YooAity" id="percent" class="prog-tooltip">{{ percent }}</span>
     </div>
   </div>
 </template>
@@ -62,13 +62,13 @@ div.percent{
 	color: white;
 }
 
-.tooltip {
+.prog-tooltip {
 	overflow-wrap: normal;
 	position: relative;
 	white-space: nowrap;
 }
 
-.tooltip:before {
+.prog-tooltip:before {
 	content: attr(data-text);
 	position: absolute;
 
@@ -91,14 +91,14 @@ div.percent{
   	transition: .3s;
 }
 
-.tooltip:hover:before, .tooltip:hover:after {
+.prog-tooltip:hover:before, .prog-tooltip:hover:after {
 	display: block;
 	opacity: 1;
 	visibility: visible;
 	white-space: normal;
 }
 
-.tooltip:after {
+.prog-tooltip:after {
 	content: "";
 	position: absolute;
 

@@ -142,4 +142,12 @@ div.upgrade.maxed {
 div.upgrade.purchased {
   animation: upgradePulse 0.2s ease-out;
 }
+
+div.upgrade h2 {
+  margin: 10px 0;
+}
+
+div.upgrade p {
+  margin: 6px 0;
+}
 </style>

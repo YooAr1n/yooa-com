@@ -52,7 +52,6 @@ export default {
 	border-radius: 4px;
 	cursor: pointer;
 	font-size: 15pt;
-	font-family: monospace;
 	width: 160px;
 	height: 80px;
 	vertical-align: top;

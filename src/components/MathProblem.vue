@@ -29,13 +29,14 @@
 
 <script>
 import { player, getYooAGain } from "@/incremental/incremental.js";
-import { getUpgLevels } from "@/incremental/main.js";
+import { gameLayers } from "@/incremental/main.js";
 
 export function generateNewProblem() {
     const getRandomNumber = () => {
     let num;
     do {
-        let x = 10 ** (getUpgLevels("YooA", 11).toNumber() + 1) - 1
+        let digs = gameLayers.YooA.upgrades[11].digits().toNumber() + 1
+        let x = Math.round(10 ** (digs) - 1)
         num = Math.floor(Math.random() * (x * 2 + 1)) - x; // Range: -9 to 9
     } while (num === 0);
     return num;
@@ -94,6 +95,7 @@ export default {
             if (parseFloat(this.userAnswer) === this.correctAnswer) {
                 player.YooAPoints = player.YooAPoints.add(getYooAGain()); // Example point reward
                 player.math.YooA.solved ++;
+                player.stats.General.totalSolved ++;
                 this.answeredCorrect = true; // Mark as correct
             } 
             else {

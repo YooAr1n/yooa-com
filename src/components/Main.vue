@@ -29,7 +29,6 @@
     <div v-if="currentTab === 'Main-upgrade'" class="tab-content">
       <UpgradeGrid :layerName="'YooA'" />
     </div>
-    <br><br><br><br>
   </div>
 </template>
 
