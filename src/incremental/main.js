@@ -250,7 +250,6 @@ export const achievements = {
       return new Decimal(1.02)
     },
     rewardEffDesc() {
-      console.log(this.rewardEffect())
       return "x" + this.rewardEffect()
     },
     done() {
