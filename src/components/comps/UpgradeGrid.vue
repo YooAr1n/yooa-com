@@ -27,6 +27,7 @@ export default {
     }
   },
   computed: {
+    // Calculate the number of rows based on upgrades data
     gridRows() {
       return Array.from({ length: gameLayers[this.layerName].upgrades.rows }, (_, i) => i + 1); // Row indices for the specific layer
     }
@@ -51,24 +52,36 @@ export default {
 </script>
 
 <style scoped>
+/* Parent container (scrollable) */
 .grid-container {
   display: flex;
   flex-direction: column;
   gap: 16px; /* Space between rows */
   padding: 16px;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* Ensure it takes up the full container height */
+  overflow: auto; /* Enable scrolling if content overflows */
 }
 
+/* Ensure rows are properly displayed */
 .grid-row {
   display: flex;
   justify-content: center;
-  gap: 16px; /* Space between upgrades in a row */
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap; /* Allow wrapping for responsiveness */
+  border-radius: 10px;
 }
 
+/* Grid item styling */
 .grid-item {
-  width: 250px;  /* Fixed width */
-  height: 250px; /* Fixed height */
   display: flex;
   justify-content: center;
   align-items: center;
+  min-width: 250px;  /* Prevent shrinking below this width */
+  max-width: 250px;  /* Prevent stretching beyond 250px */
+  height: 250px;     /* Fixed height */
 }
 </style>
+

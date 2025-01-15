@@ -4,7 +4,7 @@
       <h2 
         id="correct" 
         v-if="showCorrect" 
-        :style="{ color: answeredCorrect ? '#7bff7b' : '#ff7b7b' }"
+        :style="{ color: isCorrect ? '#7bff7b' : '#ff7b7b' }"
       >
         {{ correct }}
       </h2>
@@ -71,42 +71,52 @@ export default {
     data() {
         return {
             userAnswer: "", // Store the user's input
-            showCorrect: false, // Control the visibility of the correct answer
-            answeredCorrect: false, // Track if the last answer was correct
         };
     },
     computed: {
         problem() {
             return player.math.YooA.mathProblem; // Display the current math problem
         },
+        problemGain() {
+            return gameLayers.YooA.problemGain()
+        },
         correctAnswer() {
             return player.math.YooA.correctAnswer; // Reference the correct answer
         },
         correct() {
-            return this.answeredCorrect
+            return player.math.YooA.isCorrect
             ? "Correct! YooA Points have increased!"
             : "Incorrect! The correct answer is " + this.correctAnswer;
         },
+        isCorrect() {
+            return player.math.YooA.isCorrect
+        },
+        showCorrect() {
+            return player.math.YooA.showCorrect
+        }
     },
     methods: {
         submit() {
-            this.showCorrect = true; // Show the correct answer on submit
+            player.math.YooA.showCorrect = true; // Show the correct answer on submit
 
             if (parseFloat(this.userAnswer) === this.correctAnswer) {
+                let gain = this.problemGain
+
                 player.YooAPoints = player.YooAPoints.add(getYooAGain()); // Example point reward
-                player.math.YooA.solved ++;
-                player.stats.General.totalSolved ++;
-                this.answeredCorrect = true; // Mark as correct
+                player.stats.General.totalPoints = player.stats.General.totalPoints.add(getYooAGain()); // Example point reward
+                player.math.YooA.solved += gain;
+                player.stats.General.totalSolved += gain;
+                player.math.YooA.isCorrect = true; // Mark as correct
             } 
             else {
-                this.answeredCorrect = false; // Mark as incorrect
+                player.math.YooA.isCorrect = false; // Mark as incorrect
             }
 
             this.userAnswer = ""; // Clear the input field
 
             // Hide the correct answer after 5 seconds
             setTimeout(() => {
-            this.showCorrect = false;
+            player.math.YooA.showCorrect = false;
             this.generateNewProblem();
             }, 5000);
         },

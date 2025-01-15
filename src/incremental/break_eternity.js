@@ -2064,6 +2064,22 @@
          * Equivalent to 'this' ^ (1 / 'value'), which is written here as this.pow(value.recip()).
          */
       }, {
+        key: "dilate",
+        value: function dilate(value, base=10) {
+          if (this.eq(0)) return FC_NN(0, 0, 0)
+          let a = this
+          let b = 1
+          if (a.lt(1)) {
+            a = this.recip()
+            b = -1
+          }
+          return a.log(base).pow(value).mul(b).pow_base(base);
+        }
+        /**
+         * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'value' = 'this'.
+         * Equivalent to 'this' ^ (1 / 'value'), which is written here as this.pow(value.recip()).
+         */
+      }, {
         key: "root",
         value: function root(value) {
           var decimal = D(value);
@@ -4021,6 +4037,15 @@
         key: "pow10",
         value: function pow10(value) {
           return D(value).pow10();
+        }
+        /**
+         * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'other' = 'value'.
+         * Equivalent to 'value' ^ (1 / 'other'), which is written here as value.pow(other.recip()).
+         */
+      }, {
+        key: "dilate",
+        value: function dilate(value, other, base=10) {
+          return D(value).dilate(other, base);
         }
         /**
          * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'other' = 'value'.

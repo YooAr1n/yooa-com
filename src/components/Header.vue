@@ -2,8 +2,9 @@
   <div class="header">
     <span style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;" @click="openNav()">☰</span>
     <h1>{{ msg }}</h1>
+    <PrestigeHeader layerName="YooAmatter"></PrestigeHeader>
     <p class="points">You have <span v-html="pointsText"></span> YooA Points<br>
-      <span v-if="ppsText">({{ ppsText }}/s)<br></span>
+      <span v-if="ppsText">{{ ppsText }}<br></span>
       Current Endgame: <span v-html="endgameText"></span>
     </p>
   </div>
@@ -11,8 +12,8 @@
 
 <script>
 import { player } from '@/incremental/incremental.js'
-import { getYooAPerSecond } from '@/incremental/incremental.js'
 import { hasUpgrade } from '@/incremental/main.js';
+import PrestigeHeader from './comps/PrestigeHeader.vue';
 
 export default {
   name: 'Header',
@@ -22,11 +23,10 @@ export default {
     },
     ppsText() {
       if (!hasUpgrade("YooA", 21)) return
-      let pps = getYooAPerSecond()
-      return format(pps);
+      return player.gain.YooA.points;
     },
     endgameText() {
-      return colorText("h3", "#d17be2", format(1e12)) + " YooA Points"//colorText("h3", "#bcc70f", format("9.17e1995")) + " YooAmatter"
+      return colorText("h3", "#bcc70f", format(1e29/*"9.17e1995"*/)) + " YooAmatter"
     }
   },
   methods: {
@@ -37,7 +37,10 @@ export default {
   },
   props: {
     msg: String,
-  }
+  },
+  components: {
+    PrestigeHeader
+  },
 }
 </script>
 

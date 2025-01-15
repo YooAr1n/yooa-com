@@ -4,7 +4,8 @@
       <div v-for="notif in notifications" :key="notif.id" class="notification" :class="{
         'notification-import': notif.type === 'import',
         'notification-export': notif.type === 'export',
-        'notification-saved': notif.type === 'saved'
+        'notification-saved': notif.type === 'saved',
+        'notification-achievement': notif.type === 'achievement'
       }" @click="removeNotification(notif.id)">
         <span>{{ notif.message }}</span>
       </div>
@@ -103,6 +104,9 @@ export default {
     window.addEventListener('game-saved', () => this.addNotification('Game saved!', 'saved'));
     window.addEventListener('export-completed', () => this.addNotification('Export successful!', 'export'));
     window.addEventListener('import-completed', () => this.addNotification('Import successful!', 'import'));
+    window.addEventListener('achievement-unlocked', (e) => {
+      this.addNotification(e.detail, 'achievement');
+    });
   },
   beforeUnmount() {
     // Cleanup timers and listeners
@@ -111,6 +115,7 @@ export default {
     window.removeEventListener('game-saved', this.addNotification);
     window.removeEventListener('export-completed', this.addNotification);
     window.removeEventListener('import-completed', this.addNotification);
+    window.removeEventListener('achievement-unlocked', this.addNotification);
   },
 };
 </script>
@@ -166,6 +171,11 @@ export default {
 .notification-import {
   background-color: #78009c;
   /* Purple */
+}
+
+.notification-achievement {
+  background-color: #b8981a;
+  /* Gold */
 }
 
 /* Transitions for fade-in and fade-out */

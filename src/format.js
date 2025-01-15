@@ -126,3 +126,39 @@ window.invertOOM = function invertOOM(x){
 window.colorText = function colorText(elem, color, text) {
 	return "<" + elem + " style='color:" + color + ";text-shadow:0px 0px 10px;'>" + text + "</" + elem + ">"
 }
+
+window.formatGain = function formatGain(a,e, FPS, percent, DT = Decimal.tetrate(10, 10)) {
+	a = new Decimal(a)
+	e = new Decimal(e)
+    const g = Decimal.add(a,e.div(FPS))
+
+    if (g.neq(a) || percent) {
+        if (a.gte(DT)) {
+            var oom = g.slog(10).sub(a.slog(10)).mul(FPS)
+            if (oom.gte(1e-3)) return "(+" + format(oom) + " OoMs^^2/s)"
+        }
+		
+        if (a.gte('ee100')) {
+            var tower = Math.floor(a.slog(10).toNumber() - 1.3010299956639813);
+    
+            var oom = g.iteratedlog(10,tower).sub(a.iteratedlog(10,tower)).mul(FPS), rated = false;
+    
+            if (oom.gte(1)) rated = true
+            else if (tower > 2) {
+                tower--
+                oom = g.iteratedlog(10,tower).sub(a.iteratedlog(10,tower)).mul(FPS)
+                if (oom.gte(1)) rated = true
+            }
+    
+            if (rated) return "(+" + format(oom) + " OoMs^"+tower+"/s)"
+        }
+    
+        if (a.gte(1e100) || percent) {
+            const oom = g.div(a).log10().mul(FPS)
+            if (oom.gte(10)) return "(+" + format(oom) + " OoMs/s)"
+			if (oom.gte(Math.log10(2)) || percent) return "(+" + format(oom.pow10().sub(1).mul(100)) + "%/s)"
+        }
+    }
+
+    return "(" + (e.lt(0) ? "" : "+") + format(e) + "/s)"
+}

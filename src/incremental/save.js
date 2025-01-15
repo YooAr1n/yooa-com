@@ -1,6 +1,7 @@
 import { getStartPlayer } from "./incremental.js";
 import { options, getStartOptions } from './options.js';
 import Dimension from "./dimensions.js"; 
+import { generateNewProblem } from "@/components/comps/MathProblem.vue";
 
 function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -31,8 +32,8 @@ export function fixData(defaultData, newData) {
             if (newData[item] === undefined) newData[item] = new Decimal(defaultData[item].toString());
             else newData[item] = new Decimal(newData[item].toString());
         } else if (defaultData[item] instanceof Dimension) {
-            if (newData[item] === undefined) newData[item] = new Dimension(defaultData[item].name, defaultData[item].amt, defaultData[item].level, defaultData[item].tier);
-            else newData[item] = new Dimension(newData[item].name, newData[item].amt, newData[item].level, newData[item].tier);
+            if (newData[item] === undefined) newData[item] = new Dimension(defaultData[item].type, defaultData[item].name, defaultData[item].amt, defaultData[item].level, defaultData[item].tier, defaultData[item].costDisp, defaultData[item].layer, defaultData[item].currency);
+            else newData[item] = new Dimension(newData[item].type, newData[item].name, newData[item].amt, newData[item].level, newData[item].tier, newData[item].costDisp, newData[item].layer, newData[item].currency);
             fixData(defaultData[item], newData[item]);
         } else if ((!!defaultData[item]) && (typeof defaultData[item] === "object")) {
             if (newData[item] === undefined) {
@@ -44,11 +45,24 @@ export function fixData(defaultData, newData) {
             if (newData[item] === undefined) newData[item] = defaultData[item];
         }
 
-        // Explicitly handle player.upgrades.YooA conversion here
-        if (item === "upgrades" && newData[item] && newData[item].YooA) {
-            for (let upgradeId in newData[item].YooA) {
-                if (typeof newData[item].YooA[upgradeId] === "string") {
-                    newData[item].YooA[upgradeId] = new Decimal(newData[item].YooA[upgradeId]);
+
+        if (item === "math" && newData[item]) {
+            for (let layer in newData[item]) {
+                if (newData[item][layer].showCorrect) {
+                    newData[item][layer].showCorrect = false
+                    generateNewProblem()
+                }
+            }
+        }
+
+        // Explicitly handle player.upgrades conversion here for all layers
+        if (item === "upgrades" && newData[item]) {
+            for (let layer in newData[item]) {
+                for (let upgradeId in newData[item][layer]) {
+                    let upgrade = newData[item][layer][upgradeId];
+                    if (typeof upgrade === "string") {
+                        newData[item][layer][upgradeId] = new Decimal(upgrade);
+                    }
                 }
             }
         }

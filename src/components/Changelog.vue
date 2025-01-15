@@ -82,6 +82,19 @@ export default {
                         "Bug fixes and stability improvements. – Fixed minor issues to improve the overall stability of the game."
                     ]
                 },
+                {
+                    version: "v0.2",
+                    title: "Beyond the Basics",
+                    date: "2025-01-15",
+                    description: [
+                        "Added YooAmatter Prestige Layer. – Introduced YooAmatter, allowing players to prestige for powerful boosts.",
+                        "Added 3 New Dimensions. – Expanded gameplay with additional YooA Dimensions.",
+                        "New Upgrades. – Added more upgrades to enhance progression and unlock new features.",
+                        "Expanded Achievements. – Added a new row of achievements to reward milestone accomplishments.",
+                        "Gameplay Enhancements. – Improved mechanics and scaling to balance progression.",
+                        "Minor Bug Fixes. – Fixed various issues for smoother gameplay."
+                    ]
+                },
             ],
             expandedVersions: [],
         };

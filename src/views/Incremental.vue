@@ -2,39 +2,36 @@
 	<div class="main">
 		<!-- Sidebar Navigation -->
 		<div id="mySidenav" class="sidenav">
-		<a href="javascript:void(0)" class="closebtn" @click="closeNav()">&times;</a>
-		<a href="javascript:void(0)" 
-			@click="changeTab('Main')" 
-			:class="{ active: currentTab === 'Main' }">
-			Main
-		</a>
-		<a href="javascript:void(0)" 
-			@click="changeTab('Options')" 
-			:class="{ active: currentTab === 'Options' }">
-			Options
-		</a>
-		<a href="javascript:void(0)" 
-			@click="changeTab('Stats')" 
-			:class="{ active: currentTab === 'Stats' }">
-			Stats
-		</a>
-		<a href="javascript:void(0)" 
-			@click="changeTab('Achievements')" 
-			:class="{ active: currentTab === 'Achievements' }">
-			Achievements
-		</a>
-		<a href="javascript:void(0)" 
-			@click="changeTab('Changelog')" 
-			:class="{ active: currentTab === 'Changelog' }">
-			Changelog
-		</a>
+			<a href="javascript:void(0)" class="closebtn" @click="closeNav()">&times;</a>
+			<a href="javascript:void(0)" @click="changeTab('Main')" :class="{ active: currentTab === 'Main' }">
+				Main
+			</a>
+			<a v-if="unlocked('YooAmatter')" href="javascript:void(0)" @click="changeTab('YooAmatter')"
+				:class="{ active: currentTab === 'YooAmatter' }">
+				YooAmatter
+			</a>
+			<a href="javascript:void(0)" @click="changeTab('Options')" :class="{ active: currentTab === 'Options' }">
+				Options
+			</a>
+			<a href="javascript:void(0)" @click="changeTab('Stats')" :class="{ active: currentTab === 'Stats' }">
+				Stats
+			</a>
+			<a href="javascript:void(0)" @click="changeTab('Achievements')"
+				:class="{ active: currentTab === 'Achievements' }">
+				Achievements
+			</a>
+			<a href="javascript:void(0)" @click="changeTab('Changelog')"
+				:class="{ active: currentTab === 'Changelog' }">
+				Changelog
+			</a>
 		</div>
 
 		<!-- Header Component -->
 		<Header :msg="headerMessage" ref="header"></Header>
 
 		<!-- Main Content -->
-		<Main v-if="currentTab === 'Main'"></Main>
+		<Main v-if="currentTab === 'Main'" ref="main"></Main>
+		<YooAmatter v-if="currentTab === 'YooAmatter'"></YooAmatter>
 		<Options v-if="currentTab === 'Options'"></Options>
 		<Stats v-if="currentTab === 'Stats'"></Stats>
 		<Achievements v-if="currentTab === 'Achievements'"></Achievements>
@@ -46,20 +43,23 @@
 </template>
 
 <script>
-import { player, start } from '@/incremental/incremental.js'; // Import player as reactive state
+import { hasAchievement, maxAllDimensions, player, start } from '@/incremental/incremental.js'; // Import player as reactive state
 import Header from '@/components/Header.vue';
 import Main from '@/components/Main.vue';
+import YooAmatter from '@/components/YooAmatter.vue';
 import Options from '@/components/Options.vue';
 import Stats from '@/components/Stats.vue';
 import Achievements from '@/components/Achievements.vue';
 import Changelog from '@/components/Changelog.vue';
-import Notification from '@/components/Notification.vue';
-import ProgressBar from '@/components/ProgressBar.vue';
+import Notification from '@/components/comps/Notification.vue';
+import ProgressBar from '@/components/comps/ProgressBar.vue';
+import { gameLayers } from '@/incremental/main';
 
 export default {
 	components: {
 		Header,
 		Main,
+		YooAmatter,
 		Options,
 		Stats,
 		Achievements,
@@ -80,15 +80,28 @@ export default {
 			return this.player.tab.split('-')[0];
 		},
 		gameName() {
-			return 'YooA Incremental v0.1'
-		}
+			return 'YooA Incremental v0.2'
+		},
 	},
 	mounted() {
 		document.title = this.gameName;
 		start();
 		this.headerMessage = this.currentTab === 'Main' ? this.gameName : this.currentTab;
+		window.addEventListener("keydown", this.handleKeydown);
+	},
+	beforeUnmount() {
+		// Remove the event listener when the component is destroyed
+		window.removeEventListener("keydown", this.handleKeydown);
 	},
 	methods: {
+		unlocked(layer) {
+			return gameLayers[layer].unlocked()
+		},
+		handleKeydown(event) {
+			if (hasAchievement(27) && (event.key === 'm' || event.key === 'M')) {
+				maxAllDimensions("YooA")
+			}
+		},
 		closeNav() {
 			// Close the navigation sidebar
 			let nav = document.getElementById('mySidenav');
@@ -155,4 +168,3 @@ div.main {
 	color: #991893;
 }
 </style>
-  

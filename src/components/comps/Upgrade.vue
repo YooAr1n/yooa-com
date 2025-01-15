@@ -1,17 +1,14 @@
 <template>
-  <div 
-    class="upgrade" 
-    :class="{ disabled: !canAfford, maxed: isMaxed, purchased: purchaseAnimation }" 
-    v-if="upgrade" 
-    @click="buy"
-  >
+  <div class="upgrade" :class="{ disabled: !canAfford, maxed: isMaxed, purchased: purchaseAnimation }" v-if="upgrade"
+    @click="buy" :style="upgradeStyle">
     <h2>{{ upgrade.title }}</h2>
     <p>
       {{ upgrade.description() }}
-      </p>
+    </p>
     <p>
-      Cost: {{ formatCost(typeof upgrade.cost === 'function' ? upgrade.cost() : upgrade.cost) }} {{ upgrade.costCurrency }}
-      <br>
+      Cost: {{ formatCost(typeof upgrade.cost === 'function' ? upgrade.cost() : upgrade.cost) }} {{ upgrade.costCurrency
+      }}
+      <br />
       {{ lvlDisplay }}
     </p>
     <p v-if="upgrade.effectDisplay">Effect: {{ upgrade.effectDisplay() }}</p>
@@ -52,15 +49,32 @@ export default {
       const level = player.upgrades[this.layerName]?.[this.upgradeId] || 0;
       return new Decimal(level);
     },
+    maxLevel() {
+      return typeof this.upgrade.maxLvl === 'function' ? this.upgrade.maxLvl() : this.upgrade.maxLvl
+    },
     isMaxed() {
-      return this.upgrade.maxLvl && this.playerLevel.gte(this.upgrade.maxLvl);
+      return this.maxLevel && this.playerLevel.gte(this.maxLevel);
     },
     lvlDisplay() {
       let dis = "Level: " + formatWhole(this.playerLevel);
-      if (this.upgrade.maxLvl) dis += "/" + formatWhole(this.upgrade.maxLvl);
+      if (this.maxLevel) dis += "/" + formatWhole(this.maxLevel);
       if (this.isMaxed) dis += " (MAXED)";
       return dis;
     },
+    // Dynamic style based on the layer name
+    upgradeStyle() {
+      let backgroundColor;
+      if (this.layerName === 'YooA') {
+        backgroundColor = '#d17be2'; // For the YooA layer
+      } else if (this.layerName === 'YooAmatter') {
+        backgroundColor = '#bcc70f'; // For the YooAmatter layer
+      } else {
+        backgroundColor = '#d17be2'; // Default color for other layers
+      }
+      return {
+        backgroundColor: backgroundColor,
+      };
+    }
   },
   methods: {
     buy() {
@@ -90,10 +104,12 @@ export default {
     transform: scale(1);
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   }
+
   50% {
     transform: scale(1.1);
     box-shadow: 0 0 20px rgba(255, 255, 255, 1);
   }
+
   100% {
     transform: scale(1);
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
@@ -102,25 +118,24 @@ export default {
 
 /* Base upgrade style */
 div.upgrade {
-  width: 100%; /* Take full width of grid-item */
-  height: 100%; /* Take full height of grid-item */
-  background-color: #d17be2;
+  width: 100%;
+  height: 100%;
   font-size: 10pt;
   border-radius: 10px;
   padding: 8px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Distributes content vertically */
+  justify-content: space-between;
   align-items: center;
-  box-sizing: border-box; /* Ensures padding doesn't affect size */
+  box-sizing: border-box;
   cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for hover effects */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Hover effect for upgrades */
 div.upgrade:hover {
-  transform: scale(1.05); /* Slightly raise and enlarge on hover */
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); /* Add a shadow effect */
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
 }
 
 /* Disabled upgrade style */
@@ -131,11 +146,11 @@ div.upgrade.disabled {
 
 /* Maxed upgrade style */
 div.upgrade.maxed {
-  background: linear-gradient(to bottom, #ffd700, #ffbf00); /* Gold gradient */
-  color: #4b2905; /* Darker text for contrast */
+  background: linear-gradient(to bottom, #ffd700, #ffbf00);
+  color: #4b2905;
   font-weight: bold;
-  box-shadow: 0 0 10px #ffbf00; /* Glowing effect for emphasis */
-  cursor: default; /* Remove pointer cursor for MAXED upgrades */
+  box-shadow: 0 0 10px #ffbf00;
+  cursor: default;
 }
 
 /* Purchased animation style */
