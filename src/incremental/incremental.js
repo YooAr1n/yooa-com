@@ -305,10 +305,14 @@ export function calc(diff) {
 
     player.gain.YooA.points = gainCurrency(player, "YooAPoints", gain, diff);
     gainCurrency(player, "stats.General.totalPoints", gain, diff);
-    gainCurrency(player, "math.YooA.solved", upgrade22Effect, diff);
-    gainCurrency(player, "stats.General.totalSolved", upgrade22Effect, diff);
+
     gainCurrency(player, "stats.General.totalTime", timeIncrement, diff);
     gainCurrency(player, "stats.YooAmatter.time", timeIncrement, diff);
+
+    if (hasUpgrade("YooAmatter", 22)) {
+        gainCurrency(player, "math.YooA.solved", upgrade22Effect, diff);
+        gainCurrency(player, "stats.General.totalSolved", upgrade22Effect, diff);
+    }
 
     if (hasUpgrade("YooAmatter", 42)) {
         gainCurrency(player, "stats.YooAmatter.totalYooArium", YooAriumGain, diff);
