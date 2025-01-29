@@ -5,22 +5,27 @@
     <section>
       <h2>General Stats</h2>
       <ul>
-        <li>Total YooA Points: {{ pointsText }}</li>
-        <li>Total Time Played: {{ timeText }}</li>
-        <li>Total Math Problems Solved: {{ totalSolved }}</li>
+        <li>Total YooA Points: {{ pointsText() }}</li>
+        <li>Total Time Played: {{ timeText() }}</li>
+        <li>Total Math Problems Solved: {{ solvedText() }}</li>
+        <li>{{ pointsScale }}</li>
       </ul>
     </section>
 
     <section>
       <h2><span v-html="YooAText"></span> Stats</h2>
       <ul>
-        <li>Math Problems Solved: {{ YooASolved }}</li>
+        <li>Math Problems Solved: {{ solvedText("YooA") }}</li>
       </ul>
     </section>
     <section v-if="unlocked('YooAmatter')">
       <h2><span v-html="YooAmatterText"></span> Stats</h2>
       <ul>
-        <li>Total YooAmatter: {{ totalYM }}</li>
+        <li>Total YooAmatter: {{ pointsText("YooAmatter") }}</li>
+        <li>Resets: {{ resetsText("YooAmatter") }}</li>
+        <li v-if="YooAriumUnlocked">Total YooArium: {{ totalYR }}</li>
+        <li>Time: {{ timeText("YooAmatter") }}</li>
+        <li>Math Problems Solved: {{ solvedText("YooAmatter") }}</li>
       </ul>
     </section>
   </div>
@@ -28,7 +33,7 @@
 
 <script>
 import { player, getStartStats } from "@/incremental/incremental.js";
-import { gameLayers } from "@/incremental/main";
+import { gameLayers, hasUpgrade } from "@/incremental/main";
 
 export default {
   name: "Stats",
@@ -38,20 +43,14 @@ export default {
     };
   },
   computed: {
-    pointsText() {
-      return format(player.stats.General.totalPoints);
+    totalYR() {
+      return format(player.stats.YooAmatter.totalYooArium)
     },
-    timeText() {
-      return formatTime(player.stats.General.totalTime);
-    },
-    totalSolved() {
-      return formatWhole(player.stats.General.totalSolved)
-    },
-    YooASolved() {
-      return formatWhole(player.stats.YooA.solved)
-    },
-    totalYM() {
-      return formatWhole(player.stats.YooAmatter.totalAmount)
+    pointsScale() {
+      return scale(player.YooAPoints)
+    }, 
+    YooAriumUnlocked() {
+      return hasUpgrade("YooAmatter", 23)
     },
     YooAText() {
       return colorText("span", "#d17be2", "YooA")
@@ -63,6 +62,21 @@ export default {
   methods: {
     unlocked(layer) {
       return gameLayers[layer].unlocked()
+    },
+    pointsText(layer) {
+      if (!layer) return format(player.stats.General.totalPoints);
+      return format(player.stats[layer].totalAmount)
+    },
+    timeText(layer) {
+      if (!layer) return formatTime(player.stats.General.totalTime);
+      return formatTime(player.stats[layer].time)
+    },
+    solvedText(layer) {
+      if (!layer) return formatWhole(player.stats.General.totalSolved);
+      return formatWhole(player.math[layer].solved)
+    },
+    resetsText(layer) {
+      return formatWhole(player.stats[layer].resets)
     },
   }
 };

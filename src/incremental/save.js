@@ -1,19 +1,22 @@
-import { getStartPlayer } from "./incremental.js";
+import { gameLoop, getStartPlayer } from "./incremental.js";
 import { options, getStartOptions } from './options.js';
 import Dimension from "./dimensions.js"; 
 import { generateNewProblem } from "@/components/comps/MathProblem.vue";
+import Autobuyer from "./automation.js";
 
 function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
 export function save(click = false) {
+    if (offline.nosave) return
     // Strip reactivity and save player data, including tab state
     const strippedPlayer = deepCopy(player);
     localStorage.setItem("YooA", btoa(JSON.stringify(strippedPlayer)));
 
     // Save options data to localStorage
-    localStorage.setItem("YooA_options", btoa(JSON.stringify(options)));
+    const strippedOptions = deepCopy(options);
+    localStorage.setItem("YooA_options", btoa(JSON.stringify(strippedOptions)));
 
     if (click) {
         const event = new CustomEvent('game-saved');
@@ -31,6 +34,10 @@ export function fixData(defaultData, newData) {
         } else if (defaultData[item] instanceof Decimal) {
             if (newData[item] === undefined) newData[item] = new Decimal(defaultData[item].toString());
             else newData[item] = new Decimal(newData[item].toString());
+        } else if (defaultData[item] instanceof Autobuyer) {
+            if (newData[item] === undefined) newData[item] = new Autobuyer(defaultData[item].layer, defaultData[item].name, defaultData[item].isOn, defaultData[item].mode);
+            else newData[item] = new Autobuyer(newData[item].layer, newData[item].name, newData[item].isOn, newData[item].mode);
+            fixData(defaultData[item], newData[item]);
         } else if (defaultData[item] instanceof Dimension) {
             if (newData[item] === undefined) newData[item] = new Dimension(defaultData[item].type, defaultData[item].name, defaultData[item].amt, defaultData[item].level, defaultData[item].tier, defaultData[item].costDisp, defaultData[item].layer, defaultData[item].currency);
             else newData[item] = new Dimension(newData[item].type, newData[item].name, newData[item].amt, newData[item].level, newData[item].tier, newData[item].costDisp, newData[item].layer, newData[item].currency);
@@ -50,7 +57,7 @@ export function fixData(defaultData, newData) {
             for (let layer in newData[item]) {
                 if (newData[item][layer].showCorrect) {
                     newData[item][layer].showCorrect = false
-                    generateNewProblem()
+                    generateNewProblem(layer)
                 }
             }
         }
@@ -66,6 +73,17 @@ export function fixData(defaultData, newData) {
                 }
             }
         }
+
+        if (item === "challenges" && newData[item]) {
+            for (let layer in newData[item]) {
+                for (let challengeId in newData[item][layer]) {
+                    let challenge = newData[item][layer][challengeId];
+                    if (typeof challenge === "string") {
+                        newData[item][layer][challengeId] = new Decimal(challenge);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -75,38 +93,42 @@ export function fixSave() {
 }
 
 export function load() {
-    let get = localStorage.getItem("YooA");
-    if (get === null || get === undefined) {
-        // Initialize player and options with default values
+    let playerSave = localStorage.getItem("YooA");
+    let optionsSave = localStorage.getItem("YooA_options");
+
+    if (playerSave === null || playerSave === undefined) {
         Object.assign(player, getStartPlayer());
+    } else {
+        let loadedPlayer = JSON.parse(atob(playerSave));
+        Object.assign(player, getStartPlayer());
+        Object.assign(player, loadedPlayer);
+        if (!player.tab) player.tab = "Main";
+        fixSave();
+    }
+
+    if (optionsSave === null || optionsSave === undefined) {
         Object.assign(options, getStartOptions());
     } else {
-        let loadedPlayer = JSON.parse(atob(get)); // Simplified to avoid unnecessary escape/encodeURIComponent
-        Object.assign(player, getStartPlayer()); // Start fresh with defaults
-        Object.assign(player, loadedPlayer);     // Merge saved data
-
-        if (!player.tab) player.tab = "Main"; // Ensure default tab is "Main" if not in saved data
-        fixSave(); // Ensure player data is complete
-        loadOptions(); // Load the options from localStorage
-    }
-    player.time = Date.now();
-}
-
-export function loadOptions() {
-    let get2 = localStorage.getItem("YooA_options");
-    if (get2) {
-        // Update the reactive options object
-        Object.assign(options, JSON.parse(atob(get2)));
-    } else {
-        // If no saved options, initialize with defaults
+        let loadedOptions = JSON.parse(atob(optionsSave));
         Object.assign(options, getStartOptions());
+        Object.assign(options, loadedOptions);
+        fixData(options, getStartOptions());
     }
-    // Fix data to ensure default values are applied
-    fixData(options, getStartOptions());
+
+    setTimeout(() => {
+        var offline_t = (Date.now() - player.time) / 1000;
+        gameLoop();
+        if (options.offline) simulateOffline(offline_t);
+        setInterval(gameLoop, 1000 / FPS);
+    }, 100);
 }
 
 export function exportSave() {
-    let str = btoa(JSON.stringify(player));
+    const saveData = {
+        player: player,
+        options: options
+    };
+    let str = btoa(JSON.stringify(saveData));
     const el = document.createElement("textarea");
     el.value = str;
     document.body.appendChild(el);
@@ -121,15 +143,29 @@ export function exportSave() {
 export function importSave(imported = undefined) {
     if (imported === undefined) imported = prompt("Paste your save here");
     try {
-        let tempPlr = Object.assign(getStartPlayer(), JSON.parse(atob(imported)));
-        player = tempPlr;
-        fixSave();
-        save();
-        const event = new CustomEvent('import-completed');
-        window.dispatchEvent(event);
-        setTimeout(() => {
-            window.location.reload(); // Reload after the notification is shown
-        }, 1000);
+        let parsedSave = JSON.parse(atob(imported));
+
+        if (parsedSave.player && parsedSave.options) {
+            // Apply loaded player data
+            let tempPlayer = Object.assign(getStartPlayer(), parsedSave.player);
+            Object.assign(player, tempPlayer);
+            fixSave();
+
+            // Apply loaded options data
+            let tempOptions = Object.assign(getStartOptions(), parsedSave.options);
+            Object.assign(options, tempOptions);
+            fixData(options, getStartOptions());
+
+            save();
+
+            const event = new CustomEvent('import-completed');
+            window.dispatchEvent(event);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error("Invalid save format.");
+        }
     } catch (e) {
         alert("Import failed: Invalid save data.");
     }

@@ -10,6 +10,10 @@
 				:class="{ active: currentTab === 'YooAmatter' }">
 				YooAmatter
 			</a>
+			<a v-if="autoUnlocked" href="javascript:void(0)" @click="changeTab('Automation')"
+				:class="{ active: currentTab === 'Automation' }">
+				Arin
+			</a>
 			<a href="javascript:void(0)" @click="changeTab('Options')" :class="{ active: currentTab === 'Options' }">
 				Options
 			</a>
@@ -32,18 +36,21 @@
 		<!-- Main Content -->
 		<Main v-if="currentTab === 'Main'" ref="main"></Main>
 		<YooAmatter v-if="currentTab === 'YooAmatter'"></YooAmatter>
+		<Automation v-if="currentTab === 'Automation'"></Automation>
 		<Options v-if="currentTab === 'Options'"></Options>
 		<Stats v-if="currentTab === 'Stats'"></Stats>
 		<Achievements v-if="currentTab === 'Achievements'"></Achievements>
 		<Changelog v-if="currentTab === 'Changelog'"></Changelog>
 		<Notification></Notification>
+		<Offline></Offline>
 		<br><br><br><br>
 		<ProgressBar></ProgressBar>
 	</div>
 </template>
 
 <script>
-import { hasAchievement, maxAllDimensions, player, start } from '@/incremental/incremental.js'; // Import player as reactive state
+import { gameLayers } from '@/incremental/main';
+import { completedAnyChallenge, hasAchievement, maxAllDimensions, player, start } from '@/incremental/incremental.js'; // Import player as reactive state
 import Header from '@/components/Header.vue';
 import Main from '@/components/Main.vue';
 import YooAmatter from '@/components/YooAmatter.vue';
@@ -52,19 +59,22 @@ import Stats from '@/components/Stats.vue';
 import Achievements from '@/components/Achievements.vue';
 import Changelog from '@/components/Changelog.vue';
 import Notification from '@/components/comps/Notification.vue';
+import Offline from '@/components/comps/Offline.vue';
 import ProgressBar from '@/components/comps/ProgressBar.vue';
-import { gameLayers } from '@/incremental/main';
+import Automation from '@/components/Automation.vue';
 
 export default {
 	components: {
 		Header,
 		Main,
 		YooAmatter,
+		Automation,
 		Options,
 		Stats,
 		Achievements,
 		Changelog,
 		Notification,
+		Offline,
 		ProgressBar,
 	},
 	data() {
@@ -77,10 +87,13 @@ export default {
 		// Bind player.tab to a computed property for better reactivity
 		currentTab() {
 			// Get the first part of player.tab before the '-'
-			return this.player.tab.split('-')[0];
+			return this.player.tab;
 		},
 		gameName() {
-			return 'YooA Incremental v0.2'
+			return 'YooA Incremental v0.3'
+		},
+		autoUnlocked() {
+			return completedAnyChallenge()
 		},
 	},
 	mounted() {
@@ -109,7 +122,7 @@ export default {
 		},
 		changeTab(tabName) {
 			// Update player.tab to switch tabs
-			this.player.tab = tabName + "-" + this.player.subtab;
+			this.player.tab = tabName;
 
 			// Update header message based on active tab
 			this.headerMessage = tabName === 'Main' ? this.gameName : tabName;

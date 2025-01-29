@@ -1,7 +1,7 @@
 <template>
     <div class="prestige-button-container">
         <button class="prestige-button" :class="[canReset ? `layer-${layerName}` : 'disabled']" :disabled="!canReset"
-            @click="confirmPrestige">
+            @click="confirmPrestige()">
             {{ prestigeDesc }} <br>
             {{ nextAtDesc }}
         </button>
@@ -9,7 +9,8 @@
 </template>
 
 <script>
-import { gameLayers } from '@/incremental/main';
+import { inAnyChallenge } from '@/incremental/incremental';
+import { exitOrComplete, gameLayers } from '@/incremental/main';
 
 export default {
     name: "PrestigeButton",
@@ -43,16 +44,28 @@ export default {
         },
         nextAtDesc() {
             if (!this.canReset) return `Req: ${format(this.requires)} ${this.baseCurrency}`
-            return `Next at ${format(this.nextAt)} ${this.baseCurrency}`;
+            let oom = this.gain.gte(1e6) ? "OoM" : ""
+            return `Next ${oom} at ${format(this.nextAt)} ${this.baseCurrency}`;
         },
     },
     methods: {
-        confirmPrestige() {
-            if (this.canReset) {
-                const userConfirmed = confirm(
-                    `Are you sure you want to reset? You will gain ${formatWhole(this.gain)} ${this.prestigeCurrency}. This will reset your current progress in ${this.baseCurrency}.`
-                );
-                if (userConfirmed) {
+        confirmPrestige(con = options.confirmations.YooAmatter) {
+            if (!this.canReset) return; // Ensure reset is possible
+
+            if (inAnyChallenge()) {
+                const chall = player.inChallenge;
+                exitOrComplete(chall[0], chall[1]);
+            } else {
+                // Check confirmation status
+                if (con) {
+                    const userConfirmed = confirm(
+                        `Are you sure you want to reset? You will gain ${formatWhole(this.gain)} ${this.prestigeCurrency}. This will reset your current progress in ${this.baseCurrency}.`
+                    );
+                    if (userConfirmed) {
+                        this.performPrestige();
+                    }
+                } else {
+                    // Directly perform prestige if confirmation is disabled
                     this.performPrestige();
                 }
             }

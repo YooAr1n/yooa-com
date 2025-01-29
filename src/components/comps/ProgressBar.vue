@@ -14,7 +14,8 @@
 </template>
 
 <script>
-import { player } from '@/incremental/incremental.js';
+import { inAnyChallenge, player } from '@/incremental/incremental.js';
+import { gameLayers } from '@/incremental/main';
 
 // Helper functions
 const hexToRgb = (hex) => {
@@ -57,12 +58,16 @@ export default {
 		},
 		// Dynamically get the appropriate stage based on the player's currency
 		currentStage() {
+			if (inAnyChallenge()) return 0
 			return this.progressStages.findIndex((stage) => {
 				return stage.currency.lt(stage.threshold);
 			});
 		},
 		// Get the current stage's threshold dynamically, ensuring a valid stage is returned
 		threshold() {
+			if (inAnyChallenge()) {
+				return gameLayers[player.inChallenge[0]].challenges[player.inChallenge[1]].goal
+			}
 			const currentStageIndex = this.currentStage;
 			// Ensure that we don't access an invalid stage index
 			const stage = this.progressStages[currentStageIndex] || this.progressStages[0]; // Default to stage 0
@@ -70,6 +75,7 @@ export default {
 		},
 		// Dynamically get the appropriate label based on the current stage
 		progressLabel() {
+			if (inAnyChallenge()) return 'Challenge goal'
 			const currentStageIndex = this.currentStage;
 			const stage = this.progressStages[currentStageIndex] || this.progressStages[0]; // Default to stage 0
 			return stage.label;
@@ -81,6 +87,13 @@ export default {
 			return { start: stage.startColor, end: stage.endColor };
 		},
 		percent() {
+			if (inAnyChallenge()) {
+				let challenge = gameLayers[player.inChallenge[0]].challenges[player.inChallenge[1]]
+				const goal = typeof challenge.goal === "function" ? challenge.goal() : challenge.goal;
+				let curr = challenge.goalLayer ? player[challenge.goalLayer][challenge.goalInternal] : player[challenge.goalInternal]
+				return curr.max(1).log10().div(goal.log10()).min(1)
+			}
+
 			const currentStageIndex = this.currentStage;
 			const stage = this.progressStages[currentStageIndex] || this.progressStages[0]; // Default to stage 0
 			return stage.currency.max(1).log10().div(this.threshold.log10()).min(1);

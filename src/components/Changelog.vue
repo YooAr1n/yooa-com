@@ -95,6 +95,19 @@ export default {
                         "Minor Bug Fixes. – Fixed various issues for smoother gameplay."
                     ]
                 },
+                {
+                    version: "v0.3",
+                    title: "Arin's Arrival & YooAmatter Trials",
+                    date: "2025-01-29",
+                    description: [
+                        "Added Arin. – Arin from Oh My Girl joins the game! She's YooA's dear friend and a true bundle of joy, now helping by autobuying for YooA.",
+                        "Introduced YooAmatter Challenges. – A new layer of difficulty! Take on YooAmatter-based trials to push your progression further.",
+                        "More Upgrades. – Additional upgrades to enhance YooA Points and YooAmatter gains.",
+                        "Expanded Achievements. – A new row of achievements awaits those who seek to master the labyrinth.",
+                        "YooA Point Scale in Stats. – Now showing how your YooA Points scale in relation to real-world physical quantities.",
+                        "Added Offline Progress. – The game now calculates progress while you're away, so you continue earning even when not playing!"
+                    ]
+                }
             ],
             expandedVersions: [],
         };

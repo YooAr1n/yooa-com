@@ -1,6 +1,6 @@
 <template>
   <div class="upgrade" :class="{ disabled: !canAfford, maxed: isMaxed, purchased: purchaseAnimation }" v-if="upgrade"
-    @click="buy" :style="upgradeStyle">
+    @click="buy" :style="mergedUpgradeStyle">
     <h2>{{ upgrade.title }}</h2>
     <p>
       {{ upgrade.description() }}
@@ -11,7 +11,7 @@
       <br />
       {{ lvlDisplay }}
     </p>
-    <p v-if="upgrade.effectDisplay">Effect: {{ upgrade.effectDisplay() }}</p>
+    <p v-if="upgrade.effectDisplay">Effect: <span v-html="upgrade.effectDisplay()"></span></p>
   </div>
 </template>
 
@@ -65,14 +65,22 @@ export default {
     upgradeStyle() {
       let backgroundColor;
       if (this.layerName === 'YooA') {
-        backgroundColor = '#d17be2'; // For the YooA layer
+        backgroundColor = 'linear-gradient(#991893, #d17be2)'; // For the YooA layer
       } else if (this.layerName === 'YooAmatter') {
-        backgroundColor = '#bcc70f'; // For the YooAmatter layer
+        backgroundColor = 'linear-gradient(#929923, #bcc70f)'; // For the YooAmatter layer
       } else {
-        backgroundColor = '#d17be2'; // Default color for other layers
+        backgroundColor = 'linear-gradient(#991893, #d17be2)'; // Default color for other layers
       }
       return {
-        backgroundColor: backgroundColor,
+        background: backgroundColor,
+      };
+    },
+    mergedUpgradeStyle() {
+      // Combine the dynamic style with maxed and disabled styles
+      return {
+        ...this.upgradeStyle,
+        background: this.isMaxed ? 'linear-gradient(to bottom, #ffd700, #ffbf00)' : this.canAfford ? this.upgradeStyle.background : 'linear-gradient(#ff5757, #c51313)',
+        cursor: this.isMaxed ? 'default' : this.canAfford ? 'pointer' : 'not-allowed',
       };
     }
   },

@@ -1,65 +1,90 @@
 <template>
-    <div class="dimension" :class="{ 'disabled': !canAfford }" :style="dimensionStyle">
+    <div
+        class="dimension"
+        :class="{ 'disabled': !canAfford }"
+        :style="dimensionStyle"
+    >
         <h2>{{ dimHeader }}</h2>
         <h3>{{ dimGain }}</h3>
         <p v-if="dimension.tier === 1">Boosts YooA Point gain.</p>
-        <p v-else-if="dimension.tier > 1">Produces {{ getPrevDimensionName(dimension.tier) }}.</p>
-        <p>Cost: {{ formatCost(dimension.cost) }} {{ costCurrDisp }}</p>
-        <p>{{ getEffectDisplay(dimension) }}</p>
+        <p v-else-if="dimension.tier > 1">
+            Produces {{ prevDimensionName }}.
+        </p>
+        <p>Cost: {{ formattedCost }} {{ costCurrDisp }}</p>
+        <p>{{ dimension.effectDisplay }}</p>
         <button @click="buyDimension">Buy</button>
         <button v-if="maxUnlocked" @click="maxDimension">Buy Max</button>
     </div>
 </template>
 
 <script>
-import { hasAchievement, player } from "@/incremental/incremental.js";  // Import the player object
+import { hasAchievement, player } from "@/incremental/incremental.js"; // Import the player object
 
 export default {
     props: {
         dimension: Object,
-        allDimensions: Array
+        allDimensions: Array,
     },
     computed: {
+        // Cached dimension properties to avoid redundant access
+        dimensionData() {
+            const { amt, name, level, mult, tier, costDisp, cost, effectDisplay, layer, currency, type } = this.dimension;
+            return {
+                amt, name, level, mult, tier, costDisp, cost, effectDisplay, layer, currency, type
+            };
+        },
+
         dimHeader() {
-            return format(this.dimension.amt) + " " + this.dimension.name + " (Level " + formatWhole(this.dimension.level) + ") x" + format(this.dimension.mult)
+            const { amt, name, level, mult } = this.dimensionData;
+            return `${format(amt)} ${name} (Level ${formatWhole(level)}) x${format(mult)}`;
         },
+
         dimGain() {
+            const { tier } = this.dimensionData;
             const layer = "YooA";
-            const tier = this.dimension.tier - 1;
-            if (player.gain[layer] && player.gain[layer].dimensions && player.gain[layer].dimensions[tier] !== undefined) {
-                return player.gain[layer].dimensions[tier];
-            }
-            return "N/A";  // Return a default value if dimensions is not defined
+            return player.gain[layer]?.dimensions?.[tier - 1] ?? "N/A"; // Use optional chaining
         },
+
         costCurrDisp() {
-            return this.dimension.costDisp
+            return this.dimensionData.costDisp;
         },
+
         currency() {
-            return this.dimension.layer === '' ? player.YooAPoints : player[this.dimension.layer][this.dimension.currency]
+            const { layer, currency } = this.dimensionData;
+            return layer === "" ? player.YooAPoints : player[layer]?.[currency];
         },
+
         canAfford() {
-            return this.currency.gte(this.dimension.cost)
+            return this.currency?.gte(this.dimensionData.cost) ?? false;
         },
+
         maxUnlocked() {
-            return hasAchievement(23)
+            return hasAchievement(23);
         },
+
         dimensionStyle() {
-            // Check if the dimension belongs to "YooA" and return the corresponding gradient
-            let disabled = "linear-gradient(to right, #c51313, #ff5757)"
-            if (this.dimension.type === "YooA") {
-                if (this.dimension.tier < 3) return { //Style for YooA Point costs
-                    background: this.canAfford ? "linear-gradient(to right, #991893, #d17be2)" : disabled
-                }
-                return { //Style for YooAmatter costs
-                    background: this.canAfford ? "linear-gradient(to right, #ad1480, #dd14b1)" : disabled
-                };
-            }
-            else {
-                return {
-                    background: this.canAfford ? "linear-gradient(to right, #4caf50, #81c784)" : disabled
-                };
-            }
-        }
+            const { type, tier } = this.dimensionData;
+            const disabled = "linear-gradient(#c51313, #ff5757)";
+            const gradientYooA = tier < 3 ? "linear-gradient(#991893, #d17be2)" : "linear-gradient(#ad1480, #dd14b1)";
+            const gradientDefault = "linear-gradient(#4caf50, #81c784)";
+
+            return {
+                background: this.canAfford
+                    ? type === "YooA"
+                        ? gradientYooA
+                        : gradientDefault
+                    : disabled,
+            };
+        },
+
+        prevDimensionName() {
+            const prevDimension = this.allDimensions[this.dimensionData.tier - 2]; // Array is 0-indexed
+            return prevDimension?.name || "";
+        },
+
+        formattedCost() {
+            return format(this.dimensionData.cost);
+        },
     },
     methods: {
         buyDimension() {
@@ -68,18 +93,7 @@ export default {
         maxDimension() {
             this.dimension.buyMax(player);
         },
-        getPrevDimensionName(tier) {
-            const prevDimension = this.allDimensions[tier - 2]; // tier-2 because array is 0-indexed
-            return prevDimension ? prevDimension.name : '';
-        },
-        getEffectDisplay(dimension) {
-            // Directly call the effectDisplay function from the dimension
-            return dimension.effectDisplay();  // Ensure effectDisplay is a method
-        },
-        formatCost(cost) {
-            return format(cost);
-        }
-    }
+    },
 };
 </script>
 

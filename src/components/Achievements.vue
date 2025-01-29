@@ -68,6 +68,9 @@ export default {
       if (hasAchievement(28)) {
         dis.push("YooA Dimensions");
       }
+      if (hasAchievement(38)) {
+        dis.push("YooA math problems");
+      }
 
       // Format the display text with Oxford comma if more than 2 items
       if (dis.length > 2) {

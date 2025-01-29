@@ -11,8 +11,7 @@
 </template>
 
 <script>
-import { player } from '@/incremental/incremental.js'
-import { hasUpgrade } from '@/incremental/main.js';
+import { getYooAPerSecond, player } from '@/incremental/incremental.js'
 import PrestigeHeader from './comps/PrestigeHeader.vue';
 
 export default {
@@ -22,11 +21,11 @@ export default {
       return colorText("h3", "#d17be2", format(player.YooAPoints));
     },
     ppsText() {
-      if (!hasUpgrade("YooA", 21)) return
+      if (getYooAPerSecond().eq(0)) return
       return player.gain.YooA.points;
     },
     endgameText() {
-      return colorText("h3", "#bcc70f", format(1e29/*"9.17e1995"*/)) + " YooAmatter"
+      return colorText("h3", "#bcc70f", format(1e120/*"9.17e1995"*/)) + " YooAmatter"
     }
   },
   methods: {
