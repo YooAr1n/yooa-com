@@ -62,12 +62,9 @@ export default class Dimension {
         return this._cachedEffect;
     }
 
-    // Unlocked state can be cached
     get unlocked() {
-        if (this._unlocked === undefined) {
-            this._unlocked = this.tier < 3 || hasAchievement(18);
-        }
-        return this._unlocked;
+        // This will check if the dimension is unlocked based on the tier and whether achievement 18 is unlocked
+        return this.tier < 3 || hasAchievement(18); // Check achievement 18 every time the unlocked state is accessed
     }
 
     get effectDisplay() {
@@ -80,7 +77,7 @@ export default class Dimension {
         if (this._cachedDimensionCostLevel === level) return this._cachedDimensionCost;
 
         const scaledLevel = level.gte(1e4) ? level.div(1e4).pow(2).mul(1e4) : level;
-        this._cachedDimensionCost = Decimal.pow(this._costMultiplier, scaledLevel).mul(this._baseCost);
+        this._cachedDimensionCost = Decimal.pow(this.costMultiplier, scaledLevel).mul(this.baseCost);
         this._cachedDimensionCostLevel = level;
 
         return this._cachedDimensionCost;
@@ -88,7 +85,7 @@ export default class Dimension {
 
     getInvDimCost(x = this.layer === '' ? player.YooAPoints : player[this.layer][this.currency]) {
         // If the level hasn't changed or the cache isn't stale, return the cached value
-        let level = x.div(this._baseCost).log(this._costMultiplier)
+        let level = x.div(this.baseCost).log(this.costMultiplier)
 
         // Rescale for large levels only when needed
         if (level.gte(1e4)) {
@@ -115,7 +112,7 @@ export default class Dimension {
         const curr = this.layer === '' ? player.YooAPoints : player[this.layer][this.currency];
         if (curr.lt(this.cost)) return;
 
-        let max = Decimal.affordGeometricSeries(curr, this._baseCost, this._costMultiplier, this.level);
+        let max = Decimal.affordGeometricSeries(curr, this.baseCost, this.costMultiplier, this.level);
         let maxQty = max
         if (this.level.add(max).gte(1e4)) {
             max = bulkBuyBinarySearch(curr, {
@@ -126,7 +123,7 @@ export default class Dimension {
         }
 
         if (maxQty.lte(0)) return;
-        const maxCost = max.purchasePrice ? max.purchasePrice : Decimal.sumGeometricSeries(max, this._baseCost, this._costMultiplier, this.level);
+        const maxCost = max.purchasePrice ? max.purchasePrice : Decimal.sumGeometricSeries(max, this.baseCost, this.costMultiplier, this.level);
 
         this.level = this.level.add(maxQty);
         this.amt = this.amt.add(maxQty);

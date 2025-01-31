@@ -229,27 +229,36 @@ export function hasAchievement(id) {
 export function calculateAchievementMultiplier() {
     let baseMultiplier = Decimal.dOne;
     const rows = {};
+    const playerAchs = new Set(Object.keys(player.achievements)); // Use a Set for fast lookup
 
-    // Combine processing for achievements and rows
-    const achs = Object.keys(achievements)
-    const playerAchs = Object.keys(player.achievements)
+    // Iterate over all achievements once
+    const achs = Object.keys(achievements);
+
+    // Track completed achievements per row
     for (let i = 0; i < achs.length; i++) {
-        const row = Math.floor(i / 8);
+        const row = Math.floor(i / 8);  // Row logic for 8 achievements per row
 
         // Initialize row if it doesn't exist
-        if (!rows[row]) rows[row] = true;
+        if (!rows[row]) {
+            rows[row] = { completed: true }; // track how many completed achievements in this row
+        }
 
         // Check if achievement is completed
-        if (playerAchs[i]) {
+        if (playerAchs.has(achs[i])) {  // Fast check using Set
             baseMultiplier = baseMultiplier.mul(1.02); // Apply individual multiplier
         } else {
-            rows[row] = false; // Mark row as incomplete
+            rows[row].completed = false; // Mark row as incomplete if any achievement is not unlocked
         }
     }
 
-    // Apply row bonuses
-    for (let i = 0; i < Object.keys(rows).length; i++) {
-        if (rows[i]) baseMultiplier = baseMultiplier.mul(1.1);
+    // Apply row multipliers based on completed achievements
+    for (const row in rows) {
+        const rowData = rows[row];
+
+        // Apply row multiplier only if all achievements in the row are completed
+        if (rowData.completed) {
+            baseMultiplier = baseMultiplier.mul(1.1); // Apply row multiplier
+        }
     }
 
     return baseMultiplier;
