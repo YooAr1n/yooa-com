@@ -2,7 +2,7 @@
   <div class="main">
     <h1>YooA Numbers</h1>
     <p>Learning numbers in any language is always a bit challenging, but Korean numbers are kind of… twice as hard. This is because in Korean, there are two sets of numbers: Sino-Korean numbers and Native Korean numbers.
-    Each number system has its own specific uses, so it’s important to learn both number systems.</p>
+    Each number system has its own specific uses, so it's important to learn both number systems.</p>
     <p>Type the English (numerals) / Korean (words) number.</p>
     <p>
         Click to type Korean:
