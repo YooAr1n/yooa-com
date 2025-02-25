@@ -90,7 +90,7 @@ export default {
 			return this.player.tab;
 		},
 		gameName() {
-			return 'YooA Incremental v0.4 (WIP)'
+			return 'YooA Incremental v0.4'
 		},
 		autoUnlocked() {
 			return completedAnyChallenge()
