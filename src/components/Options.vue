@@ -16,6 +16,7 @@
       <button id="autosave" @click="autoSave()">Auto Save: {{ autoSaveOn }}</button>
       <button id="autoint" @click="changeAutoInt()">Auto Save interval: {{ interval }}</button>
       <button id="offline" @click="changeOffline()">Offline Progress: {{ offlineOn }}</button>
+      <button id="news" @click="changeNews()">News Ticker: {{ newsOn }}</button>
     </div>
     <div v-if="currentTab === 'confirm'" class="tab-content">
       <button v-for="(value, layer) in confirmations" :key="layer" @click="toggleConfirmation(layer)">
@@ -26,7 +27,7 @@
 </template>
 
 <script>
-import { autoSave, changeAutoInt, changeOffline } from "@/incremental/options.js";
+import { autoSave, changeAutoInt, changeOffline, changeNews } from "@/incremental/options.js";
 import { save, exportSave, importSave, hardReset } from "@/incremental/save.js";
 
 export default {
@@ -46,6 +47,9 @@ export default {
     },
     offlineOn() {
       return options.offline ? "ON" : "OFF"
+    },
+    newsOn() {
+      return options.news ? "ON" : "OFF"
     }
   },
   mounted() {
@@ -83,7 +87,8 @@ export default {
     hardReset,
     autoSave,
     changeAutoInt,
-    changeOffline
+    changeOffline,
+    changeNews
   }
 }
 </script>

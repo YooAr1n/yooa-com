@@ -6,13 +6,12 @@
       'notification-saved': notif.type === 'saved',
       'notification-achievement': notif.type === 'achievement',
       'notification-complete': notif.type === 'challenge',
-      'leaving': notif.leaving, // Add the leaving class dynamically
+      leaving: notif.leaving, // Add the leaving class dynamically
     }" @click="removeNotification(notif.id)">
       <span>{{ notif.message }}</span>
     </div>
   </div>
 </template>
-
 
 <script>
 import { save } from '@/incremental/save.js';
@@ -22,9 +21,10 @@ export default {
   name: 'Notification',
   data() {
     return {
-      notifications: [], // Notifications array
-      notificationTimeouts: {}, // To store timeout IDs
-      autosaveTimer: null, // Autosave interval reference
+      notifications: [],          // Notifications array
+      notificationTimeouts: {},     // To store timeout IDs
+      autosaveTimer: null,          // Autosave interval reference
+      nextNotificationId: 1,        // Unique notification counter
     };
   },
   computed: {
@@ -50,13 +50,14 @@ export default {
   },
   methods: {
     addNotification(message = 'Game saved!', type = 'saved') {
-      const id = Date.now(); // Unique ID
+      // Use an internal counter to generate a unique ID
+      const id = this.nextNotificationId++;
       const newNotif = { id, message, type, leaving: false };
 
       // Add new notification to the array
       this.notifications.unshift(newNotif);
 
-      // Automatically remove the notification
+      // Automatically remove the notification after 2 seconds
       const timeoutId = setTimeout(() => {
         this.removeNotification(id);
       }, 2000);
@@ -65,7 +66,7 @@ export default {
       this.notificationTimeouts[id] = timeoutId;
     },
     removeNotification(id) {
-      const notifIndex = this.notifications.findIndex(notif => notif.id === id);
+      const notifIndex = this.notifications.findIndex((notif) => notif.id === id);
 
       if (notifIndex !== -1) {
         // Mark notification as leaving
@@ -97,30 +98,46 @@ export default {
     performAutosave() {
       if (this.autosaveEnabled) {
         save(); // Call save function
-        if (!offline.nosave) this.addNotification('Game autosaved!', 'saved');
+
+        // Prevent error if 'offline' is not defined
+        if (typeof offline === 'undefined' || !offline.nosave) {
+          this.addNotification('Game autosaved!', 'saved');
+        }
       }
+    },
+    // Event handler methods for proper add/remove of listeners
+    handleGameSaved() {
+      this.addNotification('Game saved!', 'saved');
+    },
+    handleExportCompleted() {
+      this.addNotification('Export successful!', 'export');
+    },
+    handleImportCompleted() {
+      this.addNotification('Import successful!', 'import');
+    },
+    handleAchievementUnlocked(e) {
+      this.addNotification(e.detail, 'achievement');
+    },
+    handleChallengeCompleted(e) {
+      this.addNotification(e.detail, 'challenge');
     },
   },
   mounted() {
     this.startAutosave();
-    window.addEventListener('game-saved', () => this.addNotification('Game saved!', 'saved'));
-    window.addEventListener('export-completed', () => this.addNotification('Export successful!', 'export'));
-    window.addEventListener('import-completed', () => this.addNotification('Import successful!', 'import'));
-    window.addEventListener('achievement-unlocked', e => {
-      this.addNotification(e.detail, 'achievement');
-    });
-    window.addEventListener('challenge-completed', e => {
-      this.addNotification(e.detail, 'challenge');
-    });
+    window.addEventListener('game-saved', this.handleGameSaved);
+    window.addEventListener('export-completed', this.handleExportCompleted);
+    window.addEventListener('import-completed', this.handleImportCompleted);
+    window.addEventListener('achievement-unlocked', this.handleAchievementUnlocked);
+    window.addEventListener('challenge-completed', this.handleChallengeCompleted);
   },
   beforeUnmount() {
     if (this.autosaveTimer) clearInterval(this.autosaveTimer);
     Object.values(this.notificationTimeouts).forEach(clearTimeout);
-    window.removeEventListener('game-saved', this.addNotification);
-    window.removeEventListener('export-completed', this.addNotification);
-    window.removeEventListener('import-completed', this.addNotification);
-    window.removeEventListener('achievement-unlocked', this.addNotification);
-    window.removeEventListener('challenge-completed', this.addNotification);
+    window.removeEventListener('game-saved', this.handleGameSaved);
+    window.removeEventListener('export-completed', this.handleExportCompleted);
+    window.removeEventListener('import-completed', this.handleImportCompleted);
+    window.removeEventListener('achievement-unlocked', this.handleAchievementUnlocked);
+    window.removeEventListener('challenge-completed', this.handleChallengeCompleted);
   },
 };
 </script>

@@ -6,17 +6,17 @@ import Dimension from "./dimensions.js";
 import Autobuyer from "./automation.js";
 
 const FPS = 60;
-window.FPS = FPS
+window.FPS = FPS;
 
 // Initialize player as a reactive object
 export const player = reactive(getStartPlayer());
-var date = Date.now()
+let date = Date.now();
 window.player = player;
-window.date = date
+window.date = date;
 
 export function getStartPlayer() {
     return {
-        tab: "Main", // Tab-subtab structure
+        tab: "Main",
         subtabs: {
             Main: "main",
             Options: "saving",
@@ -27,6 +27,7 @@ export function getStartPlayer() {
         YooAmatter: {
             amount: Decimal.dZero,
             YooArium: Decimal.dZero,
+            sparks: Decimal.dZero,
         },
         inChallenge: ["", ""],
         upgrades: getStartUpgrades(),
@@ -45,17 +46,19 @@ export function getStartGains() {
     return {
         YooA: {
             points: "",
-            dimensions: Array(5).fill("")
+            dimensions: Array(5).fill(""),
         },
         YooAmatter: {
-            amount: ""
+            amount: "",
+            dimensions: Array(5).fill(""),
+            sparks: ""
         }
     };
 }
 
 export function getStartUpgrades() {
     return {
-        YooA: {},// Default upgrades structure
+        YooA: {},
         YooAmatter: {}
     };
 }
@@ -68,19 +71,18 @@ export function getStartChallenges() {
 
 export function getStartDimensions() {
     const names = ["Lines", "Planes", "Spaces", "Realms", "Entities"];
+    const ymNames = ["Threads", "Weaves", "Flows", "Realizations", "Cores"];
     return {
         YooA: names.map((name, i) => {
             const tier = i + 1;
+            // For tiers > 2, use "YooAmatter" as cost type if needed.
             const costType = tier > 2 ? "YooAmatter" : undefined;
-            return new Dimension(
-                "YooA",
-                `YooA ${name}`,
-                Decimal.dZero,
-                Decimal.dZero,
-                tier,
-                costType,
-                costType
-            );
+            return new Dimension("YooA", `YooA ${name}`, Decimal.dZero, Decimal.dZero, tier, costType, costType);
+        }),
+        YooAmatter: ymNames.map((name, i) => {
+            const tier = i + 1;
+            const costType = "YooAmatter";
+            return new Dimension("YooAmatter", `YooAmatter ${name}`, Decimal.dZero, Decimal.dZero, tier, costType, costType);
         }),
     };
 }
@@ -98,7 +100,7 @@ export function getStartAutobuyers() {
 
 export function getStartMath() {
     return {
-        YooA: { // Default math structure
+        YooA: {
             mathProblem: "1 + 1",
             correctAnswer: 2,
             solved: Decimal.dZero,
@@ -125,6 +127,7 @@ export function getStartStats() {
         YooAmatter: {
             totalAmount: Decimal.dZero,
             totalYooArium: Decimal.dZero,
+            totalSparks: Decimal.dZero,
             time: Decimal.dZero,
             resets: Decimal.dZero,
         }
@@ -135,18 +138,27 @@ export function start() {
     load();
 }
 
+//–––––––––––––––––––––––––––
+// CALCULATOR FUNCTIONS
+//–––––––––––––––––––––––––––
+
+/**
+ * Multiplies a base multiplier by each upgrade effect whose condition is met.
+ */
 export function calculateMultipliers(source, layer, ids, baseMultiplier = Decimal.dOne) {
     let multiplier = baseMultiplier;
-    for (let i = 0; i < ids.length; i++) {
-        if (source(layer, ids[i])) {
-            multiplier = multiplier.mul(upgradeEffect(layer, ids[i]));
+    for (let id of ids) {
+        if (source(layer, id)) {
+            multiplier = multiplier.mul(upgradeEffect(layer, id));
         }
     }
     return multiplier;
 }
 
+/**
+ * Calculates the gain for YooA Points.
+ */
 export function getYooAGain() {
-    // Cache reusable results
     const yooAUpgrades = calculateMultipliers(hasUpgrade, "YooA", [11, 12, 14, 23, 24, 31], new Decimal(0.1));
     const yooAmatterUpgrades = calculateMultipliers(hasUpgrade, "YooAmatter", [12]);
     const dimensionEffect = player.dimensions.YooA[0]?.effect || Decimal.dOne;
@@ -161,23 +173,20 @@ export function getYooAGain() {
         .mul(achievementMultiplier)
         .mul(yooAmatterEffect);
 
-    // Add achievement multipliers
     if (player.achievements[15]) gain = gain.mul(achievements[15].rewardEffect());
     if (player.achievements[16]) gain = gain.mul(achievements[16].rewardEffect());
 
-    // Apply challenge effects in bulk
-    const challengeEffects = {
-        1: 0.5,
-        3: 0.4,
-    };
-
-    Object.entries(challengeEffects).forEach(([id, exponent]) => {
+    // Process challenge effects in a simple loop.
+    const challengeEffects = { 1: 0.5, 3: 0.4 };
+    for (const [id, exponent] of Object.entries(challengeEffects)) {
         if (inChallenge("YooAmatter", id)) {
             gain = gain.pow(exponent);
         }
-    });
+    }
 
-    // Additional challenge effects
+    const sparkEffectExponent = gameLayers.YooAmatter.YooAmatterSparkEffect()[1];
+    gain = gain.pow(sparkEffectExponent);
+
     if (hasChallenge("YooAmatter", 1)) gain = gain.pow(challengeEffect("YooAmatter", 1)[0]);
     if (hasChallenge("YooAmatter", 4)) gain = gain.pow(challengeEffect("YooAmatter", 4)[1]);
     if (inChallenge("YooAmatter", 4)) gain = gain.dilate(gameLayers.YooAmatter.challenges[4]?.dilEff() || Decimal.dOne);
@@ -189,8 +198,10 @@ export function getYooAPerSecond() {
     return hasUpgrade("YooA", 21) ? upgradeEffect("YooA", 21) : Decimal.dZero;
 }
 
+/**
+ * Computes a multiplier for YooA dimensions.
+ */
 export function getYooADimensionMult() {
-    // Cache frequently used multipliers
     const yooAUpgrades = calculateMultipliers(hasUpgrade, "YooA", [22, 32, 34]);
     const yooAmatterUpgrades = calculateMultipliers(hasUpgrade, "YooAmatter", [11, 13]);
     const upgrade33Effect = gameLayers.YooA.upgrades[33]?.effectGain() || Decimal.dOne;
@@ -198,8 +209,10 @@ export function getYooADimensionMult() {
     let mult = yooAUpgrades.mul(yooAmatterUpgrades).mul(upgrade33Effect);
 
     const achievementIds = [18, 23, 25, 32, 36];
-    for (let i = 0; i < achievementIds.length; i++) {
-        if (player.achievements[achievementIds[i]]) mult = mult.mul(achievements[achievementIds[i]].rewardEffect());
+    for (let id of achievementIds) {
+        if (player.achievements[id]) {
+            mult = mult.mul(achievements[id].rewardEffect());
+        }
     }
 
     if (player.achievements[28]) {
@@ -209,61 +222,86 @@ export function getYooADimensionMult() {
     return mult;
 }
 
+/**
+ * Computes a multiplier for YooAmatter formation.
+ */
+export function getYooAmatterFormationMult() {
+    const yooAmatterUpgrades = calculateMultipliers(hasUpgrade, "YooAmatter", [53, 54]);
+    const sparkUpgrades = calculateMultipliers(hasUpgrade, "sparks", [12]);
+
+    let mult = yooAmatterUpgrades.mul(sparkUpgrades);
+    
+    const achievementIds = [43];
+    for (let id of achievementIds) {
+        if (player.achievements[id]) {
+            mult = mult.mul(achievements[id].rewardEffect());
+        }
+    }
+
+    if (player.achievements[47]) {
+        mult = mult.mul(calculateAchievementMultiplier());
+    }
+    return mult;
+}
+
+/**
+ * Returns true if the player is in any challenge.
+ */
 export function inAnyChallenge() {
-    // Check if the player is currently in any active challenge
     return player.inChallenge.some(challenge => challenge !== "");
 }
 
+/**
+ * Returns true if any challenge has been completed.
+ */
 export function completedAnyChallenge() {
-    // Check if the player has completed at least one challenge in any challenge category
     return Object.values(player.challenges).some(category =>
         Object.values(category).some(completed => completed)
     );
 }
 
-// Check if a player has an achievement
+/**
+ * Checks whether the given achievement is unlocked.
+ */
 export function hasAchievement(id) {
     return !!player.achievements[id];
 }
 
+/**
+ * Optimized achievement multiplier calculation.
+ * It counts individual unlocked achievements and applies a row bonus (1.1×) if a row is complete.
+ */
 export function calculateAchievementMultiplier() {
     let baseMultiplier = Decimal.dOne;
-    const rows = {};
-    const playerAchs = new Set(Object.keys(player.achievements)); // Use a Set for fast lookup
+    const playerAchs = new Set(Object.keys(player.achievements));
+    const achKeys = Object.keys(achievements);
+    let countAch = 0;
+    const totalRows = Math.ceil(achKeys.length / 8);
 
-    // Iterate over all achievements once
-    const achs = Object.keys(achievements);
-
-    // Track completed achievements per row
-    for (let i = 0; i < achs.length; i++) {
-        const row = Math.floor(i / 8);  // Row logic for 8 achievements per row
-
-        // Initialize row if it doesn't exist
-        if (!rows[row]) {
-            rows[row] = { completed: true }; // track how many completed achievements in this row
+    for (let row = 0; row < totalRows; row++) {
+        let rowComplete = true;
+        for (let j = 0; j < 8; j++) {
+            const index = row * 8 + j;
+            if (index >= achKeys.length) break;
+            if (playerAchs.has(achKeys[index])) {
+                countAch++;
+            } else {
+                rowComplete = false;
+            }
         }
-
-        // Check if achievement is completed
-        if (playerAchs.has(achs[i])) {  // Fast check using Set
-            baseMultiplier = baseMultiplier.mul(1.02); // Apply individual multiplier
-        } else {
-            rows[row].completed = false; // Mark row as incomplete if any achievement is not unlocked
+        if (rowComplete) {
+            baseMultiplier = baseMultiplier.mul(1.1);
         }
     }
-
-    // Apply row multipliers based on completed achievements
-    for (const row in rows) {
-        const rowData = rows[row];
-
-        // Apply row multiplier only if all achievements in the row are completed
-        if (rowData.completed) {
-            baseMultiplier = baseMultiplier.mul(1.1); // Apply row multiplier
-        }
-    }
-
+    // Multiply individual achievement multipliers at once.
+    baseMultiplier = baseMultiplier.mul(Decimal.pow(1.02, countAch));
     return baseMultiplier;
 }
 
+/**
+ * Increases the player's currency along a given path.
+ * The currency object is traversed only once per call.
+ */
 export function gainCurrency(pl, currencyPath, gain, diff, percent) {
     const keys = currencyPath.split(".");
     const lastKey = keys.pop();
@@ -271,50 +309,48 @@ export function gainCurrency(pl, currencyPath, gain, diff, percent) {
 
     const formattedGain = formatGain(currencyObj[lastKey], gain, Decimal.div(1, diff), percent);
     currencyObj[lastKey] = currencyObj[lastKey].add(gain.mul(diff));
-
     return formattedGain;
 }
 
 export function notifyAchievement(achievement) {
     const message = `${achievement.title} unlocked!`;
-    // You can use a custom notification type for achievements
-    // Assuming `this` refers to a Vue component that has `addNotification` method
     window.dispatchEvent(new CustomEvent('achievement-unlocked', { detail: message }));
 }
 
+/**
+ * Runs a buy-max operation on all dimensions of the specified type.
+ */
 export function maxAllDimensions(type) {
     const dims = player.dimensions[type];
-
-    // If type is "YooA", filter and handle separately for tiers 1 and 2
     if (type === "YooA") {
-        for (let i = 0; i < dims.length; i++) {
-            if (dims[i].unlocked && (dims[i].tier === 1 || dims[i].tier === 2)) {
-                dims[i].buyMax(player);
+        for (const dim of dims) {
+            if (dim.unlocked && (dim.tier === 1 || dim.tier === 2)) {
+                dim.buyMax(player);
             }
         }
     } else {
-        // Handle other types normally
-        for (let i = 0; i < dims.length; i++) {
-            if (dims[i].unlocked) {
-                dims[i].buyMax(player);
+        for (const dim of dims) {
+            if (dim.unlocked) {
+                dim.buyMax(player);
             }
         }
     }
 }
 
-
+/**
+ * Main game tick: updates currencies, dimensions, achievements, and autobuyers.
+ */
 export function calc(diff) {
     const now = Date.now();
     const gain = getYooAPerSecond();
+    const sparkGain = player.dimensions.YooAmatter[0].effect;
     const YooAriumGain = upgradeEffect("YooAmatter", 42);
     const timeIncrement = Decimal.dOne;
-
-    // Batch updates for currencies
     const upgrade22Effect = upgradeEffect("YooAmatter", 22) || Decimal.dZero;
 
+    // Batch currency updates.
     player.gain.YooA.points = gainCurrency(player, "YooAPoints", gain, diff);
     gainCurrency(player, "stats.General.totalPoints", gain, diff);
-
     gainCurrency(player, "stats.General.totalTime", timeIncrement, diff);
     gainCurrency(player, "stats.YooAmatter.time", timeIncrement, diff);
 
@@ -328,48 +364,58 @@ export function calc(diff) {
         gainCurrency(player, "YooAmatter.YooArium", YooAriumGain, diff);
     }
 
-    // Update dimensions
-    const dims = player.dimensions.YooA
-    for (let i = 0; i < dims.length; i++) {
-        if (dims[i].unlocked) {
-            dims[i].updateAmount(diff);
-            dims[i].resetCache();
+    player.gain.YooAmatter.sparks = gainCurrency(player, "YooAmatter.sparks", sparkGain, diff);
+    gainCurrency(player, "stats.YooAmatter.totalSparks", sparkGain, diff);
+
+    // Update dimensions for YooA.
+    const dimsYooA = player.dimensions.YooA;
+    for (const dim of dimsYooA) {
+        if (dim.unlocked) {
+            dim.updateAmount(diff);
+            dim.resetCache();
         }
     }
 
-    // Check achievements efficiently
-    Object.entries(achievements).forEach(([id, achievement]) => {
-        if (achievement.done() && !player.achievements[id]) {
-            player.achievements[id] = true;
-            if (achievement.onComplete) achievement.onComplete();
-            notifyAchievement(achievement);
+    // Update dimensions for YooAmatter.
+    const dimsYooAmatter = player.dimensions.YooAmatter;
+    for (const dim of dimsYooAmatter) {
+        if (dim.unlocked) {
+            dim.updateAmount(diff);
+            dim.resetCache();
         }
-    });
+    }
 
-    // Handle autobuyers in bulk
-    Object.values(player.autobuyers).forEach((autobuyersLayer) => {
-        Object.values(autobuyersLayer).forEach((autobuyer) => {
+    // Efficient achievement checking.
+    for (const id in achievements) {
+        if (achievements[id].done() && !player.achievements[id]) {
+            player.achievements[id] = true;
+            if (achievements[id].onComplete) achievements[id].onComplete();
+            notifyAchievement(achievements[id]);
+        }
+    }
+
+    // Handle autobuyers.
+    for (const autobuyersLayer of Object.values(player.autobuyers)) {
+        for (const autobuyer of Object.values(autobuyersLayer)) {
             if (autobuyer.isOn && autobuyer.timeToNextTick.eq(0)) {
                 autobuyer.tick();
             }
-        });
-    });
+        }
+    }
 
     player.time = now;
 }
 
 export function gameLoop() {
     if (offline.active) return;
-
     const now = Date.now();
     calc((now - date) / 1e3);
     date = now;
 }
 
-
-var exports = {
+const exportsObj = {
     start,
     getYooAGain,
     getYooAPerSecond
 };
-export default exports;
+export default exportsObj;

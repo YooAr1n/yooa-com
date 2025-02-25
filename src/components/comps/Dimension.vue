@@ -1,16 +1,12 @@
 <template>
-    <div
-        class="dimension"
-        :class="{ 'disabled': !canAfford }"
-        :style="dimensionStyle"
-    >
+    <div class="dimension" :class="{ disabled: !canAfford }" :style="dimensionStyle">
         <h2>{{ dimHeader }}</h2>
         <h3>{{ dimGain }}</h3>
-        <p v-if="dimension.tier === 1">Boosts YooA Point gain.</p>
+        <p v-if="dimension.tier === 1">{{ dimension.t1Text }}</p>
         <p v-else-if="dimension.tier > 1">
             Produces {{ prevDimensionName }}.
         </p>
-        <p>Cost: {{ formattedCost }} {{ costCurrDisp }}</p>
+        <p>Cost: {{ formattedCost }} {{ dimension.costDisp }}</p>
         <p>{{ dimension.effectDisplay }}</p>
         <button @click="buyDimension">Buy</button>
         <button v-if="maxUnlocked" @click="maxDimension">Buy Max</button>
@@ -18,54 +14,53 @@
 </template>
 
 <script>
-import { hasAchievement, player } from "@/incremental/incremental.js"; // Import the player object
+import { hasAchievement, player } from "@/incremental/incremental.js";
 
 export default {
     props: {
-        dimension: Object,
-        allDimensions: Array,
+        dimension: {
+            type: Object,
+            required: true,
+        },
+        allDimensions: {
+            type: Array,
+            default: () => [],
+        },
     },
     computed: {
-        // Cached dimension properties to avoid redundant access
-        dimensionData() {
-            const { amt, name, level, mult, tier, costDisp, cost, effectDisplay, layer, currency, type } = this.dimension;
-            return {
-                amt, name, level, mult, tier, costDisp, cost, effectDisplay, layer, currency, type
-            };
-        },
-
+        // Build the dimension header using properties directly from the dimension prop
         dimHeader() {
-            const { amt, name, level, mult } = this.dimensionData;
+            const { amt, name, level, mult } = this.dimension;
             return `${format(amt)} ${name} (Level ${formatWhole(level)}) x${format(mult)}`;
         },
-
+        // Get the current gain value from the global player object
         dimGain() {
-            const { tier } = this.dimensionData;
-            const layer = "YooA";
-            return player.gain[layer]?.dimensions?.[tier - 1] ?? "N/A"; // Use optional chaining
+            const { type, tier } = this.dimension;
+            return player.gain[type]?.dimensions?.[tier - 1] ?? "N/A";
         },
-
-        costCurrDisp() {
-            return this.dimensionData.costDisp;
-        },
-
+        // Returns the current currency (either YooAPoints or a layer-specific currency)
         currency() {
-            const { layer, currency } = this.dimensionData;
-            return layer === "" ? player.YooAPoints : player[layer]?.[currency];
+            const { layer, currency } = this.dimension;
+            return layer === ""
+                ? player.YooAPoints
+                : player[layer]?.[currency];
         },
-
+        // Determines if the player can afford the dimension cost
         canAfford() {
-            return this.currency?.gte(this.dimensionData.cost) ?? false;
+            return this.currency?.gte(this.dimension.cost) ?? false;
         },
-
+        // Unlocks max-buy if the achievement is reached
         maxUnlocked() {
             return hasAchievement(23);
         },
-
+        // Computes the background gradient based on type, tier, and affordability
         dimensionStyle() {
-            const { type, tier } = this.dimensionData;
+            const { type, tier } = this.dimension;
             const disabled = "linear-gradient(#c51313, #ff5757)";
-            const gradientYooA = tier < 3 ? "linear-gradient(#991893, #d17be2)" : "linear-gradient(#ad1480, #dd14b1)";
+            const gradientYooA =
+                tier < 3
+                    ? "linear-gradient(#991893, #d17be2)"
+                    : "linear-gradient(#ad1480, #dd14b1)";
             const gradientDefault = "linear-gradient(#4caf50, #81c784)";
 
             return {
@@ -76,14 +71,16 @@ export default {
                     : disabled,
             };
         },
-
+        // Retrieves the name of the previous dimension (if any)
         prevDimensionName() {
-            const prevDimension = this.allDimensions[this.dimensionData.tier - 2]; // Array is 0-indexed
-            return prevDimension?.name || "";
+            const tier = this.dimension.tier;
+            return tier > 1 && this.allDimensions[tier - 2]
+                ? this.allDimensions[tier - 2].name
+                : "";
         },
-
+        // Formats the cost for display
         formattedCost() {
-            return format(this.dimensionData.cost);
+            return format(this.dimension.cost);
         },
     },
     methods: {

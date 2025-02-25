@@ -68,6 +68,8 @@ export default {
         backgroundColor = 'linear-gradient(#991893, #d17be2)'; // For the YooA layer
       } else if (this.layerName === 'YooAmatter') {
         backgroundColor = 'linear-gradient(#929923, #bcc70f)'; // For the YooAmatter layer
+      } else if (this.layerName === 'sparks') {
+        backgroundColor = 'linear-gradient(#4caf50, #81c784)'; // For the YooAmatter layer
       } else {
         backgroundColor = 'linear-gradient(#991893, #d17be2)'; // Default color for other layers
       }

@@ -1,6 +1,20 @@
 import Decimal from "./break_eternity.js";
-import { gainCurrency, getYooADimensionMult, hasAchievement } from "./incremental.js";
+import { gainCurrency, getYooADimensionMult, getYooAmatterFormationMult, hasAchievement } from "./incremental.js";
 import { hasUpgrade, inChallenge, upgradeEffect } from "./main.js";
+
+// Cache common constants
+const LEVEL_SCALE_THRESHOLD = new Decimal(1e4);
+
+// Pre-cached base cost and multiplier values (shared between instances)
+const BASE_COSTS = {
+    YooA: [null, new Decimal(10), new Decimal(10000), new Decimal(10), new Decimal(1e5), new Decimal(1e10)],
+    YooAmatter: [null, new Decimal("1e150"), new Decimal("1e250"), new Decimal("e400"), new Decimal("e700"), new Decimal("e1400")]
+};
+
+const COST_MULTS = {
+    YooA: [null, new Decimal(1.15), new Decimal(1.5), new Decimal(1.1), new Decimal(1.4), new Decimal(2)],
+    YooAmatter: [null, new Decimal(1e5), new Decimal(1e10), new Decimal(1e20), new Decimal(1e30), new Decimal(1e50)]
+};
 
 export default class Dimension {
     constructor(type, name, amt, level, tier, costDisp = "YooA Points", layer = '', currency = 'amount') {
@@ -13,37 +27,42 @@ export default class Dimension {
         this.layer = layer;
         this.currency = currency;
 
-        // Cache base cost and multiplier
-        this._baseCost = new Decimal([null, 10, 10000, 10, 1e5, 1e10][this.tier]);
-        this._costMultiplier = new Decimal([null, 1.15, 1.5, 1.1, 1.4, 2][this.tier]);
+        // Use pre-cached constants instead of redefining them per instance
+        if (BASE_COSTS[this.type] && COST_MULTS[this.type]) {
+            this._baseCost = BASE_COSTS[this.type][this.tier];
+            this._costMultiplier = COST_MULTS[this.type][this.tier];
+        } else {
+            console.error("Invalid type or tier");
+        }
 
-        // Bind the cost function once and reuse it
+        // Bind cost functions once to reuse in bulk-buy logic
         this.boundGetDimensionCost = this.getDimensionCost.bind(this);
         this.boundGetDimInvCost = this.getInvDimCost.bind(this);
     }
 
-    // Return cached base cost value
+    // Getters for base cost and cost multiplier
     get baseCost() {
         return this._baseCost;
     }
 
-    // Return cached cost multiplier value
     get costMultiplier() {
         return this._costMultiplier;
     }
 
-    // Cache the dimension cost, only recalculate when necessary
+    // Lazy cache for cost calculation
     get cost() {
-        if (!this._cachedCost) {
+        if (this._cachedCost === undefined) {
             this._cachedCost = this.getDimensionCost(this.level);
         }
         return this._cachedCost;
     }
 
-    // Cache the multiplier
+    // Lazy cache for multiplier calculation
     get mult() {
-        if (!this._cachedMult) {
-            const eff = Decimal.pow(getDimMultPerLvl(this.tier), this.level).mul(getYooADimensionMult());
+        if (this._cachedMult === undefined) {
+            let eff = Decimal.pow(getDimMultPerLvl(this.type, this.tier), this.level);
+            if (this.type === "YooA") eff = eff.mul(getYooADimensionMult());
+            if (this.type === "YooAmatter") eff = eff.mul(getYooAmatterFormationMult());
             this._cachedMult = (this.tier === 2 && this.type === "YooA" && inChallenge("YooAmatter", 2))
                 ? Decimal.dZero  // Special case
                 : eff;
@@ -51,11 +70,11 @@ export default class Dimension {
         return this._cachedMult;
     }
 
-    // Cache the effect
+    // Lazy cache for effect calculation
     get effect() {
-        if (!this._cachedEffect) {
+        if (this._cachedEffect === undefined) {
             const effect = this.mult.mul(this.amt);
-            this._cachedEffect = this.tier === 1
+            this._cachedEffect = (this.tier === 1 && this.type === "YooA")
                 ? effect.div(10).add(1)
                 : effect.div(100);
         }
@@ -63,72 +82,84 @@ export default class Dimension {
     }
 
     get unlocked() {
-        // This will check if the dimension is unlocked based on the tier and whether achievement 18 is unlocked
-        return this.tier < 3 || hasAchievement(18); // Check achievement 18 every time the unlocked state is accessed
+        if (this.type === "YooA") return this.tier < 3 || hasAchievement(18);
+        if (this.type === "YooAmatter") return hasUpgrade("YooAmatter", 44);
+        return false;
     }
 
     get effectDisplay() {
         const effect = format(this.effect);
-        return `Effect: ${this.tier === 1 ? `x${effect}` : `${effect}/s`}`;
+        return `Effect: ${this.tier === 1 && this.type === "YooA" ? `x${effect}` : `${effect}/s`}`;
     }
 
-    // Cache dimension cost calculation
-    getDimensionCost(level = this.level) {
-        if (this._cachedDimensionCostLevel === level) return this._cachedDimensionCost;
+    get t1Text() {
+        if (this.type === "YooA") return "Boosts YooA Point gain.";
+        if (this.type === "YooAmatter") return "Produces YooAmatter Sparks.";
+        return "";
+    }
 
-        const scaledLevel = level.gte(1e4) ? level.div(1e4).pow(2).mul(1e4) : level;
+    // Caches the dimension cost calculation, recalculating only when level changes
+    getDimensionCost(level = this.level) {
+        if (this._cachedDimensionCostLevel && this._cachedDimensionCostLevel.equals(level)) return this._cachedDimensionCost;
+
+        const scaledLevel = level.gte(LEVEL_SCALE_THRESHOLD)
+            ? level.div(LEVEL_SCALE_THRESHOLD).pow(2).mul(LEVEL_SCALE_THRESHOLD)
+            : level;
         this._cachedDimensionCost = Decimal.pow(this.costMultiplier, scaledLevel).mul(this.baseCost);
         this._cachedDimensionCostLevel = level;
 
         return this._cachedDimensionCost;
     }
 
-    getInvDimCost(x = this.layer === '' ? player.YooAPoints : player[this.layer][this.currency]) {
-        // If the level hasn't changed or the cache isn't stale, return the cached value
-        let level = x.div(this.baseCost).log(this.costMultiplier)
+    // Inverts the cost calculation
+    getInvDimCost(x = (this.layer === '' ? player.YooAPoints : player[this.layer][this.currency])) {
+        let level = x.div(this.baseCost).log(this.costMultiplier);
 
-        // Rescale for large levels only when needed
-        if (level.gte(1e4)) {
-            level = level.div(1e4).root(2).mul(1e4);
+        if (level.gte(LEVEL_SCALE_THRESHOLD)) {
+            level = level.div(LEVEL_SCALE_THRESHOLD).root(2).mul(LEVEL_SCALE_THRESHOLD);
         }
 
         return level;
     }
 
-    // When buying the dimension, cache the new cost
+    // Buy one unit of the dimension
     buy(player) {
-        const curr = this.layer === '' ? player.YooAPoints : player[this.layer][this.currency];
+        const curr = (this.layer === '' ? player.YooAPoints : player[this.layer][this.currency]);
         if (!curr.gte(this.cost)) return;
 
-        const subt = curr.sub(this.cost);
+        const newCurr = curr.sub(this.cost);
         this.level = this.level.add(1);
         this.amt = this.amt.add(1);
         this.resetCache();
-        this.updateCurrency(player, subt);
+        this.updateCurrency(player, newCurr);
     }
 
-    // Max-buy logic: Cache new cost and other recalculated values
+    // Buy as many dimensions as possible
     buyMax(player) {
-        const curr = this.layer === '' ? player.YooAPoints : player[this.layer][this.currency];
+        const curr = (this.layer === '' ? player.YooAPoints : player[this.layer][this.currency]);
         if (curr.lt(this.cost)) return;
 
-        let max = Decimal.affordGeometricSeries(curr, this.baseCost, this.costMultiplier, this.level);
-        let maxQty = max
-        if (this.level.add(max).gte(1e4)) {
-            max = bulkBuyBinarySearch(curr, {
+        let maxPurchase = Decimal.affordGeometricSeries(curr, this.baseCost, this.costMultiplier, this.level);
+        let maxQty = maxPurchase;
+        if (this.level.add(maxPurchase).gte(LEVEL_SCALE_THRESHOLD)) {
+            maxPurchase = bulkBuyBinarySearch(curr, {
                 costFunction: this.boundGetDimensionCost,
                 invCostFunction: this.boundGetDimInvCost,
             }, this.level);
-            maxQty = max.quantity
+            maxQty = maxPurchase.quantity;
         }
 
         if (maxQty.lte(0)) return;
-        const maxCost = max.purchasePrice ? max.purchasePrice : Decimal.sumGeometricSeries(max, this.baseCost, this.costMultiplier, this.level);
+        const maxCost = maxPurchase.purchasePrice 
+            ? maxPurchase.purchasePrice 
+            : Decimal.sumGeometricSeries(maxPurchase, this.baseCost, this.costMultiplier, this.level);
+
+        if (curr.lt(maxCost)) return;
 
         this.level = this.level.add(maxQty);
         this.amt = this.amt.add(maxQty);
         this.updateCurrency(player, curr.sub(maxCost));
-        this.resetCache(); // Reset all caches at once
+        this.resetCache();
     }
 
     updateCurrency(player, curr) {
@@ -141,19 +172,24 @@ export default class Dimension {
 
     updateAmount(diff) {
         if (this.tier <= 1) return;
-        const i = this.tier - 2;
-        const gainPath = `dimensions.YooA.${i}.amt`;
+        const index = this.tier - 2;
+        const gainPath = `dimensions.${this.type}.${index}.amt`;
         if (!this.effect.eq(0)) {
-            player.gain.YooA.dimensions[i] = gainCurrency(player, gainPath, this.effect, diff, true);
+            player.gain[this.type].dimensions[index] = gainCurrency(player, gainPath, this.effect, diff, true);
         }
     }
 
-    // Reset logic
     reset(layer, highestTier) {
-        const resetLevel = layer === "YooAmatter" && this.tier <= 2 ? Decimal.dZero : this.level;
-        this.level = resetLevel;
-        this.amt = this.tier === highestTier && this.tier >= 3 ? this.level : Decimal.dZero;
-        this.resetCache(); // Use unified cache reset
+        if (this.type === "YooA") {
+            const resetLevel = (layer === "YooAmatter" && this.tier <= 2) ? Decimal.dZero : this.level;
+            this.level = resetLevel;
+            this.amt = (this.tier === highestTier && this.tier >= 3) ? this.level : Decimal.dZero;
+        } else {
+            const resetLevel = (layer === "YooAmatter") ? this.level : Decimal.dZero;
+            this.level = resetLevel;
+            this.amt = this.level;
+        }
+        this.resetCache();
     }
 
     resetCache() {
@@ -166,21 +202,44 @@ export default class Dimension {
 }
 
 // Helper function to calculate dimension multipliers based on tier
-export function getDimMultPerLvl(tier) {
-    let base = new Decimal(1.01);
-    if (hasUpgrade("YooAmatter", 14)) base = base.add(upgradeEffect("YooAmatter", 14));
-    if (hasUpgrade("YooAmatter", 43)) base = base.add(upgradeEffect("YooAmatter", 43));
-    if (tier < 3) return base;
-    if (hasUpgrade("YooAmatter", 13)) return base.pow(3);
+export function getDimMultPerLvl(type, tier) {
+    const baseValues = {
+        YooA: new Decimal(1.01),
+        YooAmatter: new Decimal(1.5)
+    };
+    let base = baseValues[type];
+
+    if (type === "YooA") {
+        if (hasUpgrade("YooAmatter", 14)) base = base.add(upgradeEffect("YooAmatter", 14));
+        if (hasUpgrade("YooAmatter", 43)) base = base.add(upgradeEffect("YooAmatter", 43));
+        if (tier < 3) return base;
+        if (hasUpgrade("YooAmatter", 13)) {
+            const sparkEffect = upgradeEffect("sparks", 11).add(1);
+            return base.pow(3).pow(sparkEffect);
+        }
+    }
+
+    if (type === "YooAmatter") {
+        base = base.add(upgradeEffect("sparks", 11));
+    }
     return base;
 }
 
+// Optimized: Use a single loop to find the highest tier among dimensions
 export function getHighestTier(dimensions) {
-    const validDimensions = dimensions.filter(d => d.level.gte(1));
-    return validDimensions.length ? Math.max(...validDimensions.map(d => d.tier)) : 0;
+    let maxTier = 0;
+    for (let i = 0; i < dimensions.length; i++) {
+        if (dimensions[i].level.gte(1) && dimensions[i].tier > maxTier) {
+            maxTier = dimensions[i].tier;
+        }
+    }
+    return maxTier;
 }
 
+// Reset all dimensions by iterating once over the list
 export function resetAllDimensions(dimensions, layer) {
     const highestTier = getHighestTier(dimensions);
-    dimensions.forEach(d => d.reset(layer, highestTier));
+    for (let i = 0; i < dimensions.length; i++) {
+        dimensions[i].reset(layer, highestTier);
+    }
 }

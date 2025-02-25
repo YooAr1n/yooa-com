@@ -71,6 +71,12 @@ export default {
       if (hasAchievement(38)) {
         dis.push("YooA math problems");
       }
+      if (hasAchievement(41)) {
+        dis.push("YooArium");
+      }
+      if (hasAchievement(47)) {
+        dis.push("YooAmatter Formations");
+      }
 
       // Format the display text with Oxford comma if more than 2 items
       if (dis.length > 2) {

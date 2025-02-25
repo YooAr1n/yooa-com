@@ -14,6 +14,7 @@ export const gameLayers = {
         gain = gain.mul(calculateAchievementMultiplier());
       }
       if (hasUpgrade("YooAmatter", 12)) gain = gain.mul(upgradeEffect("YooAmatter", 12));
+      if (hasUpgrade("YooAmatter", 51)) gain = gain.mul(upgradeEffect("YooAmatter", 51)[0]);
       if (hasUpgrade("YooA", 32)) gain = gain.mul(upgradeEffect("YooA", 32));
       if (hasChallenge("YooAmatter", 1)) gain = gain.mul(challengeEffect("YooAmatter", 1)[1])
       if (hasChallenge("YooAmatter", 4)) gain = gain.mul(challengeEffect("YooAmatter", 4)[2])
@@ -56,10 +57,11 @@ export const gameLayers = {
         costCurrency: "YooA Points",
         costInternal: "YooAPoints",
         maxLvl() {
-          let max = 5 + getUpgLevels("YooA", 32) * 5
+          let max = 5
           if (hasUpgrade("YooAmatter", 21)) max += 7
           if (hasChallenge("YooAmatter", 3)) max += 13
-          return new Decimal(max)
+          max = Decimal.add(max, gameLayers.YooA.upgrades[32].addLevels())
+          return max
         },
         base() {
           return upgradeEffect("YooA", 13).add(2).mul(upgradeEffect("YooAmatter", 41))
@@ -92,7 +94,9 @@ export const gameLayers = {
         effect() {
           let eff = Decimal.pow(1.01, player.math.YooA.solved)
           if (eff.gte(100)) {
-            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(0.5).div(5).pow10()
+            let dil = 0.5
+            if (hasUpgrade("YooAmatter", 52)) dil = 0.55
+            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10()
             else eff = eff.log10().mul(50)
             if (eff.gte(1e100)) eff = eff.log10().dilate(2).pow(25)
           }
@@ -199,7 +203,9 @@ export const gameLayers = {
         effect() {
           let eff = Decimal.pow(1.003, player.math.YooA.solved)
           if (eff.gte(100)) {
-            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(0.5).div(5).pow10()
+            let dil = 0.5
+            if (hasUpgrade("YooAmatter", 52)) dil = 0.55
+            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10()
             else eff = eff.log10().mul(50)
             if (eff.gte(1e30)) eff = eff.log10().mul(10 / 3).dilate(2).pow(7.5)
           }
@@ -244,12 +250,22 @@ export const gameLayers = {
         description() {
           return "Gain 20x more YooA Points."
         },
-        cost: new Decimal(1e20),
+        cost(x = getUpgLevels("YooA", 24)) {
+          if (x.lte(0)) return new Decimal(1e20)
+          return Decimal.pow(1e5, x.sub(1).pow(1.35)).mul("e5000");
+        },
+        invCost(x) {
+          let cost = Decimal.dZero
+          if (x.gte("e5000")) cost = x.div("e5000").log(1e5).root(1.35).add(1)
+          return cost;
+        },
         costCurrency: "YooA Points",
         costInternal: "YooAPoints",
-        maxLvl: Decimal.dOne,
+        maxLvl() {
+          return hasAchievement(41) ? undefined : Decimal.dOne
+        },
         effect() {
-          return new Decimal(20);
+          return Decimal.pow(20, getUpgLevels("YooA", 24));
         },
         effectDisplay() {
           return "x" + format(this.effect());
@@ -282,7 +298,7 @@ export const gameLayers = {
       32: {
         title: "YooA Mastery (YU 32)",
         description() {
-          return "Add 5 levels to 'YooA Challenge' and boost YooA Dimensions and math problem gain by 20% per 'YooA Challenge' level after 5."
+          return "Add " + formatWhole(this.base()) + " levels to 'YooA Challenge' and boost YooA Dimensions and math problem gain by 20% per 'YooA Challenge' level after 5."
         },
         cost(x = getUpgLevels("YooA", 32)) {
           if (x.lte(0)) return new Decimal(1e70)
@@ -296,13 +312,25 @@ export const gameLayers = {
         costCurrency: "YooA Points",
         costInternal: "YooAPoints",
         maxLvl() {
-          return new Decimal(hasUpgrade("YooAmatter", 43) ? 5 : 1);
+          let max = 1
+          if (hasUpgrade("YooAmatter", 43)) max += 4
+          if (hasUpgrade("YooAmatter", 53)) max += 5
+          return new Decimal(max);
+        },
+        base() {
+          let max = 5
+          if (hasUpgrade("YooAmatter", 53)) max += 2
+          if (hasUpgrade("YooAmatter", 54)) max += 2
+          return new Decimal(max).mul(upgradeEffect("sparks", 14));
+        },
+        addLevels() {
+          return getUpgLevels("YooA", 32).mul(this.base()).floor()
         },
         effect() {
           return Decimal.pow(1.2, getUpgLevels("YooA", 11).sub(5).mul(getUpgLevels("YooA", 32)).max(0));
         },
         effectDisplay() {
-          return "x" + format(this.effect());
+          return "+" + formatWhole(this.addLevels()) + " levels, x" + format(this.effect());
         },
       },
       33: {
@@ -376,7 +404,7 @@ export const gameLayers = {
       return player.YooAPoints.gte(1e12)
     },
     effectExp() {
-      let exp = upgradeEffect("YooAmatter", 33).add(1)
+      let exp = upgradeEffect("YooAmatter", 33).add(1).mul(upgradeEffect("sparks", 13))
       return exp
     },
     effect() {
@@ -393,6 +421,8 @@ export const gameLayers = {
       let gain = player.YooAPoints.div(1e12).dilate(0.8).pow(0.5)
       if (gain.gte(300)) gain = gain.div(300).pow(0.5).mul(300)
       if (gain.gte(1e50)) gain = gain.log10().div(50).pow(0.9).mul(500 / 9).add(400 / 9).div(2).pow10().mul(2).sub(1e50)
+      if (gain.gte(1e220)) gain = gain.log10().div(220).pow(0.7).mul(2200 / 7).add(880 / 7).div(2).pow10().mul(2).sub(1e220)
+      if (gain.gte("e1400")) gain = gain.div("e1400").pow(0.6).mul("e1400")
       return gain.mul(mult).floor()
     },
     getNextAt() {
@@ -400,12 +430,16 @@ export const gameLayers = {
       let gain = this.getResetGain()
       if (gain.gte(1e6)) gain = gain.log10().floor().add(1).pow10().div(mult)
       else gain = gain.add(1).div(mult)
+      if (gain.gte("e1400")) gain = gain.div("e1400").root(0.6).mul("e1400")
+      if (gain.gte(1e220)) gain = gain.add(1e220).div(2).log10().mul(2).sub(880 / 7).div(2200 / 7).root(0.7).mul(220).pow10()
       if (gain.gte(1e50)) gain = gain.add(1e50).div(2).log10().mul(2).sub(400 / 9).div(500 / 9).root(0.9).mul(50).pow10()
       if (gain.gte(300)) gain = gain.div(300).pow(2).mul(300)
       return gain.pow(2).dilate(1.25).mul(1e12).max(1e12)
     },
     problemGain() {
       let gain = Decimal.dOne
+      if (hasUpgrade("YooAmatter", 51)) gain = gain.mul(upgradeEffect("YooAmatter", 51)[1]);
+      if (hasAchievement(44)) gain = gain.mul(achievements[44].rewardEffect())
       return gain
     },
     YooAriumEffect() {
@@ -413,11 +447,19 @@ export const gameLayers = {
       let eff2 = player.YooAmatter.YooArium.pow(0.5).div(10).add(1)
       return [eff, eff2]
     },
+    YooAmatterSparkEffect() {
+      let eff = player.YooAmatter.sparks.add(1).pow(0.75)
+      if (eff.gte(1e140)) eff = eff.log10().div(140).pow(0.8).mul(80).add(60).pow10()
+      let eff2 = player.YooAmatter.sparks.add(1).log10().pow(0.5).div(100).add(1)
+      return [eff, eff2]
+    },
     getYooAriumGain() {
-      let gain = new Decimal(0.01).mul(getArinEffect()[0])
+      let gain = new Decimal(0.01).mul(getArinEffect()[0]).mul(this.YooAmatterSparkEffect()[0])
         .mul(upgradeEffect("YooAmatter", 31))
         .mul(upgradeEffect("YooAmatter", 41))
+      if (player.achievements[41]) gain = gain.mul(calculateAchievementMultiplier());
       if (hasUpgrade("YooAmatter", 32)) gain = gain.mul(upgradeEffect("YooAmatter", 32))
+      if (hasUpgrade("YooAmatter", 44)) gain = gain.mul(upgradeEffect("YooAmatter", 44))
       if (hasUpgrade("YooAmatter", 43)) gain = gain.mul(3)
       if (hasChallenge("YooAmatter", 2)) gain = gain.mul(challengeEffect("YooAmatter", 2)[1])
       if (hasChallenge("YooAmatter", 3)) gain = gain.mul(challengeEffect("YooAmatter", 3)[1])
@@ -430,7 +472,7 @@ export const gameLayers = {
       costsNothing() {
         return false
       },
-      rows: 4,
+      rows: 5,
       cols: 4,
       11: {
         title: "Eternal Growth (YM 11)",
@@ -504,8 +546,9 @@ export const gameLayers = {
           return eff
         },
         effectDisplay() {
-          let dis = "+" + format(this.effect())
-          if (this.effect().gte(0.012)) dis += " (softcapped)"
+          let eff = this.effect()
+          let dis = "+" + format(eff)
+          if (eff.gte(0.012)) dis += " (softcapped)"
           return dis;
         },
         onBuy() {
@@ -596,7 +639,12 @@ export const gameLayers = {
         },
         cost(x = getUpgLevels("YooAmatter", 31)) {
           let cost = Decimal.pow(10, x.pow(1.4)).mul(8)
-          if (x.gte(5)) cost = Decimal.pow(1e5, x.sub(5).pow(1.8)).mul(1e70)
+          if (x.gte(5)) cost = Decimal.pow(1e4, x.sub(5).pow(1.75)).mul(1e30)
+          return cost;
+        },
+        invCost(x) {
+          let cost = x.log10().min(4)
+          if (cost.gte(4) && x.gte(1e30)) cost = x.div(1e30).log(1e4).root(1.75).add(5)
           return cost;
         },
         costCurrency: "YooArium",
@@ -604,13 +652,16 @@ export const gameLayers = {
         costInternal: "YooArium",
         maxLvl() {
           let max = 5
+          if (hasUpgrade("YooAmatter", 51)) max += 5
           return new Decimal(max)
         },
         base() {
           return new Decimal(3)
         },
         baseDigits() {
-          return new Decimal(0.25)
+          let digs = 0.25
+          if (hasUpgrade("YooAmatter", 51)) digs -= 0.1
+          return new Decimal(digs)
         },
         effect() {
           return Decimal.pow(this.base(), getUpgLevels("YooAmatter", 31));
@@ -641,7 +692,6 @@ export const gameLayers = {
         },
         effectDisplay() {
           let dis = "x" + format(this.effect())
-          //if (this.effect().gte(100)) dis += " (softcapped)"
           return dis;
         },
       },
@@ -678,7 +728,7 @@ export const gameLayers = {
         costLayer: "YooAmatter",
         costInternal: "amount",
         base() {
-          return player.YooAPoints.add(10).log10().add(10).log10()
+          return player.YooAPoints.add(10).log10().add(10).log10().pow(upgradeEffect("sparks", 14))
         },
         effect() {
           return Decimal.pow(this.base(), getUpgLevels("YooAmatter", 34));
@@ -741,10 +791,114 @@ export const gameLayers = {
         maxLvl: Decimal.dOne,
         effect() {
           let eff = player.YooAmatter.YooArium.div(1e11).add(10).log10().div(1000)
+          if (hasUpgrade("YooAmatter", 44)) eff = eff.mul(2)
+          if (eff.gte(0.25)) eff = eff.div(0.25).pow(0.8).mul(0.125).add(0.125)
           return eff
         },
         effectDisplay() {
-          let dis = "+" + format(this.effect())
+          let eff = this.effect()
+          let dis = "+" + format(eff)
+          if (eff.gte(0.25)) dis += " (softcapped)"
+          return dis;
+        },
+      },
+      44: {
+        title: "YooA's Genesis (YM 44)",
+        description() {
+          return "YooA Points boost YooArium gain, double 'YooArium Mastery' effect, and unlock YooAmatter Formations. Arin cost scales 1.3x slower."
+        },
+        cost: new Decimal(1e120),
+        costCurrency: "YooAmatter",
+        costLayer: "YooAmatter",
+        costInternal: "amount",
+        maxLvl: Decimal.dOne,
+        effect() {
+          let eff = player.YooAPoints.div("e3000").add(10).log10().div(100).add(1).pow(0.7)
+          return eff
+        },
+        effectDisplay() {
+          let dis = "x" + format(this.effect())
+          return dis;
+        },
+      },
+      51: {
+        title: "YooArium Simplifier (YM 51)",
+        description() {
+          return "YooAmatter Sparks boost YooA math problems, each 'YooArium Challenge' doubles YooAmatter math problem gain, add 5 levels to it, and reduce its digits added by 0.1."
+        },
+        cost: new Decimal(1e5),
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        maxLvl: Decimal.dOne,
+        effect() {
+          let eff = player.YooAmatter.sparks.div(1e4).add(1).pow(0.8)
+          let eff2 = Decimal.pow(2, getUpgLevels("YooAmatter", 31))
+          return [eff, eff2]
+        },
+        effectDisplay() {
+          let dis = "x" + format(this.effect()[0]) + ", x" + format(this.effect()[1])
+          return dis;
+        },
+        onBuy() {
+          generateNewProblem("YooAmatter");
+        },
+      },
+      52: {
+        title: "Transcendent Computation (YM 52)",
+        description() {
+          return "YooAmatter Sparks boost YMC last rewards, and make 'YooA Solver' (YU 12) and 'Dimension Solver' (YU 22) softcaps weaker."
+        },
+        cost: new Decimal(1e7),
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        maxLvl: Decimal.dOne,
+        effect() {
+          let eff = player.YooAmatter.sparks.add(1).log10().div(10).add(1)
+          return eff
+        },
+        effectDisplay() {
+          let dis = "^" + format(this.effect())
+          return dis;
+        },
+      },
+      53: {
+        title: "Mathematical Ascendancy (YM 53)",
+        description() {
+          return "Boost all YooAmatter Formations based on math problems solved, and add 5 levels to 'YooA Mastery' (YU 32) and increase its added levels by 2."
+        },
+        cost: new Decimal(1e13),
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        maxLvl: Decimal.dOne,
+        effect() {
+          let eff = Decimal.pow(1.02, player.math.YooAmatter.solved ** 0.4)
+          return eff;
+        },
+        effectDisplay() {
+          let dis = "x" + format(this.effect())
+          //if (this.effect().gte(100)) dis += " (softcapped)"
+          return dis;
+        },
+      },
+      54: {
+        title: "The Spark of Infinity (YM 54)",
+        description() {
+          return "YooA Points boost all YooAmatter Formations, increase 'YooA Mastery' (YU 32) added levels by 2, autobuyers are 2x faster, and unlock Spark Upgrades."
+        },
+        cost: new Decimal(1e27),
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        maxLvl: Decimal.dOne,
+        effect() {
+          let eff = player.YooAPoints.add(1).div("e55555").dilate(0.5).pow(0.02)
+          return eff;
+        },
+        effectDisplay() {
+          let dis = "x" + format(this.effect())
           return dis;
         },
       },
@@ -763,7 +917,9 @@ export const gameLayers = {
           return "Gain more YooA Points and YooA math problems, and unlock YooA Lines autobuyer."
         },
         rewardEffect() {
-          return [new Decimal(1.01), new Decimal(3)];
+          let eff = new Decimal(3)
+          if (hasUpgrade("YooAmatter", 52)) eff = eff.pow(upgradeEffect("YooAmatter", 52))
+          return [new Decimal(1.01), eff];
         },
         rewardEffectDisplay() {
           let reward = this.rewardEffect()
@@ -783,7 +939,9 @@ export const gameLayers = {
           return "YooA math problems have 20% fewer digits, gain more YooArium, and unlock YooA Planes autobuyer."
         },
         rewardEffect() {
-          return [0.8, new Decimal(3)];
+          let eff = new Decimal(3)
+          if (hasUpgrade("YooAmatter", 52)) eff = eff.pow(upgradeEffect("YooAmatter", 52))
+          return [0.8, eff];
         },
         rewardEffectDisplay() {
           let reward = this.rewardEffect()
@@ -804,6 +962,7 @@ export const gameLayers = {
         },
         rewardEffect() {
           let eff2 = player.YooAmatter.amount.div(1e45).add(1).log10().div(3).add(1).pow(0.75)
+          if (hasUpgrade("YooAmatter", 52)) eff2 = eff2.pow(upgradeEffect("YooAmatter", 52))
           return [0.85, eff2];
         },
         rewardEffectDisplay() {
@@ -831,6 +990,7 @@ export const gameLayers = {
         rewardEffect() {
           let eff2 = player.stats.YooAmatter.resets.add(1).log10().pow(2).div(200).add(1)
           let eff3 = player.stats.YooAmatter.resets.div(100).add(1).pow(0.8)
+          if (hasUpgrade("YooAmatter", 52)) eff3 = eff3.pow(upgradeEffect("YooAmatter", 52))
           return [0.85, eff2, eff3];
         },
         rewardEffectDisplay() {
@@ -839,6 +999,104 @@ export const gameLayers = {
         },
       }
     }
+  },
+  sparks: {
+    upgrades: {
+      costsNothing() {
+        return false
+      },
+      rows: 3,
+      cols: 4,
+      11: {
+        title: "Dimensional Amplification (YS 11)",
+        description() {
+          return "Increase YooA Dimension 3+ exponent and YooAmatter Formation multipliers by " + format(this.base()) + "."
+        },
+        cost(x = getUpgLevels("sparks", 11)) {
+          return Decimal.pow(1e5, x.pow(1.6)).mul(1e42);
+        },
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        base() {
+          return new Decimal(0.02)
+        },
+        effect() {
+          return this.base().mul(getUpgLevels("sparks", 11));
+        },
+        effectDisplay() {
+          let eff = this.effect()
+          return "^" + format(eff.add(1)) + " YD 3+ mult/level, +" + format(this.effect()) + " YMF mult/level";
+        },
+      },
+      12: {
+        title: "YooArium Infusion (YS 12)",
+        description() {
+          return "Multiply YooAmatter Formations by " + format(this.base()) + " (Based on YooArium)."
+        },
+        cost(x = getUpgLevels("sparks", 12)) {
+          return Decimal.pow(1e8, x.pow(1.7)).mul(1e45);
+        },
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        base() {
+          let base = player.YooAmatter.YooArium.add(1).div(1e125).dilate(0.45).pow(0.15)
+          if (base.gte(75)) base = base.add(25).log10().div(2).pow(0.8).mul(1.3).add(0.7).pow10().sub(25)
+          return base
+        },
+        effect() {
+          return this.base().pow(getUpgLevels("sparks", 12));
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      13: {
+        title: "Spark of Exponentiality (YS 13)",
+        description() {
+          return "Increase YooAmatter effect exponent multiplier by " + format(this.base()) + " (Based on YooAmatter Sparks)."
+        },
+        cost(x = getUpgLevels("sparks", 13)) {
+          return Decimal.pow(1e10, x.pow(1.65)).mul(1e60);
+        },
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        base() {
+          let base = player.YooAmatter.sparks.div(1e50).add(1).log10().pow(0.7).div(15)
+          if (base.gte(2.2)) base = base.div(2.2).pow(0.6).mul(1.1).add(1.1)
+          return base
+        },
+        effect() {
+          return this.base().mul(getUpgLevels("sparks", 13)).add(1);
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      14: {
+        title: "Mathematical Mastery (YS 14)",
+        description() {
+          return "'Prime Boost' (YM 34) and 'YooA Mastery' (YU 32) 1st effect are +" + format(this.base().mul(100)) + "% stronger (Based on YooA math problems)."
+        },
+        cost(x = getUpgLevels("sparks", 14)) {
+          return Decimal.pow(1e10, x.pow(1.8)).mul(1e112);
+        },
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        base() {
+          return player.math.YooA.solved.div(1e300).add(1).log10().pow(0.4).div(30)
+        },
+        effect() {
+          return this.base().mul(getUpgLevels("sparks", 14)).add(1);
+        },
+        effectDisplay() {
+          return "+" + format(this.effect().sub(1).mul(100)) + "% stronger";
+        },
+      },
+    },
   },
 }
 
@@ -974,7 +1232,7 @@ export const achievements = {
     title: "YooA Master",
     img: require("@/assets/Achievements/ach23.jpg"),
     description() {
-      return "Have " + format(1e12) + " YooA Points without 'YooA Challenge' (YU11)."
+      return "Have " + format(1e12) + " YooA Points without 'YooA Challenge' (YU 11)."
     },
     rewardDescription() {
       return "All YooA Dimensions are 5% stronger and unlock buy max YooA Dimensions."
@@ -1164,195 +1422,286 @@ export const achievements = {
       return player.YooAPoints.gte("1.11e1111") && inChallenge("YooAmatter", 2) && !hasUpgrade("YooA", 14)
     }
   },
+  41: {
+    title: "The Spark of Potential",
+    img: require("@/assets/Achievements/ach41.webp"),
+    description() {
+      return "Get 1 YooAmatter Spark."
+    },
+    rewardDescription() {
+      return "Achievement multiplier boosts YooArium, and remove 'YooA Booster' (YU 24) max level."
+    },
+    done() {
+      return player.stats.YooAmatter.totalSparks.gte(1)
+    }
+  },
+  42: {
+    title: "YooAnscendental",
+    img: require("@/assets/Achievements/ach42.webp"),
+    description() {
+      return "Have " + format("ee4") + " YooA Points."
+    },
+    done() {
+      return player.YooAPoints.gte("ee4")
+    }
+  },
+  43: {
+    title: "Beyond the Fabric of Reality",
+    img: require("@/assets/Achievements/ach43.jpg"),
+    description() {
+      return "Have " + format(Decimal.dNumberMax) + " YooAmatter."
+    },
+    rewardDescription() {
+      return "YooAmatter boosts YooAmatter Formations."
+    },
+    rewardEffect() {
+      return player.YooAmatter.amount.add(1).pow(0.0001)
+    },
+    rewardEffDesc() {
+      return "x" + format(this.rewardEffect())
+    },
+    done() {
+      return player.YooAmatter.amount.gte(Decimal.dNumberMax)
+    }
+  },
+  44: {
+    title: "The Infinite Theorem",
+    img: require("@/assets/Achievements/ach44.jpg"),
+    description() {
+      return "Solve " + format(1e100) + " math problems."
+    },
+    rewardDescription() {
+      return "YooA math problems boost YooAmatter math problem gain."
+    },
+    rewardEffect() {
+      return player.math.YooA.solved.add(1).log10().pow(0.25).div(20).add(1)
+    },
+    rewardEffDesc() {
+      return "x" + format(this.rewardEffect())
+    },
+    done() {
+      return player.stats.General.totalSolved.gte(1e100)
+    }
+  },
+  45: {
+    title: "Power Unleashed",
+    img: require("@/assets/Achievements/ach45.jpg"),
+    description() {
+      return "Buy 'Dimensional Amplification' (YS 11)."
+    },
+    done() {
+      return hasUpgrade("sparks", 11)
+    }
+  },
+  46: {
+    title: "Beyond Reality",
+    img: require("@/assets/Achievements/ach46.jpg"),
+    description() {
+      return "Have " + format("ee5") + " YooA Points."
+    },
+    done() {
+      return player.YooAPoints.gte("ee5")
+    }
+  },
+  47: {
+    title: "YooA's Logical Conqueror",
+    img: require("@/assets/Achievements/ach47.png"),
+    description() {
+      return "Have " + format("e7e4") + " YooA Points in 'YooA's Logical Labyrinth' (YMC 2) with at least Level 100 'YooA Challenge' (YU 11)."
+    },
+    rewardDescription() {
+      return "Achievement multiplier boosts YooAmatter Formations."
+    },
+    done() {
+      return player.YooAPoints.gte("e7e4") && inChallenge("YooAmatter", 2) && getUpgLevels("YooA", 11).gte(100)
+    }
+  },
+  48: {
+    title: "Arin's Ultimate Evolution",
+    img: require("@/assets/Achievements/ach48.jpeg"),
+    description() {
+      return "Upgrade Arin to level 350."
+    },
+    done() {
+      return player.Arin.gte(350)
+    }
+  },
 }
 
 // Helper function to get upgrade levels
 export function getUpgLevels(layer, id) {
-  return player.upgrades[layer]?.[id] || Decimal.dZero; // Return level or 0 if not purchased
+  return player.upgrades[layer]?.[id] || Decimal.dZero;
 }
 
 // Check if an upgrade can be afforded
 export function canAffordUpgrade(layer, id) {
-  const upgrade = gameLayers[layer].upgrades[id]; // Access the specific upgrade
-  const currentLevel = getUpgLevels(layer, id); // Use the helper function to get current level
-  let max = typeof upgrade.maxLvl === "function" ? upgrade.maxLvl() : upgrade.maxLvl
-  const maxLevel = upgrade.maxLvl !== undefined ? max : Decimal.dInf; // Default to INFINITY
-
-  // Handle static or dynamic cost
+  const upgrade = gameLayers[layer].upgrades[id];
+  const currentLevel = getUpgLevels(layer, id);
+  const max = typeof upgrade.maxLvl === "function" ? upgrade.maxLvl() : upgrade.maxLvl;
+  const maxLevel = max !== undefined ? max : Decimal.dInf;
   const cost = typeof upgrade.cost === "function" ? upgrade.cost() : upgrade.cost;
-  let curr = upgrade.costLayer ? player[upgrade.costLayer][upgrade.costInternal] : player[upgrade.costInternal]
-
+  const curr = upgrade.costLayer 
+    ? player[upgrade.costLayer][upgrade.costInternal] 
+    : player[upgrade.costInternal];
   return curr.gte(cost) && currentLevel.lt(maxLevel);
 }
 
 export function buyUpgrade(layer, id) {
-  const upgrade = gameLayers[layer].upgrades[id]; // Access the specific upgrade
+  const upgrade = gameLayers[layer].upgrades[id];
+  if (!canAffordUpgrade(layer, id)) return;
 
-  if (!canAffordUpgrade(layer, id)) return;  // Early exit if player can't afford upgrade
-
-  // Determine the cost (static or dynamic)
   const cost = typeof upgrade.cost === "function" ? upgrade.cost() : upgrade.cost;
+  const { costLayer, costInternal } = upgrade;
+  let curr = costLayer 
+    ? player[costLayer][costInternal] 
+    : player[costInternal];
 
-  // Access the currency values once
-  const costLayer = upgrade.costLayer;
-  const costInternal = upgrade.costInternal;
-  let curr = costLayer ? player[costLayer][costInternal] : player[costInternal];
-
-  // Deduct the cost only if it's not a free upgrade
+  // Deduct cost if upgrades are not free
   if (!gameLayers[layer].upgrades.costsNothing()) {
     curr = curr.sub(cost);
   }
-
-  // Update the player's currency
   if (costLayer) {
     player[costLayer][costInternal] = curr;
   } else {
     player[costInternal] = curr;
   }
 
-  // Ensure player.upgrades[layer] exists
+  // Ensure the upgrades object for the layer exists.
   player.upgrades[layer] = player.upgrades[layer] || {};
-
-  // Get current level and max level
   const currentLevel = player.upgrades[layer][id] || Decimal.dZero;
   const max = typeof upgrade.maxLvl === "function" ? upgrade.maxLvl() : upgrade.maxLvl;
 
-  // If upgrade hasn't been purchased yet, initialize it at level 1
-  if (!player.upgrades[layer][id]) {
-    player.upgrades[layer][id] = Decimal.dOne;
-  } else {
-    // Check if the upgrade can be leveled up without exceeding max level
-    if (!max || currentLevel.lt(max)) {
-      player.upgrades[layer][id] = currentLevel.add(1);
-    }
-  }
+  // Set to level 1 if not purchased; else add 1 if below max.
+  player.upgrades[layer][id] = currentLevel.eq(Decimal.dZero)
+    ? Decimal.dOne
+    : (!max || currentLevel.lt(max) ? currentLevel.add(1) : currentLevel);
 
-  // Call the onBuy method if it exists
-  if (upgrade.onBuy) {
-    upgrade.onBuy();
-  }
+  if (upgrade.onBuy) upgrade.onBuy();
 }
 
 export function buyMaxUpgrade(layer, id) {
-  const upgrade = gameLayers[layer].upgrades[id]; // Access the specific upgrade
+  const upgrade = gameLayers[layer].upgrades[id];
+  if (!canAffordUpgrade(layer, id)) return;
 
-  if (!canAffordUpgrade(layer, id)) return;  // Early exit if player can't afford upgrade
-
-  // Access common upgrade properties
-  const costLayer = upgrade.costLayer;
-  const costInternal = upgrade.costInternal;
-  let curr = costLayer ? player[costLayer][costInternal] : player[costInternal];
-
+  const { costLayer, costInternal } = upgrade;
+  let curr = costLayer 
+    ? player[costLayer][costInternal] 
+    : player[costInternal];
   const max = typeof upgrade.maxLvl === "function" ? upgrade.maxLvl() : upgrade.maxLvl;
 
-  // If max level is 1, just buy the upgrade immediately
+  // If max level is 1, perform a single buy.
   if (max?.eq(1)) {
     buyUpgrade(layer, id);
     return;
   }
 
-  // Calculate bulk buying potential
+  // Check if upgrades cost nothing
   const nocost = gameLayers[layer].upgrades.costsNothing();
-  let maxBulk = bulkBuyTetraBinarySearch(curr, {
-    costFunction: upgrade.cost,
-    invCostFunction: upgrade.invCost,
-    cumulative: nocost,
-    maxLevel: upgrade.maxLvl
-  }, getUpgLevels(layer, id));
-
-  // If tetrabulk is not found, try the regular bulk search
-  if (!maxBulk || maxBulk.quantity.lt(1e15)) {
-    maxBulk = bulkBuyBinarySearch(curr, {
+  // Try bulk buying with tetra search first...
+  let maxBulk = bulkBuyTetraBinarySearch(
+    curr,
+    {
       costFunction: upgrade.cost,
       invCostFunction: upgrade.invCost,
       cumulative: nocost,
       maxLevel: upgrade.maxLvl
-    }, getUpgLevels(layer, id));
+    },
+    getUpgLevels(layer, id)
+  );
+  // ...and if not sufficient, fall back to regular bulk search.
+  if (!maxBulk || maxBulk.quantity.lt(1e15)) {
+    maxBulk = bulkBuyBinarySearch(
+      curr,
+      {
+        costFunction: upgrade.cost,
+        invCostFunction: upgrade.invCost,
+        cumulative: nocost,
+        maxLevel: upgrade.maxLvl
+      },
+      getUpgLevels(layer, id)
+    );
   }
 
-  // If no upgrades can be purchased, return
   if (maxBulk.quantity.lte(0)) return;
 
-  // Calculate total cost and subtract from player currency
   const totalCost = maxBulk.purchasePrice;
   if (!nocost) curr = curr.sub(totalCost);
+  if (curr.lt(0)) return;
 
-  // Update player's currency
+  // Update player's currency.
   if (costLayer) {
     player[costLayer][costInternal] = curr;
   } else {
     player[costInternal] = curr;
   }
 
-  // Initialize player upgrades for the layer if it doesn't exist
   player.upgrades[layer] = player.upgrades[layer] || {};
-
   const currentLevel = player.upgrades[layer][id] || Decimal.dZero;
   let newLevel = currentLevel.add(maxBulk.quantity);
-
-  // Apply max level cap if applicable
   if (max && newLevel.gt(max)) {
     newLevel = new Decimal(max);
   }
-
-  // Update player's upgrade level
   player.upgrades[layer][id] = newLevel;
 
-  // Execute the onBuy callback if it exists
-  if (upgrade.onBuy) {
-    upgrade.onBuy();
-  }
+  if (upgrade.onBuy) upgrade.onBuy();
 }
-
-
 
 // Get the effect of an upgrade
 export function upgradeEffect(layer, id) {
   const upgrade = gameLayers[layer]?.upgrades?.[id];
-  return upgrade?.effect ? upgrade.effect() : Decimal.dZero; // Return effect or 0 if none
+  return upgrade?.effect ? upgrade.effect() : Decimal.dZero;
 }
 
 // Check if an upgrade has been purchased
 export function hasUpgrade(layer, id) {
-  return getUpgLevels(layer, id).gte(1); // Use the helper function for levels
+  return getUpgLevels(layer, id).gte(1);
 }
 
 export function prestige(layer) {
-  let gain = gameLayers[layer].getResetGain();
-  player[layer].amount = player[layer].amount.add(gain);
-  player.stats[layer].resets = player.stats[layer].resets.add(1);
-  player.stats[layer].totalAmount = player.stats[layer].totalAmount.add(gain);
-  player.stats[layer].time = Decimal.dZero;
+  const gain = gameLayers[layer].getResetGain();
+  const layerStats = player.stats[layer];
+  const playerLayer = player[layer];
+
+  playerLayer.amount = playerLayer.amount.add(gain);
+  layerStats.resets = layerStats.resets.add(1);
+  layerStats.totalAmount = layerStats.totalAmount.add(gain);
+  layerStats.time = Decimal.dZero;
+
   player.YooAPoints = Decimal.dZero;
   player.upgrades.YooA = {};
   player.math.YooA.solved = Decimal.dZero;
+  player.YooAmatter.sparks = Decimal.dZero;
   generateNewProblem("YooA");
 
   if (!inAnyChallenge()) {
-    if (hasUpgrade("YooAmatter", 21)) player.math.YooA.solved = new Decimal(1000);
-    else if (hasUpgrade("YooAmatter", 14)) player.math.YooA.solved = new Decimal(300);
+    if (hasUpgrade("YooAmatter", 21)) {
+      player.math.YooA.solved = new Decimal(1000);
+    } else if (hasUpgrade("YooAmatter", 14)) {
+      player.math.YooA.solved = new Decimal(300);
+    }
+  }
+  if (hasUpgrade("YooAmatter", 34)) {
+    player.upgrades.YooA[21] = Decimal.dOne;
   }
 
-  if (hasUpgrade("YooAmatter", 34)) player.upgrades.YooA[21] = Decimal.dOne
-
   resetAllDimensions(player.dimensions.YooA, layer);
+  resetAllDimensions(player.dimensions.YooAmatter, layer);
   resetAllAutobuyerTime(player.autobuyers.YooAmatter);
 }
 
 export function getChallLevels(layer, id) {
-  return player.challenges[layer]?.[id] || Decimal.dZero; // Return level or 0 if not completed
+  return player.challenges[layer]?.[id] || Decimal.dZero;
 }
 
 export function canCompleteChallenge(layer, id) {
-  const challenge = gameLayers[layer].challenges[id]; // Access the specific challenge
-  const currentLevel = getChallLevels(layer, id); // Use the helper function to get current level
-  let max = typeof challenge.maxLvl === "function" ? challenge.maxLvl() : challenge.maxLvl
-  const maxLevel = challenge.maxLvl !== undefined ? max : Decimal.dInf; // Default to INFINITY
-
-  // Handle static or dynamic goal
+  const challenge = gameLayers[layer].challenges[id];
+  const currentLevel = getChallLevels(layer, id);
+  const max = typeof challenge.maxLvl === "function" ? challenge.maxLvl() : challenge.maxLvl;
+  const maxLevel = challenge.maxLvl !== undefined ? max : Decimal.dInf;
   const goal = typeof challenge.goal === "function" ? challenge.goal() : challenge.goal;
-  let curr = challenge.goalLayer ? player[challenge.goalLayer][challenge.goalInternal] : player[challenge.goalInternal]
-
+  const curr = challenge.goalLayer 
+    ? player[challenge.goalLayer][challenge.goalInternal] 
+    : player[challenge.goalInternal];
   return curr.gte(goal) && currentLevel.lt(maxLevel);
 }
 
@@ -1365,34 +1714,20 @@ export function inChallenge(layer, id) {
 }
 
 export function completeChallenge(layer, id) {
-  const challenge = gameLayers[layer].challenges[id]; // Access the specific challenge
-
+  const challenge = gameLayers[layer].challenges[id];
   if (!canCompleteChallenge(layer, id)) return;
 
   player.inChallenge = ["", ""];
-  const message = `${challenge.title} completed!`;
-  window.dispatchEvent(new CustomEvent('challenge-completed', { detail: message }));
+  window.dispatchEvent(new CustomEvent('challenge-completed', { detail: `${challenge.title} completed!` }));
   prestige(layer);
-  // Initialize player.challenges[layer] if it doesn't exist
+
   player.challenges[layer] = player.challenges[layer] || {};
-
-  // If the challenge isn't purchased yet, set it to level 1
-  if (!player.challenges[layer][id]) {
-    player.challenges[layer][id] = Decimal.dOne; // Start at level 1
-  }
-  else {
-    let max = typeof challenge.maxLvl === "function" ? challenge.maxLvl() : challenge.maxLvl
-    let nomax = max && player.challenges[layer][id].lt(max)
-    nomax = nomax || !max
-    if (nomax) {
-      // Increment level if challenge level is less than maxLvl
-      player.challenges[layer][id] = player.challenges[layer][id].add(1);
-    }
-  }
-
+  const current = player.challenges[layer][id] || Decimal.dZero;
+  const max = typeof challenge.maxLvl === "function" ? challenge.maxLvl() : challenge.maxLvl;
+  // Increment upgrade level if below max (or if no max is defined)
+  player.challenges[layer][id] = max ? current.lt(max) ? current.add(1) : current : current.add(1);
 }
 
-// Get the effect of challenge
 export function challengeEffect(layer, id) {
   const challenge = gameLayers[layer]?.challenges?.[id];
   return challenge?.rewardEffect ? challenge.rewardEffect() : Decimal.dZero;
@@ -1401,13 +1736,12 @@ export function challengeEffect(layer, id) {
 export function exitOrComplete(layer, id, con = options.confirmations.YooAmatter) {
   if (!canCompleteChallenge(layer, id)) {
     if (con) {
-      let msg = "If you exit now without reaching the goal, you will reset for " + layer + " and lose any chance of earning rewards. Your progress will be lost, and you will need to start over if you want to try again. Are you sure you want to exit the Challenge?"
+      const msg = `If you exit now without reaching the goal, you will reset for ${layer} and lose any chance of earning rewards. Your progress will be lost, and you will need to start over if you want to try again. Are you sure you want to exit the Challenge?`;
       if (window.confirm(msg)) {
         player.inChallenge = ["", ""];
         prestige(layer);
       }
-    }
-    else {
+    } else {
       player.inChallenge = ["", ""];
       prestige(layer);
     }

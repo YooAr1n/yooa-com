@@ -1,5 +1,6 @@
 <template>
   <div class="header">
+    <NewsTicker v-show="newsOn" ref="newsTicker"></NewsTicker>
     <span style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;" @click="openNav()">☰</span>
     <h1>{{ msg }}</h1>
     <PrestigeHeader layerName="YooAmatter"></PrestigeHeader>
@@ -13,6 +14,7 @@
 <script>
 import { getYooAPerSecond, player } from '@/incremental/incremental.js'
 import PrestigeHeader from './comps/PrestigeHeader.vue';
+import NewsTicker from './NewsTicker.vue';
 
 export default {
   name: 'Header',
@@ -25,7 +27,10 @@ export default {
       return player.gain.YooA.points;
     },
     endgameText() {
-      return colorText("h3", "#bcc70f", format(1e120/*"9.17e1995"*/)) + " YooAmatter"
+      return colorText("h3", "#bcc70f", format("9.17e1995")) + " YooAmatter"
+    },
+    newsOn() {
+      return options.news;
     }
   },
   methods: {
@@ -38,7 +43,8 @@ export default {
     msg: String,
   },
   components: {
-    PrestigeHeader
+    PrestigeHeader,
+    NewsTicker
   },
 }
 </script>

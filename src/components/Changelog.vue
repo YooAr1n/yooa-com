@@ -107,6 +107,17 @@ export default {
                         "YooA Point Scale in Stats. – Now showing how your YooA Points scale in relation to real-world physical quantities.",
                         "Added Offline Progress. – The game now calculates progress while you're away, so you continue earning even when not playing!"
                     ]
+                },
+                {
+                    version: "v0.4",
+                    title: "Foundations of YooAmatter",
+                    date: "2025-02-25",
+                    description: [
+                        "Added YooAmatter Formations. – A new system that enhances YooAmatter mechanics, providing additional layers of progression.",
+                        "Added News Ticker. – Stay updated with dynamic in-game news that brings life to the world of YooA Incremental.",
+                        "More Upgrades. – Expanded the upgrade system with new effects to boost YooA Points and YooAmatter gains.",
+                        "More Achievements. – Additional achievements to reward players for reaching greater milestones."
+                    ]
                 }
             ],
             expandedVersions: [],

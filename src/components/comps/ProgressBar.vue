@@ -59,9 +59,11 @@ export default {
 		// Dynamically get the appropriate stage based on the player's currency
 		currentStage() {
 			if (inAnyChallenge()) return 0
-			return this.progressStages.findIndex((stage) => {
+			const stage = this.progressStages.findIndex((stage) => {
 				return stage.currency.lt(stage.threshold);
-			});
+			})
+			if (stage == -1) return this.progressStages.length - 1
+			return stage;
 		},
 		// Get the current stage's threshold dynamically, ensuring a valid stage is returned
 		threshold() {

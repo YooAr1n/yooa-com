@@ -73,13 +73,13 @@ export default {
     },
     dimMultDisp() {
       return `Dimension 1-2 Multiplier per level: x${format(
-        getDimMultPerLvl(1),
+        getDimMultPerLvl("YooA", 1),
         3
       )}`;
     },
     dim3MultDisp() {
       return `Dimension 3+ Multiplier per level: x${format(
-        getDimMultPerLvl(3),
+        getDimMultPerLvl("YooA", 3),
         3
       )}`;
     },

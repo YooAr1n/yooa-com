@@ -24,6 +24,7 @@
         <li>Total YooAmatter: {{ pointsText("YooAmatter") }}</li>
         <li>Resets: {{ resetsText("YooAmatter") }}</li>
         <li v-if="YooAriumUnlocked">Total YooArium: {{ totalYR }}</li>
+        <li v-if="sparksUnlocked">Total YooAmatter Sparks: {{ totalYS }}</li>
         <li>Time: {{ timeText("YooAmatter") }}</li>
         <li>Math Problems Solved: {{ solvedText("YooAmatter") }}</li>
       </ul>
@@ -46,11 +47,17 @@ export default {
     totalYR() {
       return format(player.stats.YooAmatter.totalYooArium)
     },
+    totalYS() {
+      return format(player.stats.YooAmatter.totalSparks)
+    },
     pointsScale() {
       return scale(player.YooAPoints)
     }, 
     YooAriumUnlocked() {
       return hasUpgrade("YooAmatter", 23)
+    },
+    sparksUnlocked() {
+      return hasUpgrade("YooAmatter", 44)
     },
     YooAText() {
       return colorText("span", "#d17be2", "YooA")
