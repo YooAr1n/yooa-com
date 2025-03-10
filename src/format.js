@@ -81,7 +81,7 @@ window.formatWhole = function formatWhole(decimal) {
 
 window.formatTime = function formatTime(s) {
   // Assuming 's' is a Decimal or number
-  if (s.gte(31556952)) return `${format(s.div(31556952))}y`;
+  if (Decimal.gte(s, 31556952)) return `${format(Decimal.div(s, 31556952))}y`;
   if (s < 60) return `${format(s)}s`;
   if (s < 3600) return `${formatWhole(Math.floor(s / 60))}m ${format(s % 60)}s`;
   if (s < 86400)
