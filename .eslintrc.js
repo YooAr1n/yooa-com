@@ -20,6 +20,7 @@ module.exports = {
     "no-unused-vars": 0,
     "no-redeclare": "off",
     "no-undef": "off",
+    "no-empty": "off",
     "vue/no-parsing-error": ["error", {
       "x-invalid-end-tag": false,
     }]

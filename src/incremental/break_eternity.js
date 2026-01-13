@@ -4,41 +4,80 @@
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Decimal = factory());
   })(this, (function () { 'use strict';
   
+    // ----------------- class / helper optimizations -----------------
     function _classCallCheck(instance, Constructor) {
+      // tiny & fast: single instanceof check + throw
       if (!(instance instanceof Constructor)) {
         throw new TypeError("Cannot call a class as a function");
       }
     }
+
     function _defineProperties(target, props) {
-      for (var i = 0; i < props.length; i++) {
+      // local variables to avoid repeated global lookups
+      for (var i = 0, len = props.length; i < len; ++i) {
         var descriptor = props[i];
-        descriptor.enumerable = descriptor.enumerable || false;
-        descriptor.configurable = true;
-        if ("value" in descriptor) descriptor.writable = true;
-        Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor);
+
+        // normalize enumerable/configurable/writable with minimum writes
+        var desc = {
+          enumerable: !!descriptor.enumerable,
+          configurable: true
+        };
+        if ("value" in descriptor) desc.writable = true;
+
+        // copy the rest of the descriptor fields if present (get/set/value)
+        if ("value" in descriptor) desc.value = descriptor.value;
+        if ("get" in descriptor) desc.get = descriptor.get;
+        if ("set" in descriptor) desc.set = descriptor.set;
+
+        Object.defineProperty(target, _toPropertyKey(descriptor.key), desc);
       }
     }
+
     function _createClass(Constructor, protoProps, staticProps) {
       if (protoProps) _defineProperties(Constructor.prototype, protoProps);
       if (staticProps) _defineProperties(Constructor, staticProps);
-      Object.defineProperty(Constructor, "prototype", {
-        writable: false
-      });
+
+      // Setting prototype to non-writable is uncommon but preserved from original;
+      // guard with try/catch for older/shadowed envs (faster when supported).
+      try {
+        Object.defineProperty(Constructor, "prototype", { writable: false });
+      } catch (e) {
+        /* ignore if environment forbids this */
+      }
       return Constructor;
     }
+
+    // Cache Symbol.toPrimitive lookup for tiny win (only if Symbols exist)
+    var __symbolToPrimitive = (typeof Symbol !== "undefined" && Symbol.toPrimitive) || null;
+
     function _toPrimitive(input, hint) {
-      if (typeof input !== "object" || input === null) return input;
-      var prim = input[Symbol.toPrimitive];
-      if (prim !== undefined) {
-        var res = prim.call(input, hint || "default");
-        if (typeof res !== "object") return res;
-        throw new TypeError("@@toPrimitive must return a primitive value.");
+      // quick return for non-objects
+      if ((typeof input !== "object") || (input === null)) return input;
+
+      // use cached symbol, fallback to property access if needed
+      if (__symbolToPrimitive) {
+        var prim = input[__symbolToPrimitive];
+        if (prim !== undefined) {
+          var res = prim.call(input, hint || "default");
+          if ((typeof res !== "object")) return res;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+      } else {
+        var prim2 = input[Symbol.toPrimitive];
+        if (prim2 !== undefined) {
+          var res2 = prim2.call(input, hint || "default");
+          if ((typeof res2 !== "object")) return res2;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
       }
-      return (hint === "string" ? String : Number)(input);
+
+      // fallback: use hint to coerce
+      return (hint === "string") ? String(input) : Number(input);
     }
+
     function _toPropertyKey(arg) {
       var key = _toPrimitive(arg, "string");
-      return typeof key === "symbol" ? key : String(key);
+      return (typeof key === "symbol") ? key : String(key);
     }
   
     /**
@@ -396,6 +435,7 @@
      * The value of the Decimal is sign * 10^10^10...^mag, with (layer) 10s. If the layer is not 0, then negative mag means it's the reciprocal of the corresponding number with positive mag.
      */
     var Decimal = /*#__PURE__*/function () {
+      Decimal.SAFE_MUL = typeof Decimal.SAFE_MUL === "boolean" ? Decimal.SAFE_MUL : true;
       function Decimal(value) {
         _classCallCheck(this, Decimal);
         this.sign = 0;
@@ -505,79 +545,132 @@
          * Note: this function mutates the Decimal it is called on.
          */
         function normalize() {
-          /*
-          PSEUDOCODE:
-          Whenever we are partially 0 (sign is 0 or mag and layer is 0), make it fully 0.
-          Whenever we are at or hit layer 0, extract sign from negative mag.
-          If layer === 0 and mag < FIRST_NEG_LAYER (1/9e15), shift to 'first negative layer' (add layer, log10 mag).
-          While abs(mag) > EXP_LIMIT (9e15), layer += 1, mag = maglog10(mag).
-          While abs(mag) < LAYER_DOWN (15.954) and layer > 0, layer -= 1, mag = pow(10, mag).
-                When we're done, all of the following should be true OR one of the numbers is not IsFinite OR layer is not IsInteger (error state):
-          Any 0 is totally zero (0, 0, 0) and any NaN is totally NaN (NaN, NaN, NaN).
-          Anything layer 0 has mag 0 OR mag > 1/9e15 and < 9e15.
-          Anything layer 1 or higher has abs(mag) >= 15.954 and < 9e15.
-          Any positive infinity is (1, Infinity, Infinity) and any negative infinity is (-1, Infinity, Infinity).
-          We will assume in calculations that all Decimals are either erroneous or satisfy these criteria. (Otherwise: Garbage in, garbage out.)
-          */
-          //Any 0 is totally 0
-          if (this.sign === 0 || this.mag === 0 && this.layer === 0 || this.mag === Number.NEGATIVE_INFINITY && this.layer > 0 && Number.isFinite(this.layer)) {
-            this.sign = 0;
-            this.mag = 0;
-            this.layer = 0;
-            return this;
-          }
-          //extract sign from negative mag at layer 0
-          if (this.layer === 0 && this.mag < 0) {
-            this.mag = -this.mag;
-            this.sign = -this.sign;
-          }
-          //Handle infinities
-          if (this.mag === Number.POSITIVE_INFINITY || this.layer === Number.POSITIVE_INFINITY || this.mag === Number.NEGATIVE_INFINITY || this.layer === Number.NEGATIVE_INFINITY) {
-            this.mag = Number.POSITIVE_INFINITY;
-            this.layer = Number.POSITIVE_INFINITY;
-            return this;
-          }
-          //Handle shifting from layer 0 to negative layers.
-          if (this.layer === 0 && this.mag < FIRST_NEG_LAYER) {
-            this.layer += 1;
-            this.mag = Math.log10(this.mag);
-            return this;
-          }
-          var absmag = Math.abs(this.mag);
-          var signmag = Math.sign(this.mag);
-          if (absmag >= EXP_LIMIT) {
-            this.layer += 1;
-            this.mag = signmag * Math.log10(absmag);
-            return this;
-          } else {
-            while (absmag < LAYER_DOWN && this.layer > 0) {
-              this.layer -= 1;
-              if (this.layer === 0) {
-                this.mag = Math.pow(10, this.mag);
-              } else {
-                this.mag = signmag * Math.pow(10, absmag);
-                absmag = Math.abs(this.mag);
-                signmag = Math.sign(this.mag);
-              }
-            }
-            if (this.layer === 0) {
-              if (this.mag < 0) {
-                //extract sign from negative mag at layer 0
-                this.mag = -this.mag;
-                this.sign = -this.sign;
-              } else if (this.mag === 0) {
-                //excessive rounding can give us all zeroes
-                this.sign = 0;
-              }
-            }
-          }
-          if (Number.isNaN(this.sign) || Number.isNaN(this.layer) || Number.isNaN(this.mag)) {
+          // localize fields for speed
+          let sign = this.sign;
+          let layer = this.layer;
+          let mag = this.mag;
+        
+          // quick NaN check -> convert to canonical NaN
+          if (Number.isNaN(sign) || Number.isNaN(layer) || Number.isNaN(mag)) {
             this.sign = Number.NaN;
             this.layer = Number.NaN;
             this.mag = Number.NaN;
+            return this;
           }
+        
+          // canonical zero: if sign is 0, or (layer 0 and mag 0)
+          if (sign === 0 || (layer === 0 && (mag === 0))) {
+            this.sign = 0;
+            this.layer = 0;
+            this.mag = 0;
+            return this;
+          }
+        
+          // Handle infinities (positive/negative)
+          // If either mag or layer are infinite, produce (±1, +Inf, +Inf)
+          if (mag === Number.POSITIVE_INFINITY || layer === Number.POSITIVE_INFINITY ||
+              mag === Number.NEGATIVE_INFINITY || layer === Number.NEGATIVE_INFINITY) {
+            // Determine sign for Infinity cases: if any negative-infinity present, treat as -Inf
+            let infSign = 1;
+            if (mag === Number.NEGATIVE_INFINITY || layer === Number.NEGATIVE_INFINITY) infSign = -1;
+            else if (sign === -1) infSign = -1;
+            else if (sign === 0) infSign = 1;
+        
+            this.sign = infSign;
+            this.layer = Number.POSITIVE_INFINITY;
+            this.mag = Number.POSITIVE_INFINITY;
+            return this;
+          }
+        
+          // At this point sign/layer/mag are finite numbers
+        
+          // If layer === 0 and mag < 0, extract sign from mag
+          if (layer === 0 && mag < 0) {
+            mag = -mag;
+            sign = -sign;
+          }
+        
+          // If layer === 0 and mag === 0 (possible via rounding), canonicalize
+          if (layer === 0 && mag === 0) {
+            this.sign = 0;
+            this.layer = 0;
+            this.mag = 0;
+            return this;
+          }
+        
+          // If layer === 0 but mag is extremely small (below FIRST_NEG_LAYER), shift into negative-layer zone:
+          // move to layer 1 and take log10(mag) (preserve sign of mag which should be positive here)
+          if (layer === 0 && mag > 0 && mag < FIRST_NEG_LAYER) {
+            layer = 1;
+            mag = Math.log10(mag);
+            // continue normalization below
+          }
+        
+          // normalize loops: promote when mag too large; demote when mag too small and layer>0
+          // Use local helper values
+          // NOTE: these constants must exist in scope: EXP_LIMIT, LAYER_DOWN
+          for (;;) {
+            // recompute absm and signmag once per loop
+            let absm = Math.abs(mag);
+            let signmag = Math.sign(mag) || 1; // if mag === 0 (shouldn't happen here), treat as positive
+        
+            // If currently at or beyond EXP_LIMIT, promote layers repeatedly
+            if (absm >= EXP_LIMIT) {
+              // Promote one layer and transform mag -> log10(absm) (preserve sign)
+              layer += 1;
+              mag = signmag * Math.log10(absm);
+              // loop again to re-evaluate (in case mag still >= EXP_LIMIT)
+              continue;
+            }
+        
+            // If we're above layer 0 but mag is too small to remain in this layer, demote layers
+            if (layer > 0 && absm < LAYER_DOWN) {
+              layer -= 1;
+              if (layer === 0) {
+                // When we drop to layer 0: mag becomes 10^(mag)
+                // Note: mag might be negative here; pow handles negative exponent fine.
+                mag = Math.pow(10, mag);
+              } else {
+                // For intermediate layers >0: mag becomes signmag * 10^(absm)
+                mag = signmag * Math.pow(10, absm);
+              }
+              // continue loop to re-evaluate after demotion
+              continue;
+            }
+        
+            // Nothing to promote/demote any more: break
+            break;
+          }
+        
+          // After stabilization, if layer === 0 and mag < 0, extract sign again
+          if (layer === 0 && mag < 0) {
+            mag = -mag;
+            sign = -sign;
+          }
+        
+          // If layer === 0 and mag === 0 after ops, canonical zero
+          if (layer === 0 && mag === 0) {
+            this.sign = 0;
+            this.layer = 0;
+            this.mag = 0;
+            return this;
+          }
+        
+          // Final safety: if anything non-finite slipped through, set NaN
+          if (!Number.isFinite(sign) || !Number.isFinite(layer) || !Number.isFinite(mag)) {
+            this.sign = Number.NaN;
+            this.layer = Number.NaN;
+            this.mag = Number.NaN;
+            return this;
+          }
+        
+          // Write back optimized values
+          this.sign = sign;
+          this.layer = layer;
+          this.mag = mag;
+        
           return this;
-        }
+        }        
         /**
          * Turns the given components into a valid Decimal.
          *
@@ -660,6 +753,20 @@
           return this;
         }
         /**
+         * Converts a floating-point number into a Decimal without calling normalize.
+         * Use only when the caller guarantees the input is a finite, normal number.
+         *
+         * Note: this function mutates the Decimal it is called on.
+         */
+      }, {
+        key: "fromNumber_noNormalize",
+        value: function fromNumber_noNormalize(value) {
+          this.mag = Math.abs(value);
+          this.sign = Math.sign(value);
+          this.layer = 0;
+          return this;
+        }
+        /**
          * Converts a string into a Decimal.
          *
          * If linearhyper4 is true, then strings like "10^^8.5" will use the linear approximation of tetration even for bases <= 10.
@@ -669,287 +776,263 @@
       }, {
         key: "fromString",
         value: function fromString(value) {
-          var linearhyper4 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-          var originalValue = value;
-          var cached = Decimal.fromStringCache.get(originalValue);
-          if (cached !== undefined) {
-            return this.fromDecimal(cached);
-          }
-          {
-            value = value.replace(",", "");
-          }
-          //Handle x^^^y format. Note that no linearhyper5 parameter is needed, as pentation has no analytic approximation.
-          var pentationparts = value.split("^^^");
-          if (pentationparts.length === 2) {
-            var _base = parseFloat(pentationparts[0]);
-            var _height = parseFloat(pentationparts[1]);
-            var heightparts = pentationparts[1].split(";");
-            var payload = 1;
-            if (heightparts.length === 2) {
-              payload = parseFloat(heightparts[1]);
-              if (!isFinite(payload)) {
-                payload = 1;
-              }
+          const linearhyper4 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+          const originalValue = value;
+
+          // Fast cache lookup
+          const cache = Decimal.fromStringCache;
+          const cacheEnabled = cache.maxSize >= 1;
+          const cached = cache.get(originalValue);
+          if (cached !== undefined) return this.fromDecimal(cached);
+
+          // Normalize string once: remove commas, trim, lowercase
+          let s = value.replace(/,/g, "").trim().toLowerCase();
+
+          // Helper to set this from a Decimal result and optionally cache
+          const commitAndCache = (resDecimal) => {
+            this.sign = resDecimal.sign;
+            this.layer = resDecimal.layer;
+            this.mag = resDecimal.mag;
+            if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
+            return this;
+          };
+
+          // -------- pentation: x^^^y (payload optional 'x^^^h;payload') --------
+          let idx = s.indexOf("^^^");
+          if (idx !== -1) {
+            const baseStr = s.slice(0, idx);
+            const rest = s.slice(idx + 3);
+            const [heightStr, payloadStr] = rest.split(";");
+            const base = Number.parseFloat(baseStr);
+            const height = Number.parseFloat(heightStr);
+            let payload = 1;
+            if (payloadStr !== undefined) {
+              const p = Number.parseFloat(payloadStr);
+              payload = Number.isFinite(p) ? p : 1;
             }
-            if (isFinite(_base) && isFinite(_height)) {
-              var result = Decimal.pentate(_base, _height, payload, linearhyper4);
-              this.sign = result.sign;
-              this.layer = result.layer;
-              this.mag = result.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
-              return this;
-            }
-          }
-          //Handle x^^y format.
-          var tetrationparts = value.split("^^");
-          if (tetrationparts.length === 2) {
-            var _base2 = parseFloat(tetrationparts[0]);
-            var _height2 = parseFloat(tetrationparts[1]);
-            var _heightparts = tetrationparts[1].split(";");
-            var _payload = 1;
-            if (_heightparts.length === 2) {
-              _payload = parseFloat(_heightparts[1]);
-              if (!isFinite(_payload)) {
-                _payload = 1;
-              }
-            }
-            if (isFinite(_base2) && isFinite(_height2)) {
-              var _result = Decimal.tetrate(_base2, _height2, _payload, linearhyper4);
-              this.sign = _result.sign;
-              this.layer = _result.layer;
-              this.mag = _result.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
-              return this;
+            if (Number.isFinite(base) && Number.isFinite(height)) {
+              const result = Decimal.pentate(base, height, payload, linearhyper4);
+              return commitAndCache(result);
             }
           }
-          //Handle x^y format.
-          var powparts = value.split("^");
-          if (powparts.length === 2) {
-            var _base3 = parseFloat(powparts[0]);
-            var _exponent = parseFloat(powparts[1]);
-            if (isFinite(_base3) && isFinite(_exponent)) {
-              var _result2 = Decimal.pow(_base3, _exponent);
-              this.sign = _result2.sign;
-              this.layer = _result2.layer;
-              this.mag = _result2.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
+
+          // -------- tetration: x^^y (avoid matching ^^^ which already handled) --------
+          idx = s.indexOf("^^");
+          if (idx !== -1) {
+            // ensure this wasn't the '^^^' case already handled
+            if (s[idx + 2] !== "^") {
+              const baseStr = s.slice(0, idx);
+              const rest = s.slice(idx + 2);
+              const [heightStr, payloadStr] = rest.split(";");
+              const base = Number.parseFloat(baseStr);
+              const height = Number.parseFloat(heightStr);
+              let payload = 1;
+              if (payloadStr !== undefined) {
+                const p = Number.parseFloat(payloadStr);
+                payload = Number.isFinite(p) ? p : 1;
               }
-              return this;
+              if (Number.isFinite(base) && Number.isFinite(height)) {
+                const result = Decimal.tetrate(base, height, payload, linearhyper4);
+                return commitAndCache(result);
+              }
             }
           }
-          //Handle various cases involving it being a Big Number.
-          value = value.trim().toLowerCase();
-          //handle X PT Y format.
-          var base;
-          var height;
-          var ptparts = value.split("pt");
-          if (ptparts.length === 2) {
-            base = 10;
-            var negative = false;
-            if (ptparts[0][0] == "-") {
+
+          // -------- caret pow: x^y (ensure not tetration ^ used earlier) --------
+          idx = s.indexOf("^");
+          if (idx !== -1) {
+            // skip if '^^' or '^^^' already handled (both would have been caught above)
+            // but still handle simple x^y
+            if (s[idx + 1] !== "^") {
+              const baseStr = s.slice(0, idx);
+              const expStr = s.slice(idx + 1);
+              const base = Number.parseFloat(baseStr);
+              const exponent = Number.parseFloat(expStr);
+              if (Number.isFinite(base) && Number.isFinite(exponent)) {
+                const result = Decimal.pow(base, exponent);
+                return commitAndCache(result);
+              }
+            }
+          }
+
+          // -------- special notations: 'X PT Y', 'XpY', 'XfY' (tetration-like) --------
+          // check 'pt' first (to avoid catching as 'p')
+          idx = s.indexOf("pt");
+          if (idx !== -1) {
+            let left = s.slice(0, idx);
+            let right = s.slice(idx + 2).replace(/[()]/g, "");
+            let negative = false;
+            if (left.charAt(0) === "-") {
               negative = true;
-              ptparts[0] = ptparts[0].slice(1);
+              left = left.slice(1);
             }
-            height = parseFloat(ptparts[0]);
-            ptparts[1] = ptparts[1].replace("(", "");
-            ptparts[1] = ptparts[1].replace(")", "");
-            var _payload2 = parseFloat(ptparts[1]);
-            if (!isFinite(_payload2)) {
-              _payload2 = 1;
-            }
-            if (isFinite(base) && isFinite(height)) {
-              var _result3 = Decimal.tetrate(base, height, _payload2, linearhyper4);
-              this.sign = _result3.sign;
-              this.layer = _result3.layer;
-              this.mag = _result3.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
-              if (negative) this.sign *= -1;
-              return this;
+            const height = Number.parseFloat(left);
+            let payload = Number.parseFloat(right);
+            if (!Number.isFinite(payload)) payload = 1;
+            if (Number.isFinite(height)) {
+              const result = Decimal.tetrate(10, height, payload, linearhyper4);
+              if (negative) result.sign *= -1;
+              return commitAndCache(result);
             }
           }
-          //handle XpY format (it's the same thing just with p).
-          ptparts = value.split("p");
-          if (ptparts.length === 2) {
-            base = 10;
-            var _negative = false;
-            if (ptparts[0][0] == "-") {
-              _negative = true;
-              ptparts[0] = ptparts[0].slice(1);
+
+          idx = s.indexOf("p");
+          if (idx !== -1) {
+            // ignore 'pt' which was handled above because idx for 'pt' would have matched earlier
+            let left = s.slice(0, idx);
+            let right = s.slice(idx + 1).replace(/[()]/g, "");
+            let negative = false;
+            if (left.charAt(0) === "-") {
+              negative = true;
+              left = left.slice(1);
             }
-            height = parseFloat(ptparts[0]);
-            ptparts[1] = ptparts[1].replace("(", "");
-            ptparts[1] = ptparts[1].replace(")", "");
-            var _payload3 = parseFloat(ptparts[1]);
-            if (!isFinite(_payload3)) {
-              _payload3 = 1;
-            }
-            if (isFinite(base) && isFinite(height)) {
-              var _result4 = Decimal.tetrate(base, height, _payload3, linearhyper4);
-              this.sign = _result4.sign;
-              this.layer = _result4.layer;
-              this.mag = _result4.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
-              if (_negative) this.sign *= -1;
-              return this;
+            const height = Number.parseFloat(left);
+            let payload = Number.parseFloat(right);
+            if (!Number.isFinite(payload)) payload = 1;
+            if (Number.isFinite(height)) {
+              const result = Decimal.tetrate(10, height, payload, linearhyper4);
+              if (negative) result.sign *= -1;
+              return commitAndCache(result);
             }
           }
-          //handle XFY format
-          ptparts = value.split("f");
-          if (ptparts.length === 2) {
-            base = 10;
-            var _negative2 = false;
-            if (ptparts[0][0] == "-") {
-              _negative2 = true;
-              ptparts[0] = ptparts[0].slice(1);
+
+          idx = s.indexOf("f");
+          if (idx !== -1) {
+            // format: XfY (payload in X, height in Y) — original handled parentheses, remove them
+            let left = s.slice(0, idx).replace(/[()]/g, "");
+            let right = s.slice(idx + 1).replace(/[()]/g, "");
+            let negative = false;
+            if (left.charAt(0) === "-") {
+              negative = true;
+              left = left.slice(1);
             }
-            ptparts[0] = ptparts[0].replace("(", "");
-            ptparts[0] = ptparts[0].replace(")", "");
-            var _payload4 = parseFloat(ptparts[0]);
-            ptparts[1] = ptparts[1].replace("(", "");
-            ptparts[1] = ptparts[1].replace(")", "");
-            height = parseFloat(ptparts[1]);
-            if (!isFinite(_payload4)) {
-              _payload4 = 1;
-            }
-            if (isFinite(base) && isFinite(height)) {
-              var _result5 = Decimal.tetrate(base, height, _payload4, linearhyper4);
-              this.sign = _result5.sign;
-              this.layer = _result5.layer;
-              this.mag = _result5.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
-              if (_negative2) this.sign *= -1;
-              return this;
+            let payload = Number.parseFloat(left);
+            const height = Number.parseFloat(right);
+            if (!Number.isFinite(payload)) payload = 1;
+            if (Number.isFinite(height)) {
+              const result = Decimal.tetrate(10, height, payload, linearhyper4);
+              if (negative) result.sign *= -1;
+              return commitAndCache(result);
             }
           }
-          var parts = value.split("e");
-          var ecount = parts.length - 1;
-          //Handle numbers that are exactly floats (0 or 1 es).
+
+          // -------- normalize for 'e' style numbers --------
+          const parts = s.split("e");
+          const ecount = parts.length - 1;
+
+          // ecount === 0: try parseFloat whole string as regular number
           if (ecount === 0) {
-            var numberAttempt = parseFloat(value);
-            if (isFinite(numberAttempt)) {
-              this.fromNumber(numberAttempt);
-              if (Decimal.fromStringCache.size >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
+            const n = Number.parseFloat(s);
+            if (Number.isFinite(n)) {
+              this.fromNumber(n);
+              if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
               return this;
             }
           } else if (ecount === 1) {
-            //Very small numbers ("2e-3000" and so on) may look like valid floats but round to 0.
-            var _numberAttempt = parseFloat(value);
-            if (isFinite(_numberAttempt) && _numberAttempt !== 0) {
-              this.fromNumber(_numberAttempt);
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
+            // 1 'e' can still be a valid float if not subnormal to 0
+            const n = Number.parseFloat(s);
+            if (Number.isFinite(n) && n !== 0) {
+              this.fromNumber(n);
+              if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
               return this;
             }
           }
-          //Handle new (e^N)X format.
-          var newparts = value.split("e^");
-          if (newparts.length === 2) {
+
+          // -------- new (e^N)X format --------
+          idx = s.indexOf("e^");
+          if (idx !== -1) {
+            // sign from left prefix (exists in newparts[0] in original)
             this.sign = 1;
-            if (newparts[0].charAt(0) == "-") {
-              this.sign = -1;
-            }
-            var layerstring = "";
-            for (var i = 0; i < newparts[1].length; ++i) {
-              var chrcode = newparts[1].charCodeAt(i);
-              if (chrcode >= 43 && chrcode <= 57 || chrcode === 101) {
-                //is "0" to "9" or "+" or "-" or "." or "e" (or "," or "/")
-                layerstring += newparts[1].charAt(i);
-              } //we found the end of the layer count
-              else {
-                this.layer = parseFloat(layerstring);
-                this.mag = parseFloat(newparts[1].substr(i + 1));
-                // Handle invalid cases like (e^-8)1 and (e^10.5)1 by just calling tetrate
-                if (this.layer < 0 || this.layer % 1 != 0) {
-                  var _result6 = Decimal.tetrate(10, this.layer, this.mag, linearhyper4);
-                  this.sign = _result6.sign;
-                  this.layer = _result6.layer;
-                  this.mag = _result6.mag;
+            if (s.charAt(0) === "-") this.sign = -1;
+
+            // parse the "layer count" characters after e^ until a non-numeric/logchar
+            const rest = s.slice(idx + 2);
+            let layerstring = "";
+            let i = 0;
+            for (; i < rest.length; ++i) {
+              const ch = rest.charCodeAt(i);
+              // allow: '+'(43) '-'(45) '.'(46) '/'(47) '0-9'(48-57) and 'e'(101)
+              if ((ch >= 43 && ch <= 57) || ch === 101) {
+                layerstring += rest.charAt(i);
+              } else {
+                // found the end of layer count; parse and the remaining is mag
+                this.layer = Number.parseFloat(layerstring);
+                this.mag = Number.parseFloat(rest.substr(i + 1));
+                // invalid fractional or negative layer -> use tetrate fallback
+                if (this.layer < 0 || this.layer % 1 !== 0) {
+                  const res = Decimal.tetrate(10, this.layer, this.mag, linearhyper4);
+                  this.sign = res.sign;
+                  this.layer = res.layer;
+                  this.mag = res.mag;
                 }
                 this.normalize();
-                if (Decimal.fromStringCache.maxSize >= 1) {
-                  Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-                }
+                if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
                 return this;
               }
             }
           }
+
+          // -------- fallback: e-based magnitudes --------
           if (ecount < 1) {
+            // nothing parseable -> zero
             this.sign = 0;
             this.layer = 0;
             this.mag = 0;
-            if (Decimal.fromStringCache.maxSize >= 1) {
-              Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-            }
+            if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
             return this;
           }
-          var mantissa = parseFloat(parts[0]);
+
+          const mantissa = Number.parseFloat(parts[0]);
           if (mantissa === 0) {
             this.sign = 0;
             this.layer = 0;
             this.mag = 0;
-            if (Decimal.fromStringCache.maxSize >= 1) {
-              Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-            }
+            if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
             return this;
           }
-          var exponent = parseFloat(parts[parts.length - 1]);
-          //handle numbers like AeBeC and AeeeeBeC
+
+          // exponent is last part
+          let exponent = Number.parseFloat(parts[parts.length - 1]);
+
+          // handle AeBeC and AeeeeBeC style (multiple 'e's)
           if (ecount >= 2) {
-            var me = parseFloat(parts[parts.length - 2]);
-            if (isFinite(me)) {
+            const me = Number.parseFloat(parts[parts.length - 2]);
+            if (Number.isFinite(me)) {
               exponent *= Math.sign(me);
               exponent += f_maglog10(me);
             }
           }
-          //Handle numbers written like eee... (N es) X
-          if (!isFinite(mantissa)) {
+
+          // mantissa not finite -> it was like 'eee...X' format
+          if (!Number.isFinite(mantissa)) {
             this.sign = parts[0] === "-" ? -1 : 1;
             this.layer = ecount;
             this.mag = exponent;
-          }
-          //Handle numbers written like XeY
-          else if (ecount === 1) {
+          } else if (ecount === 1) {
+            // X e Y -> layer 1
             this.sign = Math.sign(mantissa);
             this.layer = 1;
-            //Example: 2e10 is equal to 10^log10(2e10) which is equal to 10^(10+log10(2))
             this.mag = exponent + Math.log10(Math.abs(mantissa));
-          }
-          //Handle numbers written like Xeee... (N es) Y
-          else {
+          } else {
+            // ecount >= 2: layered numbers
             this.sign = Math.sign(mantissa);
             this.layer = ecount;
             if (ecount === 2) {
-              var _result7 = Decimal.mul(FC(1, 2, exponent), D(mantissa));
-              this.sign = _result7.sign;
-              this.layer = _result7.layer;
-              this.mag = _result7.mag;
-              if (Decimal.fromStringCache.maxSize >= 1) {
-                Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-              }
+              // special-case 2 layers: use Decimal.mul for accurate combination
+              const tmp = Decimal.mul(FC(1, 2, exponent), D(mantissa));
+              this.sign = tmp.sign;
+              this.layer = tmp.layer;
+              this.mag = tmp.mag;
+              if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
               return this;
             } else {
-              //at eee and above, mantissa is too small to be recognizable!
+              // for 3+ es, mantissa is negligible
               this.mag = exponent;
             }
           }
+
           this.normalize();
-          if (Decimal.fromStringCache.maxSize >= 1) {
-            Decimal.fromStringCache.set(originalValue, Decimal.fromDecimal(this));
-          }
+          if (cacheEnabled) cache.set(originalValue, Decimal.fromDecimal(this));
           return this;
         }
         /**
@@ -1112,6 +1195,19 @@
          * Absolute value function: returns 'this' if 'this' >= 0, returns the negative of 'this' if this < 0.
          */
       }, {
+        key: "copyFrom",
+        value: function copyFrom(value) {
+          if (!(value instanceof Decimal)) {
+            throw "Copy value is not Decimal";
+          }
+          this.sign = value.sign;
+          this.layer = value.layer;
+          this.mag = value.mag;
+        }
+        /**
+         * Negates the Decimal it's called on: in other words, when given X, returns -X.
+         */
+      }, {
         key: "abs",
         value: function abs() {
           return FC_NN(this.sign === 0 ? 0 : 1, this.layer, this.mag);
@@ -1216,86 +1312,103 @@
       }, {
         key: "add",
         value: function add(value) {
-          const decimal = D(value); // Convert the input value to a Decimal
+          // Fast-path if already a Decimal-like object
+          const decimal = (value instanceof Decimal) ? value : D(value);
 
-          // Early exit for infinity and NaN cases
-          if ((this.eq(Decimal.dInf) && decimal.eq(Decimal.dNegInf)) || 
-              (this.eq(Decimal.dNegInf) && decimal.eq(Decimal.dInf))) {
-            return new Decimal(Decimal.dNaN); // Return NaN for infinity and neg-infinity addition
+          const a = this;
+          const b = decimal;
+
+          // Local copies to reduce property access overhead
+          const aLayer = a.layer, bLayer = b.layer;
+          const aMag = a.mag, bMag = b.mag;
+          const aSign = a.sign, bSign = b.sign;
+
+          // 1) Infinity vs -Infinity -> NaN
+          // Both infinities are represented as non-finite layers; check explicit opposite infinities first.
+          if ((aLayer === Infinity && bLayer === -Infinity) || (aLayer === -Infinity && bLayer === Infinity)) {
+            return new Decimal(Decimal.dNaN);
           }
 
-          // Handle non-finite layers
-          if (!Number.isFinite(this.layer)) {
-            return new Decimal(this); // If this is not finite, return it
-          }
-          if (!Number.isFinite(decimal.layer)) {
-            return new Decimal(decimal); // If decimal is not finite, return it
-          }
+          // 2) Non-finite layer handling (preserve earlier behavior: copy)
+          if (!Number.isFinite(aLayer)) return new Decimal(a);
+          if (!Number.isFinite(bLayer)) return new Decimal(b);
 
-          // Special cases: one number is zero
-          if (this.sign === 0) return new Decimal(decimal); // Return decimal if this is zero
-          if (decimal.sign === 0) return new Decimal(this); // Return this if decimal is zero
+          // 3) Zero shortcuts (keep semantics consistent with original — return copy)
+          if (aSign === 0) return new Decimal(b);
+          if (bSign === 0) return new Decimal(a);
 
-          // Special case: adding a number to its negation results in zero
-          if (this.sign === -decimal.sign && this.layer === decimal.layer && this.mag === decimal.mag) {
-            return FC_NN(0, 0, 0); // Return zero if numbers cancel each other out
+          // 4) Exact cancellation -> zero
+          if (aSign === -bSign && aLayer === bLayer && aMag === bMag) {
+            return FC_NN(0, 0, 0);
           }
 
-          // Special case: if one number has a layer >= 2, return the larger number
-          if (this.layer >= 2 || decimal.layer >= 2) {
-            return this.maxabs(decimal); // Return the larger magnitude number
+          // 5) If either is in layer >= 2, return the max-abs (dominant) value
+          if (aLayer >= 2 || bLayer >= 2) {
+            return this.maxabs(decimal);
           }
 
-          // Ensure that `a` is the number with the larger magnitude
-          const comp = Decimal.cmpabs(this, decimal) > 0;
-          const a = comp ? this : decimal;
-          const b = comp ? decimal : this;
+          // Ensure `large` is the larger-by-absolute-value number
+          const cmpAbs = Decimal.cmpabs(a, b);
+          const large = cmpAbs >= 0 ? a : b;   // if equal, pick a (stable)
+          const small = cmpAbs >= 0 ? b : a;
 
-          // If both numbers have layer 0, add their magnitudes directly
-          if (a.layer === 0 && b.layer === 0) {
-            return Decimal.fromNumber(a.sign * a.mag + b.sign * b.mag); // Direct addition for layer 0
+          // Quick scalar fields for the chosen large/small
+          const L_layer = large.layer, S_layer = small.layer;
+          const L_mag = large.mag, S_mag = small.mag;
+          const L_sign = large.sign, S_sign = small.sign;
+
+          // Fast-path: both layer 0 -> normal numeric addition (fast)
+          if (L_layer === 0 && S_layer === 0) {
+            // Use Number arithmetic and create Decimal from number (avoids heavier code paths)
+            return Decimal.fromNumber(L_sign * L_mag + S_sign * S_mag);
           }
 
-          // Handle layer comparison and magnitude adjustments
-          const layera = a.layer * Math.sign(a.mag);
-          const layerb = b.layer * Math.sign(b.mag);
+          // Precompute some signed-layer heuristics (preserve original logic)
+          const layerLargeSigned = L_layer * Math.sign(L_mag || 1); // fall back sign(1) if 0
+          const layerSmallSigned = S_layer * Math.sign(S_mag || 1);
 
-          // If one number is significantly larger in layer, return the larger number
-          if (layera - layerb >= 2) {
-            return a; // Return the larger number directly if layer difference is >= 2
+          // If signed layer gap is big enough, the larger dominates — return it
+          if (layerLargeSigned - layerSmallSigned >= 2) {
+            return large;
           }
 
-          // Handle specific layer-based additions with adjustments
-          let magdiff, mantissa;
-          if (layera === 0 && layerb === -1) {
-            if (Math.abs(b.mag - Math.log10(a.mag)) > MAX_SIGNIFICANT_DIGITS) {
-              return a; // Return the larger magnitude number if the difference is too large
-            }
-            magdiff = Math.pow(10, Math.log10(a.mag) - b.mag);
-            mantissa = b.sign + a.sign * magdiff;
-            return FC(Math.sign(mantissa), 1, b.mag + Math.log10(Math.abs(mantissa)));
+          // Cache logs once (avoid repeated Math.log10 calls)
+          // If mag is zero or negative, produce -Infinity as in original behavior
+          const logL = (L_mag > 0) ? Math.log10(L_mag) : -Infinity;
+          const logS = (S_mag > 0) ? Math.log10(S_mag) : -Infinity;
+
+          const MAX = MAX_SIGNIFICANT_DIGITS;
+
+          // Case: large.layer === 0 && small.layer === -1 (original had special branch)
+          if (layerLargeSigned === 0 && layerSmallSigned === -1) {
+            // If the small magnitude is astronomically far from the large log, it doesn't affect result
+            if (Math.abs(S_mag - logL) > MAX) return large;
+
+            // compute mag difference safely (10^(logLarge - small.mag))
+            const magdiff = Math.pow(10, logL - S_mag);
+            const mantissa = S_sign + L_sign * magdiff;
+            return FC(Math.sign(mantissa), 1, S_mag + Math.log10(Math.abs(mantissa)));
           }
 
-          if (layera === 1 && layerb === 0) {
-            if (Math.abs(a.mag - Math.log10(b.mag)) > MAX_SIGNIFICANT_DIGITS) {
-              return a; // Return the larger number if magnitudes differ significantly
-            }
-            magdiff = Math.pow(10, a.mag - Math.log10(b.mag));
-            mantissa = b.sign + a.sign * magdiff;
-            return FC(Math.sign(mantissa), 1, Math.log10(b.mag) + Math.log10(Math.abs(mantissa)));
+          // Case: large.layer === 1 && small.layer === 0 (another special branch)
+          if (layerLargeSigned === 1 && layerSmallSigned === 0) {
+            if (Math.abs(L_mag - Math.log10(S_mag || 1)) > MAX) return large;
+
+            const magdiff = Math.pow(10, L_mag - Math.log10(S_mag || 1));
+            const mantissa = S_sign + L_sign * magdiff;
+            return FC(Math.sign(mantissa), 1, Math.log10(S_mag || 1) + Math.log10(Math.abs(mantissa)));
           }
 
-          // If magnitudes are significantly different, return the larger number
-          if (Math.abs(a.mag - b.mag) > MAX_SIGNIFICANT_DIGITS) {
-            return a;
+          // If magnitudes differ too much on the same layer, return the larger (dominant)
+          if (Math.abs(L_mag - S_mag) > MAX) {
+            return large;
           }
 
-          // Default handling for numbers with smaller differences
-          magdiff = Math.pow(10, a.mag - b.mag);
-          mantissa = b.sign + a.sign * magdiff;
-          return FC(Math.sign(mantissa), 1, b.mag + Math.log10(Math.abs(mantissa)));
+          // Default (small difference): treat as log-layer addition
+          const magdiff = Math.pow(10, L_mag - S_mag);
+          const mantissa = S_sign + L_sign * magdiff;
+          return FC(Math.sign(mantissa), 1, S_mag + Math.log10(Math.abs(mantissa)));
         }
-
         /**
          * Addition: returns the sum of 'this' and 'value'.
          */
@@ -1332,80 +1445,93 @@
          * Multiplication: returns the product of 'this' and 'value'.
          */
       }, {
-        key: "mul",
-        value: function mul(value) {
-          const decimal = D(value); // Convert value to Decimal
+        
 
-          // Early exit for edge cases
-          if (this.eq(Decimal.dInf) && decimal.eq(Decimal.dNegInf) || 
-              this.eq(Decimal.dNegInf) && decimal.eq(Decimal.dInf)) {
-            return new Decimal(Decimal.dNegInf); // Inf * -Inf = -Inf
-          }
-          
-          if ((this.mag === Number.POSITIVE_INFINITY && decimal.eq(Decimal.dZero)) || 
-              (this.eq(Decimal.dZero) && this.mag === Number.POSITIVE_INFINITY)) {
-            return new Decimal(Decimal.dNaN); // Infinity * 0 = NaN
-          }
+key: "mul",
+value: function mul(value) {
+  const b = (value instanceof Decimal) ? value : D(value);
+  const a = this;
 
-          if (this.eq(Decimal.dNegInf) && decimal.eq(Decimal.dNegInf)) {
-            return new Decimal(Decimal.dInf); // -Inf * -Inf = Inf
-          }
+  // --- VERY CHEAP hot-paths first (no safety checks) ---
+  // cache primitives once
+  const aSign = a.sign, bSign = b.sign;
+  const aLayer = a.layer, bLayer = b.layer;
+  const aMag = a.mag, bMag = b.mag;
+  const resultSign = aSign * bSign;
 
-          // Handle non-finite layers (NaN, Infinity)
-          if (!Number.isFinite(this.layer) || !Number.isFinite(decimal.layer)) {
-            return new Decimal(this.layer === 0 ? this : decimal); // If either has a non-finite layer, return it
-          }
+  // 1) exact zeros (very common)
+  if (aSign === 0 || bSign === 0) return FC_NN(0, 0, 0);
 
-          // Special case: multiplying by zero
-          if (this.sign === 0 || decimal.sign === 0) {
-            return FC_NN(0, 0, 0); // Zero multiplication case
-          }
+  // 2) both layer 0 (extremely common): fast JS multiply, promote only when needed
+  if (aLayer === 0 && bLayer === 0) {
+    const prod = aMag * bMag;
+    if (Number.isFinite(prod) && Math.abs(prod) >= 0.1) {
+      return Decimal.fromNumber(resultSign * prod);
+    }
+    // promote to log-layer safely
+    return FC(resultSign, 1, Math.log10(aMag) + Math.log10(bMag));
+  }
 
-          // Special case: reciprocal multiplication
-          if (this.layer === decimal.layer && this.mag === -decimal.mag) {
-            return FC_NN(this.sign * decimal.sign, 0, 1); // Reciprocal multiplication yields +/- 1
-          }
+  // OPTIONAL SAFETY: only enabled in SAFE_MUL mode
+  if (Decimal.SAFE_MUL) {
+    // cheap early-layer validity check (cheaper than full mag checks or .eq). This
+    // replicates original behavior that returned the other operand when layer was non-finite.
+    if (!Number.isFinite(aLayer) || !Number.isFinite(bLayer)) {
+      return new Decimal(aLayer === 0 ? a : b);
+    }
 
-          // Determine which is the smaller or larger value based on layer and magnitude
-          const comp = this.layer > decimal.layer || 
-                      (this.layer === decimal.layer && Math.abs(this.mag) > Math.abs(decimal.mag));
-          const a = comp ? this : decimal;
-          const b = comp ? decimal : this;
+    // quick Infinity detection (cheap numeric checks). If your environment uses
+    // singletons like Decimal.dInf, you can prefer identity checks there.
+    const aIsInf = (aLayer === Infinity || aMag === Infinity || aMag === -Infinity);
+    const bIsInf = (bLayer === Infinity || bMag === Infinity || bMag === -Infinity);
+    if (aIsInf || bIsInf) {
+      // preserve original semantics: Inf * 0 => NaN, Inf*Inf -> signed Inf
+      if ((aIsInf && bSign === 0) || (bIsInf && aSign === 0)) return new Decimal(Decimal.dNaN);
+      return (resultSign < 0) ? new Decimal(Decimal.dNegInf) : new Decimal(Decimal.dInf);
+    }
+  } else {
+    // SAFE_MUL=false: do a minimal layer-finiteness check but don't handle Infs specially
+    // (this makes it slightly faster but less defensive)
+    if (!Number.isFinite(aLayer) || !Number.isFinite(bLayer)) {
+      return new Decimal(aLayer === 0 ? a : b);
+    }
+  }
 
-          // Handle multiplication for layers 0 and other cases
-          if (a.layer === 0 && b.layer === 0) {
-            return Decimal.fromNumber(a.sign * b.sign * a.mag * b.mag); // Direct multiplication for layer 0
-          }
+  // --- choose larger/smaller by layer then magnitude ---
+  const aLarger = (aLayer > bLayer) || (aLayer === bLayer && Math.abs(aMag) >= Math.abs(bMag));
+  const large = aLarger ? a : b;
+  const small = aLarger ? b : a;
+  const largeLayer = large.layer, smallLayer = small.layer;
+  const largeMag = large.mag, smallMag = small.mag;
+  const largeSign = large.sign, smallSign = small.sign;
+  const sign = largeSign * smallSign;
 
-          // Special case: If a layer >= 3 or layer difference >= 2, return the larger number
-          if (a.layer >= 3 || a.layer - b.layer >= 2) {
-            return FC(a.sign * b.sign, a.layer, a.mag); // Return the larger number directly
-          }
+  // dominated-case: large overwhelms small
+  if (largeLayer >= 3 || largeLayer - smallLayer >= 2) {
+    return FC(sign, largeLayer, largeMag);
+  }
 
-          // Handle specific layer combinations
-          if (a.layer === 1 && b.layer === 0) {
-            return FC(a.sign * b.sign, 1, a.mag + Math.log10(b.mag)); // Logarithmic multiplication
-          }
+  // layer1 * layer0 => add log10(small.mag)
+  if (largeLayer === 1 && smallLayer === 0) {
+    return FC(sign, 1, largeMag + Math.log10(smallMag));
+  }
 
-          if (a.layer === 1 && b.layer === 1) {
-            return FC(a.sign * b.sign, 1, a.mag + b.mag); // Direct addition for layer 1
-          }
+  // layer1 * layer1 => add mags
+  if (largeLayer === 1 && smallLayer === 1) {
+    return FC(sign, 1, largeMag + smallMag);
+  }
 
-          if (a.layer === 2 && b.layer === 1) {
-            const newmag = FC(Math.sign(a.mag), a.layer - 1, Math.abs(a.mag))
-              .add(FC(Math.sign(b.mag), b.layer - 1, Math.abs(b.mag)));
-            return FC(a.sign * b.sign, newmag.layer + 1, newmag.sign * newmag.mag); // Layer 2 and 1 case
-          }
+  // layer2 combined cases => reduce & re-elevate (rare)
+  if (largeLayer === 2 && (smallLayer === 1 || smallLayer === 2)) {
+    const left  = FC_NN(Math.sign(largeMag), largeLayer - 1, Math.abs(largeMag));
+    const right = FC_NN(Math.sign(smallMag), smallLayer - 1, Math.abs(smallMag));
+    const summed = left.add(right);
+    return FC(sign, summed.layer + 1, summed.sign * summed.mag);
+  }
 
-          if (a.layer === 2 && b.layer === 2) {
-            const _newmag = FC(Math.sign(a.mag), a.layer - 1, Math.abs(a.mag))
-              .add(FC(Math.sign(b.mag), b.layer - 1, Math.abs(b.mag)));
-            return FC(a.sign * b.sign, _newmag.layer + 1, _newmag.sign * _newmag.mag); // Layer 2 and 2 case
-          }
-
-          // Default error case for unexpected arguments
-          throw new Error("Bad arguments to mul: " + this + ", " + value);
-        }
+  // If we reach here, it's an unexpected combo — fall back to the old behavior of raising to show bugs.
+  throw new Error("Bad arguments to mul: " + this + ", " + value);
+}
 
         /**
          * Multiplication: returns the product of 'this' and 'value'.
@@ -2003,79 +2129,100 @@
          * Exponentiation: Returns the result of 'this' ^ 'value' (often written as 'this' ** 'value' in programming languages).
          */
       }, {
+        // === optimized pow ===
         key: "pow",
         value: function pow(value) {
-          const decimal = D(value);
+          // normalize input once
+          const b = (value instanceof Decimal) ? value : D(value);
+          const a = this;
 
-          const a = this;   // No need to create a new Decimal here; it's already a Decimal instance
-          const b = decimal; // Similarly, decimal is already a Decimal instance
+          // --- super-fast canonical cases ---
+          // 0^0 = 1 ; 0^b = 0
+          if (a.sign === 0) return (b.sign === 0) ? FC_NN(1, 0, 1) : a;
+          // 1^b = 1
+          if (a.sign === 1 && a.layer === 0 && a.mag === 1) return a;
+          // a^0 = 1
+          if (b.sign === 0) return FC_NN(1, 0, 1);
+          // a^1 = a
+          if (b.sign === 1 && b.layer === 0 && b.mag === 1) return a;
 
-          // Special case: if a is 0, return 0 (unless b is 0, then return 1)
-          if (a.sign === 0) {
-            return b.sign === 0 ? FC_NN(1, 0, 1) : a;
-          }
-
-          // Special case: if a is 1, return 1
-          if (a.sign === 1 && a.layer === 0 && a.mag === 1) {
-            return a;
-          }
-
-          // Special case: if b is 0, return 1
-          if (b.sign === 0) {
-            return FC_NN(1, 0, 1);
-          }
-
-          // Special case: if b is 1, return a
-          if (b.sign === 1 && b.layer === 0 && b.mag === 1) {
-            return a;
-          }
-
-          // Calculate the result: a^b = 10^(log10(a) * b)
-          const result = a.absLog10().mul(b).pow10();
-
-          // If a is negative, handle even/odd exponents
-          if (a.sign === -1) {
-            const bMod2 = Math.abs(b.toNumber()) % 2;  // Calculate b % 2 once
-            if (bMod2 === 1) {
-              return result.neg();  // Odd exponents result in negative
-            } else if (bMod2 === 0) {
-              return result;  // Even exponents result in positive
+          // --- very common negative-base micro-optimizations ---
+          // handle base == -1 quickly: (-1)^n = ±1 for integers, NaN otherwise
+          if (a.sign === -1 && a.layer === 0 && a.mag === 1) {
+            const bFloor = b.floor();
+            if (!bFloor.eq(b)) return new Decimal(Decimal.dNaN);
+            // parity: use mod if present
+            let isOdd;
+            const absB = bFloor.abs();
+            if (typeof absB.mod === "function") {
+              isOdd = absB.mod(2).eq(1);
+            } else {
+              const half = absB.div(2).floor();
+              isOdd = absB.sub(half.mul(2)).eq(1);
             }
-            return new Decimal(Decimal.dNaN);  // Undefined result for non-integer odd exponents
+            return isOdd ? FC_NN(-1, 0, 1) : FC_NN(1, 0, 1);
           }
 
-          // Return the final result if no special cases were triggered
-          return result;
-        }
+          // --- negative base: exponent must be integer ---
+          if (a.sign === -1) {
+            const bFloor = b.floor();
+            if (!bFloor.eq(b)) {
+              // non-integer exponent for negative base -> NaN (preserve prior behavior)
+              return new Decimal(Decimal.dNaN);
+            }
 
+            // parity test (abs(b) may be huge; prefer Decimal.mod when available)
+            let isOdd;
+            const absB = bFloor.abs();
+            if (typeof absB.mod === "function") {
+              isOdd = absB.mod(2).eq(1);
+            } else {
+              const half = absB.div(2).floor();
+              isOdd = absB.sub(half.mul(2)).eq(1);
+            }
+
+            // compute |a|^b then apply parity sign
+            const logA = a.absLog10();      // absolute log10 of a
+            const prod = logA.mul(b);       // log10(result)
+            const result = prod.pow10();    // 10^(log10(result))
+            return isOdd ? result.neg() : result;
+          }
+
+          // --- positive base general case ---
+          // a^b = 10^( log10(a) * b )
+          const logA = a.absLog10();
+          const prod  = logA.mul(b);
+          return prod.pow10();
+        }
         /**
          * Raises 10 to the power of 'this', i.e. (10^'this'). For positive numbers above 1, this is equivalent to adding 1 to layer and normalizing.
          */
       }, {
         key: "pow10",
         value: function pow10() {
-          /*
-          There are four cases we need to consider:
-          1) positive sign, positive mag (e15, ee15): +1 layer (e.g. 10^15 becomes e15, 10^e15 becomes ee15)
-          2) negative sign, positive mag (-e15, -ee15): +1 layer but sign and mag sign are flipped (e.g. 10^-15 becomes e-15, 10^-e15 becomes ee-15)
-          3) positive sign, negative mag (e-15, ee-15): layer 0 case would have been handled in the Math.pow check, so just return 1
-          4) negative sign, negative mag (-e-15, -ee-15): layer 0 case would have been handled in the Math.pow check, so just return 1
-          */
-          if (this.eq(Decimal.dInf)) {
-            return new Decimal(Decimal.dInf);
-          }
-          if (this.eq(Decimal.dNegInf)) {
-            return FC_NN(0, 0, 0);
-          }
-          if (!Number.isFinite(this.layer) || !Number.isFinite(this.mag)) {
+          let a = this;
+
+          // handle infinities quickly
+          if (a.eq(Decimal.dInf)) return new Decimal(Decimal.dInf);
+          if (a.eq(Decimal.dNegInf)) return FC_NN(0, 0, 0);
+
+          // invalid layers/mags -> NaN (preserve original semantics)
+          if (!Number.isFinite(a.layer) || !Number.isFinite(a.mag)) {
             return new Decimal(Decimal.dNaN);
           }
-          var a = new Decimal(this);
+
           //handle layer 0 case - if no precision is lost just use Math.pow, else promote one layer
           if (a.layer === 0) {
-            var newmag = Math.pow(10, a.sign * a.mag);
-            if (Number.isFinite(newmag) && Math.abs(newmag) >= 0.1) {
-              return FC(1, 0, newmag);
+            // value = sign * mag  => 10^(sign*mag)
+            const exponent = a.sign * a.mag;
+            // fast path: if exponent is representable in JS double and result not denormal/minuscule
+            // use Math.pow for layer-0 results
+            if (Number.isFinite(exponent)) {
+              const newmag = Math.pow(10, exponent);
+              if (Number.isFinite(newmag) && Math.abs(newmag) >= 0.1) {
+                return FC(1, 0, newmag);
+              }
+              // else fallthrough to promote to higher layer
             } else {
               if (a.sign === 0) {
                 return FC_NN(1, 0, 1);
@@ -2084,10 +2231,13 @@
               }
             }
           }
-          //handle all 4 layer 1+ cases individually
+
+          // layer >= 1: simple layer increment/flip rules:
+          // positive sign, positive mag -> increase layer by 1
           if (a.sign > 0 && a.mag >= 0) {
             return FC(a.sign, a.layer + 1, a.mag);
           }
+          // negative sign, positive mag -> flip sign in the resulting mag
           if (a.sign < 0 && a.mag >= 0) {
             return FC(-a.sign, a.layer + 1, -a.mag);
           }
@@ -2109,14 +2259,52 @@
       }, {
         key: "dilate",
         value: function dilate(value, base=10) {
-          if (this.eq(0)) return FC_NN(0, 0, 0)
-          let a = this
-          let b = 1
+          const b = (value instanceof Decimal) ? value : D(value);
+          let a = this;
+          // --- super-fast canonical cases ---
+          // 0^0 = 1 ; 0^b = 0
+          if (a.sign === 0) return (b.sign === 0) ? FC_NN(1, 0, 1) : a;
+          // 1^b = 1
+          if (a.sign === 1 && a.layer === 0 && a.mag === 1) return a;
+          // a^0 = 1
+          if (b.sign === 0) return FC_NN(1, 0, 1);
+          // a^1 = a
+          if (b.sign === 1 && b.layer === 0 && b.mag === 1) return a;
+
+          if (a.eq(0)) return FC_NN(0, 0, 0)
+          let ba = 1
           if (a.lt(1)) {
             a = this.recip()
-            b = -1
+            ba = -1
           }
-          return a.log(base).pow(value).mul(b).pow_base(base);
+          return a.log(base).pow(b).mul(ba).pow_base(base);
+        }
+        /**
+         * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'value' = 'this'.
+         * Equivalent to 'this' ^ (1 / 'value'), which is written here as this.pow(value.recip()).
+         */
+      }, {
+        key: "trilate",
+        value: function trilate(value, base=10) {
+          const b = (value instanceof Decimal) ? value : D(value);
+          let a = this;
+          // --- super-fast canonical cases ---
+          // 0^0 = 1 ; 0^b = 0
+          if (a.sign === 0) return (b.sign === 0) ? FC_NN(1, 0, 1) : a;
+          // 1^b = 1
+          if (a.sign === 1 && a.layer === 0 && a.mag === 1) return a;
+          // a^0 = 1
+          if (b.sign === 0) return FC_NN(1, 0, 1);
+          // a^1 = a
+          if (b.sign === 1 && b.layer === 0 && b.mag === 1) return a;
+
+          if (a.eq(0)) return FC_NN(0, 0, 0)
+          let ba = 1
+          if (a.lt(1)) {
+            a = this.recip()
+            ba = -1
+          }
+          return a.log(base).log(base).pow(b).mul(ba).pow_base(base).pow_base(base);
         }
         /**
          * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'value' = 'this'.
@@ -2145,6 +2333,49 @@
           } else {
             return Decimal.exp(this);
           }
+        }
+        
+        /**
+         * The gamma function extends the idea of factorials to non-whole numbers using some calculus.
+         * Gamma(x) is defined as the integral of t^(x-1) * e^-t dt from t = 0 to t = infinity,
+         * and gamma(x) = (x - 1)! for nonnegative integer x, so the factorial for non-whole numbers is defined using the gamma function.
+         */
+        //from HyperCalc source code
+      }, {
+        key: "invFac",
+        value: function invFac() {
+          let y = this
+          let layeradd = 0
+
+          if (y.layer > 2) return Decimal.ln(this)
+          if (y.layer === 2) return Decimal.ln(y).div(Decimal.lambertw(Decimal.ln(y).div(Math.E)))
+
+          layeradd = y.layer
+          y = slogsub(y, layeradd)
+
+          // 1. Initialize bounds [low, high]
+          let low = Decimal.dZero;
+          let high = Decimal.max(1, y);
+
+          // 2. Expand high until factorial(high) > y
+          while (slogsub(high, -layeradd).factorial().lte(this)) {
+            high = high.mul(2);
+          }
+
+          // 3. Binary search for x so that factorial(x) ≈ y
+          for (let i = 0; i < 100; i++) {
+            const mid = low.add(high).div(2);
+            const fmid = slogsub(mid, -layeradd).factorial();
+            if (fmid.gt(this)) {
+              high = mid;
+            } else {
+              low = mid;
+            }
+            if (high.eq(low)) break;
+          }
+
+          // 4. Return the midpoint as the approximate inverse-factorial
+          return slogsub(low.add(high).div(2), -layeradd);
         }
         /**
          * The gamma function extends the idea of factorials to non-whole numbers using some calculus.
@@ -2238,7 +2469,7 @@
           } else if (this.layer === 0) {
             return FC(1, 1, this.sign * Math.log10(2) * this.mag);
           } else if (this.layer === 1) {
-            return FC(1, 2, this.sign * (Math.log10(Math.log10) + this.mag));
+            return FC(1, 2, this.sign * (Math.log10(Math.log10(2)) + this.mag));
           } else {
             return FC(1, this.layer + 1, this.sign * this.mag);
           }
@@ -3451,6 +3682,11 @@
         value: function fromNumber(value) {
           return new Decimal().fromNumber(value);
         }
+      }, {
+        key: "fromNumber_noNormalize",
+        value: function fromNumber_noNormalize(value) {
+          return new Decimal().fromNumber_noNormalize(value);
+        }
         /**
          * Converts a string into a Decimal.
          *
@@ -3482,25 +3718,42 @@
       }, {
         key: "fromValue_noAlloc",
         value: function fromValue_noAlloc(value) {
-          if (value instanceof Decimal) {
-            return value;
-          } else if (typeof value === "string") {
-            var cached = Decimal.fromStringCache.get(value);
-            if (cached !== undefined) {
-              return cached;
-            }
+          // fast-path: already a Decimal instance -> return as-is (no allocation)
+          if (value instanceof Decimal) return value;
+        
+          var t = typeof value;
+        
+          // string path: try cache, then parse
+          if (t === "string") {
+            var cache = Decimal.fromStringCache;
+            var cached = cache.get(value);
+            if (cached !== undefined) return cached;
+            // Decimal.fromString returns a Decimal instance (keeps previous semantics)
             return Decimal.fromString(value);
-          } else if (typeof value === "number") {
-            return Decimal.fromNumber(value);
-          } else {
-            // This should never happen... but some users like Prestige Tree Rewritten
-            // pass undefined values in as DecimalSources, so we should handle this
-            // case to not break them.
-            return FC_NN(0, 0, 0);
           }
+        
+          // number path: direct constructor
+          if (t === "number") {
+            return Decimal.fromNumber(value);
+          }
+        
+          // fallback: handle undefined / unexpected types gracefully
+          // preserve original compatibility with odd callers (e.g. external mods)
+          return FC_NN(0, 0, 0);
         }
         /**
          * Absolute value function: returns 'value' if 'value' >= 0, returns the negative of 'value' if 'value' < 0.
+         */
+      }, {
+        key: "copyFrom",
+        value: function copyFrom(value, other) {
+          if (!(other instanceof Decimal)) {
+            throw "Copy value is not Decimal";
+          }
+          return D(value).copyFrom(other);
+        }
+        /**
+         * Returns the negative of the given value.
          */
       }, {
         key: "abs",
@@ -4101,6 +4354,15 @@
          * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'other' = 'value'.
          * Equivalent to 'value' ^ (1 / 'other'), which is written here as value.pow(other.recip()).
          */
+      },  {
+        key: "trilate",
+        value: function trilate(value, other, base=10) {
+          return D(value).trilate(other, base);
+        }
+        /**
+         * Roots are one of the inverses of exponentiation: this function finds the Decimal X such that X ^ 'other' = 'value'.
+         * Equivalent to 'value' ^ (1 / 'other'), which is written here as value.pow(other.recip()).
+         */
       }, {
         key: "root",
         value: function root(value, other) {
@@ -4114,6 +4376,16 @@
         key: "factorial",
         value: function factorial(value, _other) {
           return D(value).factorial();
+        }
+        /**
+         * The gamma function extends the idea of factorials to non-whole numbers using some calculus.
+         * Gamma(x) is defined as the integral of t^(x-1) * e^-t dt from t = 0 to t = infinity,
+         * and gamma(x) = (x - 1)! for nonnegative integer x, so the factorial for non-whole numbers is defined using the gamma function.
+         */
+      }, {
+        key: "invFac",
+        value: function invFac(value, _other) {
+          return D(value).invFac();
         }
         /**
          * The gamma function extends the idea of factorials to non-whole numbers using some calculus.

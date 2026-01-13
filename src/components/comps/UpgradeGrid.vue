@@ -1,14 +1,19 @@
 <template>
   <div class="grid-container">
-    <!-- Loop through rows -->
-    <div v-for="row in gridRows" :key="row" class="grid-row">
-      <!-- Loop through columns in each row, only for valid upgrades -->
-      <div 
-        v-for="col in getValidColumnsForRow(row)" 
-        :key="col" 
+    <!-- Loop through rows that actually have visible upgrades -->
+    <div
+      v-for="(rowObj, idx) in gridRowsWithCols"
+      :key="`row-${rowObj.row}-${idx}`"
+      class="grid-row"
+      :style="rowGridStyle(rowObj.cols.length)"
+    >
+      <!-- Render only the valid/unlocked columns for this row -->
+      <div
+        v-for="col in rowObj.cols"
+        :key="`u-${rowObj.row}-${col}`"
         class="grid-item"
       >
-        <Upgrade :layerName="layerName" :upgradeId="`${row}${col}`"></Upgrade>
+        <Upgrade :layerName="layerName" :upgradeId="`${rowObj.row}${col}`"/>
       </div>
     </div>
   </div>
@@ -16,7 +21,7 @@
 
 <script>
 import Upgrade from './Upgrade.vue';
-import { gameLayers } from '@/incremental/main.js';  // Adjust the path as necessary
+import { gameLayers } from '@/incremental/layersData.js';
 
 export default {
   name: 'UpgradeGrid',
@@ -26,52 +31,80 @@ export default {
       required: true
     }
   },
+  components: { Upgrade },
   computed: {
-    // Calculate the number of rows based on upgrades data
-    gridRows() {
-      return Array.from({ length: gameLayers[this.layerName].upgrades.rows }, (_, i) => i + 1); // Row indices for the specific layer
+    // Build an array of { row, cols: [validColNumbers...] } skipping empty rows.
+    gridRowsWithCols() {
+      const layer = gameLayers[this.layerName];
+      if (!layer || !layer.upgrades) return [];
+
+      const rows = layer.upgrades.rows || 0;
+      const cols = layer.upgrades.cols || 0;
+
+      const out = [];
+      for (let r = 1; r <= rows; ++r) {
+        const validCols = [];
+        for (let c = 1; c <= cols; ++c) {
+          if (this._hasUpgradeForGrid(r, c)) validCols.push(c);
+        }
+        if (validCols.length > 0) out.push({ row: r, cols: validCols });
+      }
+      return out;
     }
   },
   methods: {
-    // Get valid columns for a specific row (based on upgrades availability for the given layer)
-    getValidColumnsForRow(row) {
-      return Array.from({ length: gameLayers[this.layerName].upgrades.cols }, (_, col) => col + 1)
-        .filter(col => this.hasUpgradeForGrid(row, col));
-    },
-    
-    // Check if an upgrade exists for the given row and col in the specified layer
-    hasUpgradeForGrid(row, col) {
+    // internal helper - checks both existence and (logical) unlocked state
+    _hasUpgradeForGrid(row, col) {
+      const layer = gameLayers[this.layerName];
+      if (!layer || !layer.upgrades) return false;
       const upgradeId = `${row}${col}`;
-      return Object.prototype.hasOwnProperty.call(gameLayers[this.layerName].upgrades, upgradeId);
+      const def = layer.upgrades[upgradeId];
+      if (!def) return false;
+
+      // follow the same unlocked logic as Upgrade.vue:
+      try {
+        if (typeof def.unlocked === 'function') return !!def.unlocked();
+        // if there's an unlocked boolean property, the original component treated
+        // undefined as unlocked; it used `!this.upgrade.unlocked` — keep that behavior:
+        return def.unlocked === undefined ? true : !def.unlocked;
+      } catch (e) {
+        // if evaluating unlocked throws, treat as locked to be safe
+        console.warn('Error evaluating upgrade unlocked for', upgradeId, e);
+        return false;
+      }
+    },
+
+    // Generate inline style to set grid-template-columns to N columns for this row
+    rowGridStyle(visibleColsCount) {
+      const cols = Math.max(1, visibleColsCount || 1);
+      return {
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols}, 250px)`, // fixed width columns
+        gap: '16px',
+        justifyContent: 'center', // center the whole grid (no stretching)
+        alignItems: 'center',
+      };
     }
-  },
-  components: {
-    Upgrade
   }
-}
+};
 </script>
 
 <style scoped>
-/* Parent container (scrollable) */
+/* Parent container */
 .grid-container {
   display: flex;
   flex-direction: column;
-  gap: 16px; /* Space between rows */
+  gap: 16px;
   padding: 16px;
   align-items: center;
   justify-content: center;
-  height: 100%; /* Ensure it takes up the full container height */
-  overflow: auto; /* Enable scrolling if content overflows */
+  height: 100%;
 }
 
-/* Ensure rows are properly displayed */
+/* Each row is a CSS grid now; columns are set dynamically inline */
 .grid-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap; /* Allow wrapping for responsiveness */
   border-radius: 10px;
+  width: auto; /* let grid shrinkwrap the items */
 }
 
 /* Grid item styling */
@@ -79,9 +112,9 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 250px;  /* Prevent shrinking below this width */
-  max-width: 250px;  /* Prevent stretching beyond 250px */
-  height: 250px;     /* Fixed height */
+  min-width: 250px;  /* same as before */
+  max-width: 250px;
+  height: 250px;
+  box-sizing: border-box;
 }
 </style>
-

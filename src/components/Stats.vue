@@ -1,125 +1,165 @@
 <template>
-  <div class="gamestats">
-    <h1>Game Statistics</h1>
+  <div class="tabs-container">
+    <div class="tabs">
+      <button :class="{ active: currentTab === 'main' }" @click="changeTab('Stats', 'main')">
+        Game Stats
+      </button>
+      <button :class="{ active: currentTab === 'last-prestiges' }" @click="changeTab('Stats', 'last-prestiges')">
+        Last Prestiges
+      </button>
+    </div>
 
-    <section>
-      <h2>General Stats</h2>
-      <ul>
-        <li>Total YooA Points: {{ pointsText() }}</li>
-        <li>Total Time Played: {{ timeText() }}</li>
-        <li>Total Math Problems Solved: {{ solvedText() }}</li>
-        <li>{{ pointsScale }}</li>
-      </ul>
-    </section>
+    <div v-if="currentTab === 'main'" class="gamestats">
+      <h1>Game Statistics</h1>
+      <!-- General Stats Section -->
+      <SectionStats title="General Stats" :stats="[
+        { label: 'Points Scale', value: pointsScale }
+      ]" :isUnlocked="true" />
 
-    <section>
-      <h2><span v-html="YooAText"></span> Stats</h2>
-      <ul>
-        <li>Math Problems Solved: {{ solvedText("YooA") }}</li>
-      </ul>
-    </section>
-    <section v-if="unlocked('YooAmatter')">
-      <h2><span v-html="YooAmatterText"></span> Stats</h2>
-      <ul>
-        <li>Total YooAmatter: {{ pointsText("YooAmatter") }}</li>
-        <li>Resets: {{ resetsText("YooAmatter") }}</li>
-        <li v-if="YooAriumUnlocked">Total YooArium: {{ totalYR }}</li>
-        <li v-if="sparksUnlocked">Total YooAmatter Sparks: {{ totalYS }}</li>
-        <li>Time: {{ timeText("YooAmatter") }}</li>
-        <li>Math Problems Solved: {{ solvedText("YooAmatter") }}</li>
-      </ul>
-    </section>
+      <!-- YooA Stats Section -->
+      <SectionStats :title="YooAText + ' Stats'" :isUnlocked="true" :layer="'YooA'" />
+
+      <!-- YooAmatter Stats Section -->
+      <SectionStats v-if="unlocked('YooAmatter')" :title="YooAmatterText + ' Stats'" :stats="[
+        YooAriumUnlocked ? { label: 'Total YooArium', value: totalYR } : null,
+        sparksUnlocked ? { label: 'Total YooAmatter Sparks', value: totalYS } : null,
+      ].filter(item => item)" :isUnlocked="true" :layer="'YooAmatter'" />
+
+      <!-- YooAity Stats Section -->
+      <SectionStats v-if="unlocked('YooAity')" :title="YooAityText + ' Stats'" :stats="[
+        { label: 'Total Shi-ah Embers', value: totalSE },
+        YooChroniumUnlocked ? { label: 'Total YooChronium', value: totalYC } : null,
+      ].filter(item => item)" :isUnlocked="true" :layer="'YooAity'" />
+    </div>
+
+    <div v-if="currentTab === 'last-prestiges'" class="gamestats">
+      <h1>Last Prestiges</h1>
+      <LastPrestigeStats />
+    </div>
   </div>
 </template>
 
 <script>
-import { player, getStartStats } from "@/incremental/incremental.js";
-import { gameLayers, hasUpgrade } from "@/incremental/main";
+import SectionStats from "./comps/SectionStats.vue";
+import { gameLayers } from "@/incremental/layersData";
+import { player } from "@/incremental/incremental.js";
+import { hasUpgrade, hasMilestone } from "@/incremental/mainFuncs";
+import LastPrestigeStats from "./comps/LastPrestigeStats.vue";
 
 export default {
   name: "Stats",
+  components: {
+    SectionStats,
+    LastPrestigeStats
+  },
   data() {
     return {
-      stats: getStartStats(),
+      subtab: "main",
+      totalYR: "",
+      totalYS: "",
+      totalSE: "",
+      totalYC: "",
+      pointsScale: "",
+      YooAriumUnlocked: false,
+      sparksUnlocked: false,
+      YooChroniumUnlocked: false,
     };
   },
   computed: {
-    totalYR() {
-      return format(player.stats.YooAmatter.totalYooArium)
-    },
-    totalYS() {
-      return format(player.stats.YooAmatter.totalSparks)
-    },
-    pointsScale() {
-      return scale(player.YooAPoints)
-    }, 
-    YooAriumUnlocked() {
-      return hasUpgrade("YooAmatter", 23)
-    },
-    sparksUnlocked() {
-      return hasUpgrade("YooAmatter", 44)
+    currentTab() {
+      return this.subtab;
     },
     YooAText() {
-      return colorText("span", "#d17be2", "YooA")
+      return colorText("span", "#d17be2", "YooA");
     },
     YooAmatterText() {
-      return colorText("span", "#bcc70f", "YooAmatter")
-    }
+      return colorText("span", gameLayers.YooAmatter.color, "YooAmatter");
+    },
+    YooAityText() {
+      return colorText("span", gameLayers.YooAity.color, "YooAity");
+    },
   },
   methods: {
+    changeTab(tabName, subtab) {
+      // One assignment to reactive data
+      player.tab = tabName;
+      player.subtabs[tabName] = subtab;
+    },
     unlocked(layer) {
-      return gameLayers[layer].unlocked()
+      return gameLayers[layer].unlocked();
     },
     pointsText(layer) {
       if (!layer) return format(player.stats.General.totalPoints);
-      return format(player.stats[layer].totalAmount)
+      return format(player.stats[layer].totalAmount);
     },
     timeText(layer) {
       if (!layer) return formatTime(player.stats.General.totalTime);
-      return formatTime(player.stats[layer].time)
+      return formatTime(player.stats[layer].time);
     },
     solvedText(layer) {
       if (!layer) return formatWhole(player.stats.General.totalSolved);
-      return formatWhole(player.math[layer].solved)
+      return formatWhole(player.math[layer].solved);
     },
     resetsText(layer) {
-      return formatWhole(player.stats[layer].resets)
+      return formatWhole(player.stats[layer].resets);
     },
-  }
+    update() {
+      this.subtab = player.subtabs["Stats"]
+      this.totalYR = format(player.stats.YooAmatter.totalYooArium);
+      this.totalYS = format(player.stats.YooAmatter.totalSparks);
+      this.totalSE = format(player.stats.YooAity.totalEmbers);
+      this.totalYC = format(player.stats.YooAity.totalYooChronium);
+      this.pointsScale = scale(player.YooAPoints);
+      this.YooAriumUnlocked = hasUpgrade("YooAmatter", 23);
+      this.sparksUnlocked = hasUpgrade("YooAmatter", 44);
+      this.YooChroniumUnlocked = hasMilestone("YooAity", 12);
+    },
+  },
+  mounted() {
+    window.addEventListener("GAME_EVENT.UPDATE", this.update);
+  },
+  beforeUnmount() {
+    window.removeEventListener("GAME_EVENT.UPDATE", this.update);
+  },
 };
 </script>
 
 <style scoped>
 .gamestats {
-  padding: 1rem;
+  padding: 0rem 1rem;
   text-align: center;
+  color: #fff;
+  margin: 0 auto;
+}
+
+.tabs-container {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Centers the tab container horizontally */
+}
+
+.tabs {
+  display: flex;
+  gap: 16px;
   justify-content: center;
-  color: #fff;
-  /* Assuming a dark background */
-  width: 100%;
-  box-sizing: border-box;
-  /* Include padding in the width */
-  margin: 0 auto;
-  /* Center the element horizontally if it's smaller than the container */
+  /* Centers the buttons horizontally */
 }
 
-h1,
-h2 {
-  margin: 0;
-  padding: 0.5rem 0;
+.tabs button {
+  padding: 8px 16px;
+  border: none;
+  background-color: #f2b7f5;
+  color: #4b004d;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 4px;
+  font-size: 16pt;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-li {
-  margin: 0.5rem 0;
-  font-size: 14pt;
+.tabs button.active {
+  background-color: #4b004d;
+  color: #f2b7f5;
 }
 </style>

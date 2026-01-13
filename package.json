@@ -11,19 +11,26 @@
     "predeploy": "npm run build"
   },
   "dependencies": {
+    "@aws-amplify/storage": "^6.10.1",
+    "@aws-amplify/ui-vue": "^4.3.6",
+    "aws-amplify": "^6.15.8",
+    "bootstrap": "^5.3.6",
     "core-js": "^3.8.3",
-    "vue": "^3.2.13",
-    "vue-router": "^4.0.3"
+    "dedent": "^1.5.3",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/eslint-parser": "^7.12.16",
+    "@types/uuid": "^10.0.0",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-plugin-router": "~5.0.0",
-    "@vue/cli-service": "~5.0.0",
+    "@vue/cli-service": "^5.0.8",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
-    "gh-pages": "^6.2.0"
+    "gh-pages": "^6.2.0",
+    "puppeteer": "^24.34.0"
   }
 }

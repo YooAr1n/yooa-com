@@ -29,7 +29,8 @@
 
 <script>
 import { player } from "@/incremental/incremental";
-import { gameLayers, canCompleteChallenge, prestige, inChallenge, exitOrComplete } from "@/incremental/main.js";
+import { gameLayers } from "@/incremental/layersData";
+import { canCompleteChallenge, prestige, inChallenge, exitOrComplete } from "@/incremental/mainFuncs.js";
 
 export default {
     name: "Challenge",
@@ -43,31 +44,39 @@ export default {
             required: true
         }
     },
+    data() {
+        return {
+            currentChallenge: null,
+            playerLevel: Decimal.dZero,
+            maxLevel: Decimal.dZero,
+            isMaxed: false,
+            lvlDisplay: "",
+            penaltyDescription: "",
+            challengeStyle: null,
+            mergedChallengeStyle: null,
+            isGoalReached: false,
+            challengeStarted: false,
+            getChallengeRewardDescription: "",
+            getChallengeRewardEffect: ""
+        }
+    },
     computed: {
-        currentChallenge() {
+    },
+    methods: {
+        update() {
             const layer = gameLayers[this.layerName];
-            return layer ? layer.challenges[this.challengeId] : null;
-        },
-        playerLevel() {
+            this.currentChallenge = layer ? layer.challenges[this.challengeId] : null;
             const level = player.challenges[this.layerName]?.[this.challengeId] || 0;
-            return new Decimal(level);
-        },
-        maxLevel() {
-            return typeof this.currentChallenge.maxLvl === 'function' ? this.currentChallenge.maxLvl() : this.currentChallenge.maxLvl
-        },
-        isMaxed() {
-            return this.maxLevel && this.playerLevel.gte(this.maxLevel);
-        },
-        lvlDisplay() {
+            this.playerLevel = new Decimal(level);
+            this.maxLevel = typeof this.currentChallenge.maxLvl === 'function' ? this.currentChallenge.maxLvl() : this.currentChallenge.maxLvl
+            this.isMaxed = this.maxLevel && this.playerLevel.gte(this.maxLevel);
+
             let dis = "Level: " + formatWhole(this.playerLevel);
             if (this.maxLevel) dis += "/" + formatWhole(this.maxLevel);
             if (this.isMaxed) dis += " (COMPLETED)";
-            return dis;
-        },
-        penaltyDescription() {
-            return this.currentChallenge.description() || "No penalties.";
-        },
-        challengeStyle() {
+            this.lvlDisplay = dis;
+            this.penaltyDescription = this.currentChallenge.description() || "No penalties.";
+
             let backgroundColor;
             if (this.layerName === 'YooA') {
                 backgroundColor = 'linear-gradient(#991893, #d17be2)'; // For the YooA layer
@@ -76,33 +85,21 @@ export default {
             } else {
                 backgroundColor = 'linear-gradient(#991893, #d17be2)'; // Default color for other layers
             }
-            return {
+            this.challengeStyle = {
                 background: backgroundColor,
             };
-        },
-        mergedChallengeStyle() {
-            return {
+            this.mergedChallengeStyle = {
                 ...this.challengeStyle,
                 background: this.isMaxed ? 'linear-gradient(to bottom, #ffd700, #ffbf00)' : this.challengeStyle.background,
             };
-        },
-        isGoalReached() {
-            return canCompleteChallenge(this.layerName, this.challengeId);
-        },
-        challengeStarted() {
-            return inChallenge(this.layerName, this.challengeId)
-        },
-        getChallengeRewardDescription() {
+            this.isGoalReached = canCompleteChallenge(this.layerName, this.challengeId);
+            this.challengeStarted = inChallenge(this.layerName, this.challengeId)
+
             const challenge = this.currentChallenge;
-            return challenge?.rewardDescription ? (typeof challenge.rewardDescription === 'function' ? challenge.rewardDescription() : challenge.rewardDescription) : null;
+            this.getChallengeRewardDescription = challenge?.rewardDescription ? (typeof challenge.rewardDescription === 'function' ? challenge.rewardDescription() : challenge.rewardDescription) : null;
+            this.getChallengeRewardEffect = challenge?.rewardEffectDisplay ? (typeof challenge.rewardEffectDisplay === 'function' ? challenge.rewardEffectDisplay() : challenge.rewardEffectDisplay) : null;
         },
-        getChallengeRewardEffect() {
-            const challenge = this.currentChallenge;
-            return challenge?.rewardEffectDisplay ? (typeof challenge.rewardEffectDisplay === 'function' ? challenge.rewardEffectDisplay() : challenge.rewardEffectDisplay) : null;
-        },
-    },
-    methods: {
-        confirmStartChallenge(con = options.confirmations.YooAmatter) {
+        confirmStartChallenge(con = options.confirmations[this.layerName]) {
             if (con) {
                 let msg = "You are about to reset for " + this.layerName + " and begin a new journey within this Challenge, where all restrictions and modifiers will be active. To complete it, you must reach the goal without carrying over any YooA math problems, regardless of upgrades. Are you sure you want to start and take on this Challenge?"
                 if (window.confirm(msg)) {
@@ -115,7 +112,7 @@ export default {
         },
         startChallenge() {
             player.inChallenge = [this.layerName, this.challengeId];
-            prestige(this.layerName);
+            prestige(this.layerName, true);
         },
         confirmExitOrComplete(layer, id) {
             exitOrComplete(layer, id)
@@ -123,7 +120,13 @@ export default {
         formatGoal(goal) {
             return goal instanceof Decimal ? format(goal) : goal.toString();
         }
-    }
+    },
+    mounted() {
+        window.addEventListener("GAME_EVENT.UPDATE", this.update);
+    },
+    beforeUnmount() {
+        window.removeEventListener("GAME_EVENT.UPDATE", this.update);
+    },
 };
 </script>
 

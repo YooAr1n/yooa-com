@@ -9,8 +9,10 @@
 </template>
 
 <script>
+import dedent from "dedent";
 import { inAnyChallenge } from '@/incremental/incremental';
-import { exitOrComplete, gameLayers } from '@/incremental/main';
+import { exitOrComplete } from '@/incremental/mainFuncs';
+import { gameLayers } from "@/incremental/layersData";
 
 export default {
     name: "PrestigeButton",
@@ -20,36 +22,46 @@ export default {
             required: true
         },
     },
+    data() {
+        return {
+            gain: Decimal.dZero,
+            nextAt: Decimal.dZero,
+            prestigeCurrency: "",
+            prestigeAction: "Reset",
+            baseCurrency: Decimal.dZero,
+            requires: Decimal.dZero,
+            canReset: false,
+
+        };
+    },
     computed: {
-        gain() {
-            return gameLayers[this.layerName].getResetGain();
-        },
-        nextAt() {
-            return gameLayers[this.layerName].getNextAt();
-        },
-        prestigeCurrency() {
-            return gameLayers[this.layerName].currency;
-        },
-        baseCurrency() {
-            return gameLayers[this.layerName].baseCurrency;
-        },
-        requires() {
-            return gameLayers[this.layerName].requires;
-        },
-        canReset() {
-            return gameLayers[this.layerName].canReset();
-        },
         prestigeDesc() {
-            return `Reset for ${formatWhole(this.gain)} ${this.prestigeCurrency}`;
+            const hotkey = this.triggerKey;
+            return `${this.prestigeAction} for ${formatWhole(this.gain)} ${this.prestigeCurrency}${hotkey ? " (" + hotkey.toUpperCase() + ")" : ""}`;
         },
         nextAtDesc() {
             if (!this.canReset) return `Req: ${format(this.requires)} ${this.baseCurrency}`
             let oom = this.gain.gte(1e6) ? "OoM" : ""
             return `Next ${oom} at ${format(this.nextAt)} ${this.baseCurrency}`;
         },
+        // 🌸 YooA's own magic key! 🌸
+        triggerKey() {
+            if (this.layerName === "YooAmatter") return "y";
+            if (this.layerName === "YooAity") return "t";
+            return null;
+        }
     },
     methods: {
-        confirmPrestige(con = options.confirmations.YooAmatter) {
+        update() {
+            this.gain = gameLayers[this.layerName].getResetGain()
+            this.nextAt = gameLayers[this.layerName].getNextAt()
+            this.prestigeCurrency = gameLayers[this.layerName].currency
+            this.prestigeAction = gameLayers[this.layerName].action ?? "Reset"
+            this.baseCurrency = gameLayers[this.layerName].baseCurrency
+            this.requires = gameLayers[this.layerName].requires
+            this.canReset = gameLayers[this.layerName].canReset()
+        },
+        confirmPrestige(con = options.confirmations[this.layerName]) {
             if (!this.canReset) return; // Ensure reset is possible
 
             if (inAnyChallenge()) {
@@ -58,21 +70,60 @@ export default {
             } else {
                 // Check confirmation status
                 if (con) {
-                    const userConfirmed = confirm(
-                        `Are you sure you want to reset? You will gain ${formatWhole(this.gain)} ${this.prestigeCurrency}. This will reset your current progress in ${this.baseCurrency}.`
-                    );
-                    if (userConfirmed) {
+                    // general message (any reset)
+                    let message =
+                        `🌸 YooA says... "Are you *really* sure you want to reset?" 🌸\n` +
+                        `🎶 You'll earn ${formatWhole(this.gain ?? 0)} ${this.prestigeCurrency}, but your progress in ${this.baseCurrency} will vanish in a sparkle of magic! ✨\n` +
+                        `💫 Think wisely, magical adventurer... YooA believes in your choices! 💖`;
+
+                    if (this.layerName === "YooAmatter") {
+                        message = dedent(`Are you sure you want to ascend into YooAmatter?
+                        This will reset your current progress, including YooA Points and all ${this.baseCurrency}-related upgrades, for ${formatWhole(this.gain ?? 0)} ${this.prestigeCurrency}.
+                        This is the first step toward YooA's divine evolution. Do you wish to proceed?`);
+                    }
+
+                    if (this.layerName === "YooAity") {
+                        message = dedent(`Are you sure you want to transcend into YooAity?
+                        This will reset all your progress, including YooA Points, YooAmatter, YooArium, and all upgrades for ${formatWhole(this.gain ?? 0)} ${this.prestigeCurrency}. However, automation will be preserved to help you rebuild faster.
+                        This is a significant step toward YooA's ultimate evolution. Do you wish to proceed?`);
+                    }
+
+                    if (confirm(message)) {
                         this.performPrestige();
                     }
                 } else {
                     // Directly perform prestige if confirmation is disabled
                     this.performPrestige();
                 }
+
             }
         },
-        performPrestige() {
-            this.$emit("prestige", this.layerName);
+        performPrestige(layer = this.layerName) {
+            const gain = gameLayers[layer].getResetGain();
+            if (!gain.gt(0)) return
+            this.$emit("prestige", layer);
         },
+        onGlobalKeydown(e) {
+            if (!e.key) return
+            // only fire when our key matches, button is enabled, and this component is visible
+            if (
+                this.triggerKey &&
+                e.key.toLowerCase() === this.triggerKey &&
+                this.canReset
+            ) {
+                this.confirmPrestige();
+            }
+        }
+    },
+    mounted() {
+        // Listen for the custom update event and call the update method
+        window.addEventListener("GAME_EVENT.UPDATE", this.update)
+        window.addEventListener("keydown", this.onGlobalKeydown);
+    },
+    beforeUnmount() {
+        // Remove the event listener when the component is destroyed
+        window.removeEventListener("GAME_EVENT.UPDATE", this.update)
+        window.removeEventListener("keydown", this.onGlobalKeydown);
     },
 };
 </script>
@@ -99,9 +150,14 @@ export default {
     background: linear-gradient(#929923, #bcc70f)
 }
 
+.prestige-button.layer-YooAity {
+    background: linear-gradient(#200642, #230085)
+}
+
 .prestige-button.disabled {
     background: linear-gradient(#ff5757, #c51313);
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 .prestige-button:hover {

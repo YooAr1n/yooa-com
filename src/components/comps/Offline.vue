@@ -15,7 +15,7 @@ export default {
     name: "Offline",
     computed: {
         isOffline() {
-            return offline.active;
+            return offline.active && offline.time.gte(60);
         },
         offlineTime() {
             return formatTime(offline.time);

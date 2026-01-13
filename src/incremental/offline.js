@@ -10,11 +10,17 @@ export const offline = reactive({
 })
 window.offline = offline
 
+let date
+
 window.simulateOffline = function simulateOffline(time) {
     if (offline.active) return
 
     time = new Decimal(time)
-    offline.nosave = offline.active = true
+    if (time.lt(60)) {
+        offline.active = false
+        offline.nosave = true
+    }
+    else offline.nosave = offline.active = true
     offline.speed = Decimal.max(12, Decimal.div(time, 5))
     offline.elapsed = Decimal.dZero
     offline.time = time
@@ -34,5 +40,5 @@ window.simulateOffline = function simulateOffline(time) {
             offline.nosave = false
             clearInterval(ol)
         }
-    }, 1000/FPS)
+    }, 1000/60)
 }

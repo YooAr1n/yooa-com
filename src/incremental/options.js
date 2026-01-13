@@ -1,5 +1,4 @@
 import { reactive } from 'vue';
-import { scrollNextMessage } from '@/components/NewsTicker.vue'; // Import the method from the component
 
 export const options = reactive(getStartOptions());
 window.options = options;
@@ -10,8 +9,10 @@ export function getStartOptions() {
         autosaveInterval: 30,
         offline: true,
         news: true,
+        notation: "Scientific",
         confirmations: {
-            YooAmatter: true
+            YooAmatter: true,
+            YooAity: true
         }
     }
 }
@@ -23,6 +24,11 @@ export function autoSave() {
 export function changeAutoInt() {
     let int = [5, 10, 20, 30, 60];
     options.autosaveInterval = int[(int.indexOf(options.autosaveInterval) + 1) % int.length];
+}
+
+export function changeNotation() {
+    let nots = ["Scientific", "Engineering", "Standard", "Standard (Long Scale)", "Mixed Scientific", "Mixed Scientific (Long Scale)", "Mixed Engineering", "Mixed Engineering (Long Scale)", "Logarithm", "Mixed Logarithm", "Mixed Logarithm (Long Scale)", "Letters", "Cancer", "YooA", "Arin", "Blind", "YesNo"];
+    options.notation = nots[(nots.indexOf(options.notation) + 1) % nots.length];
 }
 
 export function changeOffline() {

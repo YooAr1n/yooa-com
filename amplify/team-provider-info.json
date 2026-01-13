@@ -1,0 +1,33 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-yooaincremental-dev-9e937-authRole",
+      "UnauthRoleArn": "arn:aws:iam::794961776925:role/amplify-yooaincremental-dev-9e937-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::794961776925:role/amplify-yooaincremental-dev-9e937-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-yooaincremental-dev-9e937-deployment",
+      "UnauthRoleName": "amplify-yooaincremental-dev-9e937-unauthRole",
+      "StackName": "amplify-yooaincremental-dev-9e937",
+      "StackId": "arn:aws:cloudformation:us-east-1:794961776925:stack/amplify-yooaincremental-dev-9e937/5ce35580-ccfd-11f0-a1f5-0e54423ffdcb",
+      "AmplifyAppId": "d2id4jmdrd6zau"
+    },
+    "categories": {
+      "storage": {
+        "avatarStorage": {},
+        "YooAIncrementalData": {}
+      },
+      "function": {
+        "YooAIncrementalLambda": {
+          "deploymentBucketName": "amplify-yooaincremental-dev-9e937-deployment",
+          "s3Key": "amplify-builds/YooAIncrementalLambda-682f6d33766a2f364975-build.zip"
+        }
+      },
+      "api": {
+        "YooAIncrementalAPI": {}
+      },
+      "auth": {
+        "yooaincrementala9aad7b9": {}
+      }
+    }
+  }
+}

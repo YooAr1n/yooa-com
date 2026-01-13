@@ -1,0 +1,82 @@
+{
+  "api": {
+    "YooAIncrementalAPI": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "YooAIncrementalLambda"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "auth": {
+    "yooaincrementala9aad7b9": {
+      "customAuth": false,
+      "dependsOn": [],
+      "frontendAuthConfig": {
+        "mfaConfiguration": "OFF",
+        "mfaTypes": [
+          "SMS"
+        ],
+        "passwordProtectionSettings": {
+          "passwordPolicyCharacters": [],
+          "passwordPolicyMinLength": 8
+        },
+        "signupAttributes": [
+          "EMAIL"
+        ],
+        "socialProviders": [],
+        "usernameAttributes": [
+          "EMAIL"
+        ],
+        "verificationMechanisms": [
+          "EMAIL"
+        ]
+      },
+      "providerPlugin": "awscloudformation",
+      "service": "Cognito"
+    }
+  },
+  "function": {
+    "YooAIncrementalLambda": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_YooAIncrementalLambda_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "YooAIncrementalLambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_YooAIncrementalLambda_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "YooAIncrementalLambda"
+        }
+      ]
+    }
+  },
+  "storage": {
+    "YooAIncrementalData": {
+      "providerPlugin": "awscloudformation",
+      "service": "DynamoDB"
+    },
+    "avatarStorage": {
+      "dependsOn": [],
+      "providerPlugin": "awscloudformation",
+      "service": "S3"
+    }
+  }
+}

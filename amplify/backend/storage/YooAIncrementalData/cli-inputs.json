@@ -1,0 +1,14 @@
+{
+  "resourceName": "YooAIncrementalData",
+  "tableName": "YooAIncrementalData",
+  "partitionKey": {
+    "fieldName": "userId",
+    "fieldType": "string"
+  },
+  "sortKey": {
+    "fieldName": "slot",
+    "fieldType": "string"
+  },
+  "gsi": [],
+  "triggerFunctions": []
+}

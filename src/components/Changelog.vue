@@ -118,6 +118,31 @@ export default {
                         "More Upgrades. – Expanded the upgrade system with new effects to boost YooA Points and YooAmatter gains.",
                         "More Achievements. – Additional achievements to reward players for reaching greater milestones."
                     ]
+                },
+                {
+                    version: "v1",
+                    title: "YooAity — Transcendence & Major Systems",
+                    date: "2026-01-12",
+                    description: [
+                        "Added YooAity (Prestige Layer). – Introduced the second Prestige layer, allowing players to Transcend for long-term progression.",
+                        "Added Transcendence System. – Players can now Transcend at extreme YooAmatter values, resetting lower layers while preserving key progress.",
+                        "Added YooA Essence. – A permanent currency earned from Transcensions, used to purchase powerful upgrades that affect multiple layers.",
+                        "Added YooAity Milestones. – Milestones unlock automation, passive bonuses, and quality-of-life improvements for future Transcensions.",
+                        "Added Shi-ah Echoes & Embers. – New YooAity resources that behave like dimensions and boost YooA Points, Dimensions, and Challenge upgrades.",
+                        "Added YooA's Birth & YooChronium. – Trigger YooA's birth to unlock aging mechanics, time progression, and exponentiation math challenges.",
+                        "Added Member & Date-Based Unlocks. – New members unlock as in-game time progresses, each introducing unique currencies and upgrades.",
+                        "Added OH MY GIRL System. – Group-wide progression featuring Lights, skills, Sparkles, Miracle Light, and powerful synergies.",
+                        "Added MIRACLEs. – Fans that scale with Charisma and amplify group progression and Miracle Light efficiency.",
+                        "Added Arin Ranks, Arinium & Arin Tier. – Expanded automation depth with autobuyer-focused upgrades and Arin-Proof mechanics.",
+                        "Added Accounts. – YooA opens the Cloud Gate! ☁️✨ Account creation and persistent progression powered by AWS (Amazon Web Services).",
+                        "Added Leaderboard. – A world-spanning Miracle Board! 🌍✨ Rankings are synced through AWS Amplify, letting YooA compare miracles across all players.",
+                        "Added Notation System. – Introduced YooA Incremental notations for numbers: YooA, Arin, Letters/Cancer emoji, Standard, and Scientific variants to display large numbers with magical style!",
+                        "Added Help Section. – In-game guidance explaining mechanics, systems, and progression tips.",
+                        "Added 'Last Prestiges' in Stats. – Track your most recent Ascensions and Transcensions for better optimization.",
+                        "Expanded Achievements. – Added more achievements tied to YooAity, members, and long-term progression.",
+                        "Expanded News. – Added more news entries reflecting new mechanics, world events, and story progression.",
+                        "Bug Fixes & Optimizations. – Fixed various issues and optimized systems for smoother performance and stability."
+                    ]
                 }
             ],
             expandedVersions: [],

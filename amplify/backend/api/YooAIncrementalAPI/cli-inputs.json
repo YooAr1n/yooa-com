@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "paths": {
+    "/save": {
+      "name": "/save",
+      "lambdaFunction": "YooAIncrementalLambda",
+      "permissions": {
+        "setting": "open"
+      }
+    },
+    "/load": {
+      "name": "/load",
+      "lambdaFunction": "YooAIncrementalLambda",
+      "permissions": {
+        "setting": "open"
+      }
+    }
+  }
+}
