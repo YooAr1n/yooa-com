@@ -228,7 +228,7 @@ export default {
 /* affordability states */
 .dimension.disabled { opacity: 0.88; cursor: not-allowed; }
 /* ensure disabled background overrides type backgrounds */
-.dimension.disabled { background: linear-gradient(#c51313, #ff5757); }
+.dimension.disabled { background: linear-gradient(#c51313, #ff5757) !important; }
 
 /* when affordable, add subtle elevation (backgrounds come from type classes) */
 .dimension.affordable { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }

@@ -1,10 +1,7 @@
 <template>
   <div class="header">
     <NewsTicker v-show="newsOn" ref="newsTicker"></NewsTicker>
-    <span
-      style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;"
-      @click="openNav()"
-    >☰</span>
+    <span style="font-size: 30px; cursor: pointer; position: absolute; left: 10px;" @click="openNav()">☰</span>
     <h1>{{ msg }}</h1>
     <div class="prestige-header">
       <PrestigeHeader layerName="YooAmatter"></PrestigeHeader>
@@ -42,7 +39,7 @@ function decimalKey(val) {
       try { return `n:${val.toNumber()}`; } catch (e) { return `obj:${String(val)}`; }
     }
     // fallback object identity
-    try { return `o:${val.id||val.key||String(val)}`; } catch(e) { return 'obj'; }
+    try { return `o:${val.id || val.key || String(val)}`; } catch (e) { return 'obj'; }
   }
   // primitives
   return `p:${String(val)}`;
@@ -188,70 +185,71 @@ export default {
       const srcPerSecRaw = (player.gain && player.gain.YooA && player.gain.YooA.points) ? player.gain.YooA.points : '';
       const perSecCacheVal = GameCache.YooAPerSecond?.value;
 
-      // Build per-second HTML string fully and compare to lastFormattedPerSec
-      let perSecHtml = srcPerSecRaw || '';
+      if (perSecCacheVal.neq(0)) {
+        // Build per-second HTML string fully and compare to lastFormattedPerSec
+        let perSecHtml = srcPerSecRaw || '';
 
-      // Celestial Overflow extra line when YooAGain is huge
-      const srcYooAGain = GameCache.YooAGain?.value;
-      const srcYooABase = GameCache.YooAGainBase?.value;
+        // Celestial Overflow extra line when YooAGain is huge
+        const srcYooAGain = GameCache.YooAGain?.value;
+        const srcYooABase = GameCache.YooAGainBase?.value;
 
-      // Determine isHuge in a safe way (don't rely solely on decimalKey)
-      let isHuge = false;
-      try {
-        if (srcYooAGain && typeof srcYooAGain.gte === 'function') {
-          isHuge = srcYooAGain.gte("ee24");
-        } else if (this.yooAGainDec && typeof this.yooAGainDec.gte === 'function') {
-          isHuge = this.yooAGainDec.gte("ee24");
-        } else {
+        // Determine isHuge in a safe way (don't rely solely on decimalKey)
+        let isHuge = false;
+        try {
+          if (srcYooAGain && typeof srcYooAGain.gte === 'function') {
+            isHuge = srcYooAGain.gte("ee24");
+          } else if (this.yooAGainDec && typeof this.yooAGainDec.gte === 'function') {
+            isHuge = this.yooAGainDec.gte("ee24");
+          } else {
+            isHuge = false;
+          }
+        } catch (e) {
           isHuge = false;
         }
-      } catch (e) {
-        isHuge = false;
-      }
 
-      if (isHuge) {
-        // compute a printable logVal (use safe helper). We compute res (string|number|Decimal).
-        let logRes = null;
-        try {
-          logRes = this.safeLogBaseAsString(srcYooAGain || this.yooAGainDec, srcYooABase || this.yooAGainBaseDec);
-        } catch (e) {
-          logRes = null;
+        if (isHuge) {
+          // compute a printable logVal (use safe helper). We compute res (string|number|Decimal).
+          let logRes = null;
+          try {
+            logRes = this.safeLogBaseAsString(srcYooAGain || this.yooAGainDec, srcYooABase || this.yooAGainBaseDec);
+          } catch (e) {
+            logRes = null;
+          }
+
+          // derive printable string
+          let printableLog;
+          if (logRes == null) {
+            printableLog = 'N/A';
+          } else if (typeof logRes === 'string') {
+            printableLog = logRes;
+          } else if (typeof logRes === 'number') {
+            printableLog = String(logRes.toFixed(3));
+          } else {
+            try { printableLog = format(logRes); } catch (e) { printableLog = (logRes && logRes.toString) ? logRes.toString() : 'N/A'; }
+          }
+
+          perSecHtml += "<br>Because of YooA's Celestial Overflow, YooA Point gain is ^" +
+            colorText("h3", "#d17be2", printableLog);
         }
 
-        // derive printable string
-        let printableLog;
-        if (logRes == null) {
-          printableLog = 'N/A';
-        } else if (typeof logRes === 'string') {
-          printableLog = logRes;
-        } else if (typeof logRes === 'number') {
-          printableLog = String(logRes.toFixed(3));
-        } else {
-          try { printableLog = format(logRes); } catch (e) { printableLog = (logRes && logRes.toString) ? logRes.toString() : 'N/A'; }
+        // Only update if the final HTML changed (so notation changes are caught)
+        if (perSecHtml !== this.lastFormattedPerSec) {
+          this.lastFormattedPerSec = perSecHtml;
+
+          // copy relevant Decimals into buffers now that display will change
+          try {
+            if (srcYooAGain && typeof srcYooAGain.copyFrom === 'function') this.yooAGainDec.copyFrom(srcYooAGain);
+            else if (srcYooAGain && typeof srcYooAGain.toNumber === 'function') this.yooAGainDec.sign = srcYooAGain.toNumber();
+          } catch (e) { /* ignore */ }
+
+          try {
+            if (srcYooABase && typeof srcYooABase.copyFrom === 'function') this.yooAGainBaseDec.copyFrom(srcYooABase);
+            else if (srcYooABase && typeof srcYooABase.toNumber === 'function') this.yooAGainBaseDec.sign = srcYooABase.toNumber();
+          } catch (e) { /* ignore */ }
+
+          this.pointsPerSec = perSecHtml;
         }
-
-        perSecHtml += "<br>Because of YooA's Celestial Overflow, YooA Point gain is ^" +
-          colorText("h3", "#d17be2", printableLog);
       }
-
-      // Only update if the final HTML changed (so notation changes are caught)
-      if (perSecHtml !== this.lastFormattedPerSec) {
-        this.lastFormattedPerSec = perSecHtml;
-
-        // copy relevant Decimals into buffers now that display will change
-        try {
-          if (srcYooAGain && typeof srcYooAGain.copyFrom === 'function') this.yooAGainDec.copyFrom(srcYooAGain);
-          else if (srcYooAGain && typeof srcYooAGain.toNumber === 'function') this.yooAGainDec.sign = srcYooAGain.toNumber();
-        } catch (e) { /* ignore */ }
-
-        try {
-          if (srcYooABase && typeof srcYooABase.copyFrom === 'function') this.yooAGainBaseDec.copyFrom(srcYooABase);
-          else if (srcYooABase && typeof srcYooABase.toNumber === 'function') this.yooAGainBaseDec.sign = srcYooABase.toNumber();
-        } catch (e) { /* ignore */ }
-
-        this.pointsPerSec = perSecHtml;
-      }
-
       // note: we intentionally do not try to micro-opt the intermediate string building more heavily.
       // formatting/notation changes should be relatively rare and this keeps logic simple & correct.
     },

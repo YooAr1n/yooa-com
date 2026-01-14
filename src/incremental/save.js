@@ -272,9 +272,16 @@ function mergeIntoPlayer(target, source) {
       continue;
     }
 
-    // If source is a primitive number-like or numeric string -> revive to Decimal
+    // With this safer version:
     if (typeof sVal === 'number' || (typeof sVal === 'string' && sVal !== '' && !Number.isNaN(Number(sVal)))) {
-      target[k] = reviveDecimal(sVal);
+      // revive to Decimal only if the target already expects a Decimal,
+      // or the key strongly suggests a numeric/decimal field
+      if (tVal instanceof Decimal || looksNumericKey(k)) {
+        target[k] = reviveDecimal(sVal);
+      } else {
+        // keep primitive as-is (so correctAnswer stays a number)
+        target[k] = sVal;
+      }
       continue;
     }
 
@@ -293,7 +300,8 @@ function mergeIntoPlayer(target, source) {
           mergeIntoPlayer(target[k][i], sv);
         } else {
           // primitive: copy (revive if number-like)
-          if (tv instanceof Decimal || typeof sv === 'number' || (typeof sv === 'string' && sv !== '' && !Number.isNaN(Number(sv)))) {
+          // change to (safer)
+          if (tv instanceof Decimal || (typeof sv !== 'string' && typeof sv === 'number') || (typeof sv === 'string' && sv !== '' && !Number.isNaN(Number(sv)) && looksNumericKey(k))) {
             target[k][i] = reviveDecimal(sv);
           } else {
             target[k][i] = sv;

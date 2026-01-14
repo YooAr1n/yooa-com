@@ -13,7 +13,7 @@ const dZero = Decimal.dZero;
 const dOne = Decimal.dOne;
 const dInf = Decimal.dInf;
 const floor = Decimal.floor;
-const min = Decimal.min;
+const min = Decimal.min;  
 
 // micro-optimized duck-typed Decimal check (faster than instanceof)
 function isDecimalLike(v) {
@@ -202,13 +202,13 @@ export default class Dimension {
     const a = (this.amt || dZero);
     const isYooA1 = this.type === "YooA" && this.tier === 1;
 
-    if ((!isYooA1 && a.lte(dZero)) || m.lte(dZero)) {
+    if ((!isYooA1 && a <= 0) || m <= 0) {
       return this._cachedEffect = dZero;
     }
 
     const r = this.rankEffect || dOne;
 
-    const base = m.mul(a);
+    const base = Decimal.mul(m, a);
     let eff;
     if (r.eq(dOne)) eff = base;
     else eff = base.pow(r);
