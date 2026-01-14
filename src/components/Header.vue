@@ -155,13 +155,13 @@ export default {
     update() {
       // --- 1) Points (player.YooAPoints) ---
       const srcPoints = player.YooAPoints;
-      // compute the formatted HTML *directly* (formatWhole accepts Decimal-like)
+      // compute the formatted HTML *directly* (format accepts Decimal-like)
       let formattedPoints;
       try {
-        formattedPoints = colorText("h3", "#d17be2", formatWhole(srcPoints));
+        formattedPoints = colorText("h3", "#d17be2", format(srcPoints));
       } catch (e) {
         // fallback: try formatting the stable buffer
-        formattedPoints = colorText("h3", "#d17be2", formatWhole(this.pointsDec));
+        formattedPoints = colorText("h3", "#d17be2", format(this.pointsDec));
       }
 
       // If the formatted string changed (e.g. notation changed), update display & copy buffer

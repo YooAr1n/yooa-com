@@ -592,7 +592,7 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
     const dec = toDecimal(decimalIn);
     const absMag = Math.abs(dec.mag);
     if (absMag >= SAFE_NUM_MAG || dec.layer > 0) return format(dec, 2, notation);
-    if (absMag <= 0.99 && !dec.eq(0)) return format(dec, 2, notation);
+    if (absMag < 1 && !dec.eq(0)) return format(dec, 2, notation);
     return format(dec, (notation === "YooA" || notation === "Arin" ? 2 : 0), notation);
   };
 
