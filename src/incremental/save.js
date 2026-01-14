@@ -825,6 +825,9 @@ export function load() {
         Object.assign(player, getStartPlayer());
       }
     }
+    player.math.YooA.showCorrect = false; // reset math problem display
+    player.math.YooAmatter.showCorrect = false;
+    player.math.YooAity.showCorrect = false;
   }
 
   // options
