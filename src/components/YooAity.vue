@@ -562,6 +562,7 @@ export default {
       this.uiCache.ArinText = this.fmtColor('Arinium', format(p.Arin?.Arinium ?? 0));
       this.uiCache.MiracleText = this.fmtColor('OMG', format(p.YooAity?.MiracleLight ?? 0));
       this.uiCache.FanText = this.fmtColor('OMG', formatWhole(gl.OMG.getMIRACLEs()));
+      this.uiCache.MiracleExp = this.fmtColor('OMG', format(gl.OMG.getMiracleLightExp()));
     },
 
     formatNum(n) { return format(n); },

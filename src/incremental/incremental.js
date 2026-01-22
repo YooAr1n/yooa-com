@@ -420,7 +420,10 @@ export function notifyAchievement(achievement) {
   // caches removed -> nothing else to invalidate
 }
 export function notifyMilestone(milestone, layerName) {
-  window.dispatchEvent(new CustomEvent('milestone-unlocked', { detail: { message: `${milestone.title} unlocked!`, layerName } }));
+  const name = typeof milestone.title === 'function' ? milestone.title() : milestone.title;
+  window.dispatchEvent(new CustomEvent('milestone-unlocked', { detail: { message: `${name} unlocked!`, layerName } }));
+  // caches removed -> nothing else to invalidate
+}
   // caches removed -> nothing else to invalidate
 }
 
