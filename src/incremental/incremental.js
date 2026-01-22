@@ -424,6 +424,10 @@ export function notifyMilestone(milestone, layerName) {
   window.dispatchEvent(new CustomEvent('milestone-unlocked', { detail: { message: `${name} unlocked!`, layerName } }));
   // caches removed -> nothing else to invalidate
 }
+
+export function notifySong(song) {
+  // dispatch event as before
+  window.dispatchEvent(new CustomEvent('song', { detail: `${song.name} streamed!` }));
   // caches removed -> nothing else to invalidate
 }
 
