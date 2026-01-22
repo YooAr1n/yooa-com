@@ -33,7 +33,7 @@
 
       <br />
       <div class="efftext" v-if="uiCache.birthUnlocked">YooA (Yoo <span v-html="uiCache.name"></span>) is <span
-          v-html="uiCache.ageText"></span>, which boosts Shi-ah Echoes by x<span
+          v-html="uiCache.ageText"></span> (starts at {{ formatNum(1e250) }} Shi-ah Embers), which boosts Shi-ah Echoes by x<span
           v-html="uiCache.ageEffect"></span><br /><span v-html="uiCache.dateText"></span></div>
 
       <br />
@@ -319,7 +319,8 @@ export default {
       this.tick++;
 
       const gl = gameLayers;
-      const p = window.player;
+      const p = player;
+      this.subtab = p.subtabs["YooAity"];
 
       // small local to avoid repeated lookups
       const last = this.uiBuf.lastKeys;
@@ -572,13 +573,12 @@ export default {
     maxAllEchoes() { maxAllDimensions('Shiah'); },
 
     changeTab(tabName, sub) {
-      window.player.tab = tabName;
-      window.player.subtabs[tabName] = sub;
-      this.subtab = sub;
+      player.tab = tabName;
+      player.subtabs[tabName] = sub;
     },
 
-    canAffordDimension(d) { const curr = d.layer === '' ? window.player.YooAPoints : (window.player[d.layer] && window.player[d.layer][d.currency]); return curr?.gte(d.cost) ?? false; },
-    dimensionGain(d) { return window.player.gain?.[d.type]?.dimensions?.[d.tier - 1] ?? 'N/A'; }
+    canAffordDimension(d) { const curr = d.layer === '' ? player.YooAPoints : (player[d.layer] && player[d.layer][d.currency]); return curr?.gte(d.cost) ?? false; },
+    dimensionGain(d) { return player.gain?.[d.type]?.dimensions?.[d.tier - 1] ?? 'N/A'; }
   },
 
   mounted() {

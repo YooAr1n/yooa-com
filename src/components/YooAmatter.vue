@@ -40,7 +40,7 @@
 
       <div v-if="unlockedDimensions.length > 0">
         <div class="efftext">
-          You have <span v-html="SparkText"></span> YooAmatter Sparks, which boosts YooArium gain by x<span v-html="ysEffectCached[0]"></span> and raises YooA Point gain to <span v-html="ysEffectCached[1]"></span>
+          You have <span v-html="SparkText"></span> YooAmatter Sparks, which boosts YooArium gain by x<span v-html-stable="ysEffectCached[0]"></span> and raises YooA Point gain to <span v-html="ysEffectCached[1]"></span>
           <br><span>Effect Formula: (x + {{ format1 }})<sup>{{ formatNum(0.75) }}</sup> to YooArium, ^√(log<sub>{{
               format10 }}</sub>(x + {{ format1 }})) / {{ formatNum(100) }} + {{ format1 }} to YooA
             Points</span>
@@ -239,14 +239,15 @@ export default {
       // ysEffect (two entries)
       const yse0 = gameLayers.YooAmatter.YooAmatterSparkEffect()[0];
       const yse1 = gameLayers.YooAmatter.YooAmatterSparkEffect()[1];
+      const yse0sc = gameLayers.YooAmatter.sparkSoftcap();
       const ksy0 = decimalKey(yse0), ksy1 = decimalKey(yse1);
       if (this.lastKeys.ys0 !== ksy0) {
         this.lastKeys.ys0 = ksy0;
-        this.ysEffectCached[0] = this.fmtColor("sparks", format(yse0));
+        this.ysEffectCached[0] = this.fmtColor("sparks", format(yse0)) + (yse0.gte(yse0sc) ? softcapText("(softcapped)") : "");
       }
       if (this.lastKeys.ys1 !== ksy1) {
         this.lastKeys.ys1 = ksy1;
-        this.ysEffectCached[1] = this.fmtColor("sparks", format(yse0));
+        this.ysEffectCached[1] = this.fmtColor("sparks", format(yse1));
       }
     },
 

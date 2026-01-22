@@ -1,19 +1,19 @@
 <template>
-  <div class="grid-container">
-    <!-- Loop through rows that actually have visible upgrades -->
-    <div
-      v-for="(rowObj, idx) in gridRowsWithCols"
-      :key="`row-${rowObj.row}-${idx}`"
-      class="grid-row"
-      :style="rowGridStyle(rowObj.cols.length)"
-    >
-      <!-- Render only the valid/unlocked columns for this row -->
+  <div class="scroll-wrap">
+    <div class="grid-container">
       <div
-        v-for="col in rowObj.cols"
-        :key="`u-${rowObj.row}-${col}`"
-        class="grid-item"
+        v-for="(rowObj, idx) in gridRowsWithCols"
+        :key="`row-${rowObj.row}-${idx}`"
+        class="grid-row"
+        :style="rowGridStyle(rowObj.cols.length)"
       >
-        <Upgrade :layerName="layerName" :upgradeId="`${rowObj.row}${col}`"/>
+        <div
+          v-for="col in rowObj.cols"
+          :key="`u-${rowObj.row}-${col}`"
+          class="grid-item"
+        >
+          <Upgrade :layerName="layerName" :upgradeId="`${rowObj.row}${col}`"/>
+        </div>
       </div>
     </div>
   </div>
@@ -92,7 +92,7 @@ export default {
 <style scoped>
 /* Parent container */
 .grid-container {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
@@ -117,4 +117,11 @@ export default {
   height: 250px;
   box-sizing: border-box;
 }
+
+.scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 </style>

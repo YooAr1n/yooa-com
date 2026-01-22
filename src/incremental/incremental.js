@@ -141,7 +141,7 @@ window.player = player;
 export function getStartGains() {
   return { YooA: { points: '', dimensions: Array(5).fill('') }, YooAmatter: { amount: '', dimensions: Array(5).fill(''), sparks: '' }, YooAity: { amount: '', embers: '', YooChronium: '', SeungheePoints: '', YubinPoints: '', HyojungPoints: '', MimiPoints: '', MiracleLight: '' }, Shiah: { dimensions: Array(7).fill('') }, Arin: { Arinium: '' } };
 }
-export function getStartUpgrades() { return { YooA: {}, YooAmatter: {}, YooAity: {} }; }
+export function getStartUpgrades() { return { YooA: {}, YooAmatter: {}, YooAity: {}, sparks: {}, Seunghee: {}, Yubin: {}, Arinium: {}, Hyojung: {}, Mimi: {}, OMG: {} }; }
 export function getStartMilestones() { return { YooAity: {} }; }
 export function getStartChallenges() { return { YooAmatter: {} }; }
 export function getStartMath() { return { YooA: { mathProblem: '1 + 1', correctAnswer: 2, solved: dZero, isCorrect: false, showCorrect: false }, YooAmatter: { mathProblem: '1 * 1', correctAnswer: 1, solved: dZero, isCorrect: false, showCorrect: false }, YooAity: { mathProblem: '1 ^ 1', correctAnswer: 1, solved: dZero, isCorrect: false, showCorrect: false } }; }
