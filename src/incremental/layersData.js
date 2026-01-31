@@ -4660,7 +4660,7 @@ export const gameLayers = {
         invCost(x) {
           let cost = x.div(2.27e227).log(1e6).root(1.6)
           if (cost.gte(4)) cost = cost.add(2).div(6).root(1.15).mul(4)
-          if (cost.gte(40)) cost = cost.add(20).div(6).root(1.15).mul(40)
+          if (cost.gte(40)) cost = cost.add(20).div(60).root(1.15).mul(40)
           return cost;
         },
         costCurrency: "Miracle Light",
