@@ -135,12 +135,26 @@
       <div class="efftext">OH MY GIRL has <span v-html="uiCache.FanText"></span> MIRACLEs, which
         boosts all members' lights by x<span v-html="uiCache.FanEffect0"></span> and their boost to Miracle Light gain
         by ^<span v-html="uiCache.FanEffect1"></span></div>
+      <div class="efftext" v-if="isMiracleSoftcapped">Because the K-pop universe reaches Celestial Market Saturation, 
+        MIRACLE gain is divided by <span v-html="uiCache.getMiracleDiv"></span></div>
       <div class="light-cards">
         <Light member="YooA" />
         <Light v-if="uiCache.ArinTrainingUnlocked" member="Arin" />
         <Light v-if="uiCache.SeungheeTrainingUnlocked" member="Seunghee" />
+        <Light v-if="uiCache.YubinTrainingUnlocked" member="Yubin" />
       </div>
+      <button v-if="uiCache.maxOMGUnlocked" class="max" @click="maxAllOMGUpgrades">Max All Oh My Girl Upgrades (A)</button>
       <UpgradeGrid layerName="OMG" />
+    </div>
+    <div v-if="subtab === 'fandom'" class="tab-content">
+      <div class="efftext">OH MY GIRL has <span v-html="uiCache.FanText"></span> MIRACLEs</div>
+      <div class="efftext" v-if="isMiracleSoftcapped">Because the K-pop universe reaches Celestial Market Saturation, 
+        MIRACLE gain is divided by <span v-html="uiCache.getMiracleDiv"></span></div>
+      <div class="efftext">You have <span v-html="uiCache.FanHeartsText"></span> Fan Hearts (+{{ uiCache.FanHeartGain }}/song, based on MIRACLEs)</div>
+      <div v-if="uiCache.RoyaltiesUnlocked" class="efftext">You have <span v-html="uiCache.MoneyText"></span> (+{{ uiCache.MoneyGain }}/song, based on MIRACLEs)</div><br>
+      <Song />
+      <button v-if="uiCache.maxFandomUnlocked" class="max" @click="maxAllFandomUpgrades">Max All Fandom Upgrades (A)</button>
+      <UpgradeGrid layerName="Fandom" />
     </div>
   </div>
 </template>
@@ -155,6 +169,7 @@ import { gameLayers } from "@/incremental/layersData";
 import { getDimMultPerLvl, getScalingStart } from "@/incremental/dimensions";
 import { buyUpgrade, buyMaxUpgrade, hasMilestone, hasUpgrade } from "@/incremental/mainFuncs";
 import { hasAchievement, maxAllDimensions } from "@/incremental/incremental";
+import Song from "./comps/Song.vue";
 
 /* -------------------------
    Helpers (cheap, hot-path-safe)
@@ -174,7 +189,7 @@ function cheapKey(v) {
 }
 
 function applyUpgrades(layer, keys, fn) { for (let i = 0; i < keys.length; ++i) fn(layer, keys[i]); }
-let YE_KEYS, SH_KEYS, YB_KEYS, HJ_KEYS, MM_KEYS;
+let YE_KEYS, SH_KEYS, YB_KEYS, HJ_KEYS, MM_KEYS, OMG_KEYS, FANDOM_KEYS;
 function makeKeys(layer) {
   const g = gameLayers[layer] && gameLayers[layer].upgrades;
   if (!g) return [];
@@ -185,21 +200,26 @@ function getSHKeys() { if (SH_KEYS) return SH_KEYS; SH_KEYS = makeKeys('Seunghee
 function getYBKeys() { if (YB_KEYS) return YB_KEYS; YB_KEYS = makeKeys('Yubin'); return YB_KEYS; }
 function getHJKeys() { if (HJ_KEYS) return HJ_KEYS; HJ_KEYS = makeKeys('Hyojung'); return HJ_KEYS; }
 function getMMKeys() { if (MM_KEYS) return MM_KEYS; MM_KEYS = makeKeys('Mimi'); return MM_KEYS; }
+function getOMGKeys() { if (OMG_KEYS) return OMG_KEYS; OMG_KEYS = makeKeys('OMG'); return OMG_KEYS; }
+function getFandomKeys() { if (FANDOM_KEYS) return FANDOM_KEYS; FANDOM_KEYS = makeKeys('Fandom'); return FANDOM_KEYS; }
 
 export function buyAllYEUpgrades() { applyUpgrades('YooAity', getYEKeys(), buyUpgrade); }
 export function buyAllSHUpgrades() { applyUpgrades('Seunghee', getSHKeys(), buyUpgrade); }
 export function buyAllYBUpgrades() { applyUpgrades('Yubin', getYBKeys(), buyUpgrade); }
 export function buyAllHJUpgrades() { applyUpgrades('Hyojung', getHJKeys(), buyUpgrade); }
 export function buyAllMMUpgrades() { applyUpgrades('Mimi', getMMKeys(), buyUpgrade); }
+export function buyAllOMGUpgrades() { applyUpgrades('OMG', getOMGKeys(), buyUpgrade); }
 export function maxAllYEUpgrades() { applyUpgrades('YooAity', getYEKeys(), buyMaxUpgrade); }
 export function maxAllSHUpgrades() { applyUpgrades('Seunghee', getSHKeys(), buyMaxUpgrade); }
 export function maxAllYBUpgrades() { applyUpgrades('Yubin', getYBKeys(), buyMaxUpgrade); }
 export function maxAllHJUpgrades() { applyUpgrades('Hyojung', getHJKeys(), buyMaxUpgrade); }
 export function maxAllMMUpgrades() { applyUpgrades('Mimi', getMMKeys(), buyMaxUpgrade); }
+export function maxAllOMGUpgrades() { applyUpgrades('OMG', getOMGKeys(), buyMaxUpgrade); }
+export function maxAllFandomUpgrades() { applyUpgrades('Fandom', getFandomKeys(), buyMaxUpgrade); }
 
 export default {
   name: 'YooAity',
-  components: { UpgradeGrid, Milestones, Dimension, MathProblem, Light },
+  components: { UpgradeGrid, Milestones, Dimension, MathProblem, Light, Song },
 
   data() {
     return {
@@ -220,6 +240,8 @@ export default {
         MimiText: '',
         MiracleText: '',
         FanText: '',
+        FanHeartsText: '',
+        MoneyText: '',
         MiracleExp: '',
         // numeric strings
         solved: '',
@@ -251,6 +273,7 @@ export default {
         MiracleEffect1: '',
         FanEffect0: '',
         FanEffect1: '',
+        getMiracleDiv: '',
         dimMultDisp: '',
         scalingStart: '',
         ageText: '',
@@ -266,15 +289,20 @@ export default {
         maxYEUnlocked: false,
         maxOM1Unlocked: false,
         maxOM2Unlocked: false,
+        maxOMGUnlocked: false,
+        maxFandomUnlocked: false,
+        RoyaltiesUnlocked: false,
         SeungheeUnlocked: false,
         YubinUnlocked: false,
         HyojungUnlocked: false,
         MimiUnlocked: false,
         OMGUnlocked: false,
+        FandomUnlocked: false,
         expUnlocked: false,
         YubinExpUnlocked: false,
         ArinTrainingUnlocked: false,
         SeungheeTrainingUnlocked: false,
+        YubinTrainingUnlocked: false,
         // direct numeric getters used in templates
         YooChroniumGain: '',
         SeungheeGain: 0,
@@ -282,6 +310,8 @@ export default {
         HyojungGain: 0,
         MimiGain: 0,
         MiracleLightGain: 0,
+        FanHeartGain: 0,
+        MoneyGain: 0,
       },
 
       // stable Decimal buffers and lastKeys for cheap change detection
@@ -477,15 +507,10 @@ export default {
         const ybEff = gl.YooAity.getYubinEffect();
         this.uiCache.YubinEffect0 = this.fmtColor('Yubin', format(ybEff[0]));
         this.uiCache.YubinEffect1 = this.fmtColor('Yubin', format(ybEff[1]));
-        try {
-          // Decimal ops wrapped defensively
-          const ybExp = Decimal.sub(1, gl.Yubin.upgrades[21].exp()).recip();
-          this.uiCache.YubinExp = this.fmtColor('Yubin', format(ybExp));
-          this.uiCache.YubinDouble = this.fmtColor('Yubin', format(ybExp.pow2()));
-        } catch (e) {
-          this.uiCache.YubinExp = this.fmtColor('Yubin', '1');
-          this.uiCache.YubinDouble = this.fmtColor('Yubin', '2');
-        }
+        const ybExp = (gl.Yubin && gl.Yubin.upgrades && gl.Yubin.upgrades[21] && typeof gl.Yubin.upgrades[21].gainExp === 'function')
+          ? gl.Yubin.upgrades[21].gainExp() : 1;
+        this.uiCache.YubinExp = this.fmtColor('Yubin', format(ybExp));
+        this.uiCache.YubinDouble = this.fmtColor('Yubin', format((ybExp && ybExp.pow2) ? ybExp.pow2() : (typeof ybExp === 'object' && typeof ybExp.toNumber === 'function' ? (ybExp.toNumber() * 2) : (ybExp * 2))));
       }
 
       // Hyojung / Mimi / OMG groups
@@ -512,13 +537,13 @@ export default {
         this.uiCache.MiracleEffect0 = this.fmtColor('OMG', format(mirEff[0]));
         this.uiCache.MiracleEffect1 = this.fmtColor('OMG', format(mirEff[1]));
         const fanEff = gl.OMG.getMIRACLEEffect();
-        this.uiCache.FanEffect0 = this.fmtColor('OMG', format(fanEff[0]));
-        this.uiCache.FanEffect1 = this.fmtColor('OMG', format(fanEff[1]));
+        this.uiCache.FanEffect0 = this.fmtColor('Fandom', format(fanEff[0]));
+        this.uiCache.FanEffect1 = this.fmtColor('Fandom', format(fanEff[1]));
       }
 
       // static-ish per-tick cheap values
       this.uiCache.dimMultDisp = `Echo Multiplier per level: x${format(getDimMultPerLvl('Shiah', 1), 3)}`;
-      this.uiCache.scalingStart = format(getScalingStart('Shiah'));
+      this.uiCache.scalingStart = formatWhole(getScalingStart('Shiah'));
 
       // dimensions: only rebuild unlockedDimensions array if IDs change
       const allDims = p.dimensions?.Shiah ?? [];
@@ -537,15 +562,20 @@ export default {
       this.uiCache.maxYEUnlocked = hasUpgrade('YooAity', 44);
       this.uiCache.maxOM1Unlocked = hasAchievement(63);
       this.uiCache.maxOM2Unlocked = hasUpgrade('YooAity', 54);
+      this.uiCache.maxOMGUnlocked = hasAchievement(71)
+      this.uiCache.maxFandomUnlocked = hasMilestone('YooAity', 31);
+      this.uiCache.RoyaltiesUnlocked = hasUpgrade("Fandom", 13)
       this.uiCache.SeungheeUnlocked = hasMilestone('YooAity', 16);
       this.uiCache.YubinUnlocked = hasMilestone('YooAity', 17);
       this.uiCache.HyojungUnlocked = hasMilestone('YooAity', 19);
       this.uiCache.MimiUnlocked = hasMilestone('YooAity', 20);
       this.uiCache.OMGUnlocked = hasUpgrade('YooAity', 55);
+      this.uiCache.FandomUnlocked = hasAchievement(71);
       this.uiCache.expUnlocked = hasUpgrade('Seunghee', 21);
       this.uiCache.YubinExpUnlocked = hasUpgrade('Yubin', 21);
       this.uiCache.ArinTrainingUnlocked = hasMilestone('YooAity', 24);
       this.uiCache.SeungheeTrainingUnlocked = hasMilestone('YooAity', 27);
+      this.uiCache.YubinTrainingUnlocked = hasUpgrade('Yubin', 34);
 
       // small numeric getters used in templates
       this.uiCache.YooChroniumGain = this.uiCache.YooChroniumGainDisplay;
@@ -556,13 +586,23 @@ export default {
       this.uiCache.HyojungGain = p.gain?.YooAity?.HyojungPoints ?? 0;
       this.uiCache.MimiGain = p.gain?.YooAity?.MimiPoints ?? 0;
       this.uiCache.MiracleLightGain = p.gain?.YooAity?.MiracleLight ?? 0;
+      this.uiCache.FanHeartGain = formatWhole(gl.OMG.getFanHeartGain());
+      this.uiCache.MoneyGain = formatCurrency(gl.Fandom.getMoneyGain());
 
       // some small display strings
+      const div = gl.OMG.getBaseMIRACLEs().div(gl.OMG.getMIRACLEs())
       this.uiCache.TranscensionsText = this.fmtColor('YooAity', formatWhole(p.stats?.YooAity?.resets ?? 0));
       this.uiCache.ArinText = this.fmtColor('Arinium', format(p.Arin?.Arinium ?? 0));
       this.uiCache.MiracleText = this.fmtColor('OMG', format(p.YooAity?.MiracleLight ?? 0));
-      this.uiCache.FanText = this.fmtColor('OMG', formatWhole(gl.OMG.getMIRACLEs()));
       this.uiCache.MiracleExp = this.fmtColor('OMG', format(gl.OMG.getMiracleLightExp()));
+      this.uiCache.FanText = this.fmtColor('Fandom', formatWhole(gl.OMG.getMIRACLEs()));
+      this.uiCache.getMiracleDiv = this.fmtColor('Fandom', format(div));
+      this.uiCache.FanHeartsText = this.fmtColor('Fandom', formatWhole(p.YooAity?.FanHearts ?? 0));
+      this.uiCache.MoneyText = this.fmtColor('Fandom', formatCurrency(p.YooAity?.stream.money ?? 0));
+    },
+
+    isMiracleSoftcapped() {
+      return gameLayers.OMG.getMIRACLEs().gte(2e5)
     },
 
     formatNum(n) { return format(n); },
@@ -571,6 +611,8 @@ export default {
     maxAllYBUpgrades() { maxAllYBUpgrades(); },
     maxAllHJUpgrades() { maxAllHJUpgrades(); },
     maxAllMMUpgrades() { maxAllMMUpgrades(); },
+    maxAllOMGUpgrades() { maxAllOMGUpgrades(); },
+    maxAllFandomUpgrades() { maxAllFandomUpgrades(); },
     maxAllEchoes() { maxAllDimensions('Shiah'); },
 
     changeTab(tabName, sub) {

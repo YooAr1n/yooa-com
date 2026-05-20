@@ -67,6 +67,10 @@ export default {
         dis.push("Shi-ah Echoes");
         dis.push("YooChronium");
       }
+      if (hasAchievement(77)) {
+        dis.push("Fan Hearts");
+        dis.push("YooAmatter Resonance");
+      }
 
       if (dis.length > 2) {
         this.achBoost = dis.slice(0, -1).join(", ") + ", and " + dis[dis.length - 1];

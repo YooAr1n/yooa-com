@@ -12,6 +12,7 @@
         'notification-milestone': notif.type === 'milestone',
         'notification-complete': notif.type === 'challenge',
         'notification-error': notif.type === 'error',
+        'notification-song' : notif.type === 'song',
         leaving: notif.leaving,
       }"
       :style="notif.bgColor ? { backgroundColor: notif.bgColor } : {}"
@@ -137,6 +138,9 @@ export default {
     handleChallengeCompleted(e) {
       this.addNotification(e.detail, 'challenge');
     },
+    handleSongCompleted(e) {
+      this.addNotification(e.detail, 'song');
+    },
 
     // new generic handler for 'notify' events
     handleNotify(e) {
@@ -157,6 +161,7 @@ export default {
     window.addEventListener('achievement-unlocked', this.handleAchievementUnlocked);
     window.addEventListener('milestone-unlocked', this.handleMilestoneUnlocked);
     window.addEventListener('challenge-completed', this.handleChallengeCompleted);
+    window.addEventListener('song', this.handleSongCompleted);
 
     // listen for generic notifications
     window.addEventListener('notify', this.handleNotify);
@@ -170,6 +175,7 @@ export default {
     window.removeEventListener('achievement-unlocked', this.handleAchievementUnlocked);
     window.removeEventListener('milestone-unlocked', this.handleMilestoneUnlocked);
     window.removeEventListener('challenge-completed', this.handleChallengeCompleted);
+    window.removeEventListener('song', this.handleSongCompleted);
 
     window.removeEventListener('notify', this.handleNotify);
   },
@@ -224,6 +230,10 @@ export default {
 
 .notification-milestone {
   background-color: #d100e4;
+}
+
+.notification-song {
+  background-color: #ff5722;
 }
 
 .notification-complete {

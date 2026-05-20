@@ -74,7 +74,7 @@ import { completedAnyChallenge, hasAchievement, maxAllDimensionRanks, maxAllDime
 import Header from '@/components/Header.vue';
 import Main from '@/components/Main.vue';
 import YooAmatter from '@/components/YooAmatter.vue';
-import YooAity, { maxAllHJUpgrades, maxAllMMUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from '@/components/YooAity.vue';
+import YooAity, { maxAllFandomUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllOMGUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from '@/components/YooAity.vue';
 import Options from '@/components/Options.vue';
 import Stats from '@/components/Stats.vue';
 import Achievements from '@/components/Achievements.vue';
@@ -121,7 +121,7 @@ export default {
 			return this.tab;
 		},
 		gameName() {
-			return 'YooA Incremental v1.0'
+			return 'YooA Incremental v1.1'
 		},
 	},
 	mounted() {
@@ -218,6 +218,8 @@ export default {
 					maxAllHJUpgrades()
 					maxAllMMUpgrades()
 				}
+				if (hasAchievement(71)) maxAllOMGUpgrades()
+				if (hasMilestone('YooAity', 31)) maxAllFandomUpgrades()
 			}
 		},
 		closeNav() {

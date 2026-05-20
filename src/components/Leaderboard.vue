@@ -635,7 +635,6 @@ export default {
   -webkit-border-radius: 50% !important;
   box-sizing: border-box !important;
   border: 0 !important;
-  vertical-align: middle !important;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }

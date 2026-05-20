@@ -15,6 +15,10 @@
         @click="changeTab('YooAmatter', 'spark-upgrade')">
         Spark Upgrades
       </button>
+      <button v-if="rankUnlocked" :class="{ active: currentTab === 'resonance' }"
+        @click="changeTab('YooAmatter', 'resonance')">
+        Resonance
+      </button>
     </div>
 
     <!-- Main Tab -->
@@ -41,18 +45,21 @@
       <div v-if="unlockedDimensions.length > 0">
         <div class="efftext">
           You have <span v-html="SparkText"></span> YooAmatter Sparks, which boosts YooArium gain by x<span v-html-stable="ysEffectCached[0]"></span> and raises YooA Point gain to <span v-html="ysEffectCached[1]"></span>
-          <br><span>Effect Formula: (x + {{ format1 }})<sup>{{ formatNum(0.75) }}</sup> to YooArium, ^√(log<sub>{{
+          <br><span>Effect Formula: (x + {{ format1 }})<sup>{{ formatNum(0.75) }}</sup> to YooArium, ^{{ YSE2Root }}(log<sub>{{
               format10 }}</sub>(x + {{ format1 }})) / {{ formatNum(100) }} + {{ format1 }} to YooA
             Points</span>
         </div><br>
+        <h2 v-if="rankUnlocked">Each formation's rank multiplies YooAmatter Resonance and raises the previous formation's multiplier per rank to ^√(√log<sub>{{ format10 }}</sub>(YooAmatter Harmonics + 10) * 
+          log<sub>{{ format10 }}</sub>(this formation's multiplier) + 1) (softcaps at ^{{ formatNum(20) }}).</h2>
         <h3>Formation costs increase faster at Level <span v-html="scalingStart"></span></h3><br>
         <h3 v-html="dimMultDisp"></h3><br>
+        <h3 v-if="rankUnlocked" v-html="dimRankMultDisp"></h3><br>
 
         <button v-if="maxAllUnlocked" class="max" @click="maxAllForms">Max All Formations (X)</button>
 
         <!-- Pass minimal props to <Dimension> -->
         <Dimension v-for="dim in unlockedDimensions" :key="dim.id" :dimension="dim" :canAfford="canAffordDimension(dim)"
-          :dimGain="dimensionGain(dim)" :allDimensions="allDimensions" :maxUnlocked="maxDimUnlocked" />
+          :dimGain="dimensionGain(dim)" :allDimensions="allDimensions" :maxUnlocked="maxDimUnlocked" :rankUnlocked="rankUnlocked" />
       </div>
     </div>
 
@@ -79,6 +86,13 @@
       <button v-if="maxSparkUnlocked" class="max" @click="maxSparkUpgrades">Max All Spark Upgrades</button>
       <UpgradeGrid layerName="sparks" />
     </div>
+
+    <div v-if="currentTab === 'resonance'" class="tab-content">
+      <div class="efftext">
+        You have <span v-html="ResonanceText"></span> YooAmatter Resonance, which produces YooAmatter Harmonics at a rate of <span v-html="harmonicsGainText"></span><br>
+        You have <span v-html="harmonicsText"></span> YooAmatter Harmonics, which boosts YooA Dimension powers by x<span v-html="harmonicsEffect"></span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -88,7 +102,7 @@ import UpgradeGrid from "./comps/UpgradeGrid.vue";
 import MathProblem from "./comps/MathProblem.vue";
 import Challenge from "./comps/Challenge.vue";
 import Dimension from "./comps/Dimension.vue";
-import { getDimMultPerLvl, getScalingStart } from "@/incremental/dimensions";
+import { getDimMultPerLvl, getDimMultPerRank, getScalingStart, getRankScalingStart } from "@/incremental/dimensions";
 import { gameLayers } from "@/incremental/layersData";
 import { hasAchievement, maxAllDimensions } from "@/incremental/incremental";
 
@@ -154,6 +168,9 @@ export default {
       ymAmount: new Decimal(0),
       yooAriumAmount: new Decimal(0),
       sparkAmount: new Decimal(0),
+      resonanceAmount: new Decimal(0),
+      harmonicsAmount: new Decimal(0),
+      harmonicsEffectDec: new Decimal(1),
       ymEffectDec: new Decimal(1),
       effectExpDec: new Decimal(1),
       solvedDec: new Decimal(0),
@@ -164,18 +181,24 @@ export default {
       YooAmatterText: "",
       YooAriumText: "",
       SparkText: "",
+      ResonanceText: "",
+      harmonicsText: "",
+      harmonicsEffect: "",
       ymEffectText: "",
       effectExponentText: "",
       solvedText: "",
       problemGainText: "",
       YooAriumGainText: "",
+      harmonicsGainText: "",
       ysGainText: "",
+      YSE2Root: "",
 
       // cached small arrays/strings
       YooAriumEffect1: "",
       YooAriumExponent2Text: "",
       scalingStart: "",
       dimMultDisp: "",
+      dimRankMultDisp: "",
       allDimensions: [],
       unlockedDimensions: [],
 
@@ -186,17 +209,22 @@ export default {
       maxDimUnlocked: false,
       maxAllUnlocked: false,
       maxSparkUnlocked: false,
+      rankUnlocked: false,
 
       // last keys for change detection
       lastKeys: {
         ym: "",
         yooA: "",
         spark: "",
+        resonance: "",
+        harmonics: "",
+        harmonicsEffect: "",
         ymEffect: "",
         effectExp: "",
         solved: "",
         problemGain: "",
         yooAriumGain: "",
+        harmonicsGain: "",
         ysGain: "",
       },
 
@@ -301,6 +329,24 @@ export default {
         this.SparkText = this.fmtColor("sparks", formatWhole(this.sparkAmount));
       }
 
+      // resonance
+      const srcResonance = gameLayers.YooAmatter.getYooAmatterResonance();
+      const keyResonance = decimalKey(srcResonance);
+      if (this.lastKeys.resonance !== keyResonance) {
+        this.lastKeys.resonance = srcResonance;
+        this.resonanceAmount.copyFrom(srcResonance);
+        this.ResonanceText = this.fmtColor("YooAmatter", format(this.resonanceAmount));
+      }
+
+      // harmonics
+      const srcHarmonics = player.YooAmatter.harmonics;
+      const keyHarmonics = decimalKey(srcHarmonics);
+      if (this.lastKeys.harmonics !== keyHarmonics) {
+        this.lastKeys.harmonics = keyHarmonics;
+        this.harmonicsAmount.copyFrom(srcHarmonics);
+        this.harmonicsText = this.fmtColor("YooAmatter", format(this.harmonicsAmount));
+      }
+
       // ymEffect (could be Decimal-like or number)
       const eff = gameLayers.YooAmatter.effect();
       const keyEff = decimalKey(eff);
@@ -359,11 +405,33 @@ export default {
         this.ysGainText = typeof srcYs !== "undefined" ? srcYs : this.ysGainText;
       }
 
+      const srcHarmonicsGain = player.gain?.YooAmatter?.harmonics;
+      const keyHarmonicsGain = decimalKey(srcHarmonicsGain);
+      if (this.lastKeys.harmonicsGain !== keyHarmonicsGain) {
+        this.lastKeys.harmonicsGain = keyHarmonicsGain;
+        this.harmonicsGainText = typeof srcHarmonicsGain !== "undefined" ? srcHarmonicsGain : this.harmonicsGainText;
+      }
+
+      // harmonicsEffect
+      const harmonicsEff = gameLayers.YooAmatter.getYooAmatterHarmonicsEffect();
+      const keyHarmonicsEff = decimalKey(harmonicsEff);
+      if (this.lastKeys.harmonicsEffect !== keyHarmonicsEff) {
+        this.lastKeys.harmonicsEffect = keyHarmonicsEff;
+        if (eff instanceof Decimal) this.harmonicsEffectDec.copyFrom(harmonicsEff);
+        else this.harmonicsEffectDec.sign = harmonicsEff;
+        this.harmonicsEffect = this.fmtColor("YooAmatter", format(this.harmonicsEffectDec))
+      }
+
+      this.YSE2Root = hasUpgrade("YooAmatter", 55) ? "" : "√";
+
       // update small rarely-changing composed strings (cheap to check)
       const newDimMultDisp = `Formation Multiplier per level: x${format(getDimMultPerLvl("YooAmatter", 1), 3)}`;
       if (this.dimMultDisp !== newDimMultDisp) this.dimMultDisp = newDimMultDisp;
 
-      const newScalingStart = format(getScalingStart("YooAmatter"));
+      const newDimRankMultDisp = `Formation Multiplier per rank: x${format(getDimMultPerRank("YooAmatter", 5), 3)}`;
+      if (this.dimRankMultDisp !== newDimRankMultDisp) this.dimRankMultDisp = newDimRankMultDisp;
+
+      const newScalingStart = formatWhole(getScalingStart("YooAmatter")) + (this.rankUnlocked ? " and Rank " + formatWhole(getRankScalingStart("YooAmatter")) : "");
       if (this.scalingStart !== newScalingStart) this.scalingStart = newScalingStart;
 
       // YooAriumEffect1 and exponent2 (rare toggles)
@@ -384,6 +452,7 @@ export default {
       this.maxDimUnlocked = hasMilestone("YooAity", 1);
       this.maxAllUnlocked = hasMilestone("YooAity", 3);
       this.maxSparkUnlocked = hasAchievement(53);
+      this.rankUnlocked = hasUpgrade("YooAmatter", 55);
 
       // keep reference to array (no allocation) and only rebuild unlockedDimensions when needed
       this.allDimensions = player.dimensions.YooAmatter;

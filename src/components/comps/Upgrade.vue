@@ -5,12 +5,12 @@
     <p v-html="upgDesc"></p>
 
     <p>
-      Cost: <span v-html="formattedCost"></span> {{ costCurrency }}
+      Cost: <span v-html="formattedCost"></span>{{ costCurrency }}
       <br />
       {{ lvlDisplay }}
     </p>
 
-    <p v-if="upgradeEffect"><span>Effect: </span><span v-html="upgradeEffect"></span></p>
+    <p v-if="upgradeEffect"><span>Effect: </span><span v-html-stable="upgradeEffect"></span></p>
   </div>
 </template>
 
@@ -61,6 +61,7 @@ function bgForLayer(layerName) {
     case "Hyojung": return "linear-gradient(#216db8, #1e90ff)";
     case "Mimi": return "linear-gradient(#FD47E8, #ca3435)";
     case "OMG": return "linear-gradient(#c500ed, #dc57f7)";
+    case "Fandom": return "linear-gradient(#ff0099, #dc57f7)";
     default: return "linear-gradient(#991893, #d17be2)";
   }
 }
@@ -226,7 +227,7 @@ export default {
 
           if (srcCost && typeof srcCost.copyFrom === "function") {
             this.costDec.copyFrom(srcCost);
-            this.formattedCost = format(this.costDec);
+            this.formattedCost = upg.costCurrency === "YooA Energy" ? formatSI(this.costDec, "J") : upg.costCurrency === "money" ? formatCurrency(this.costDec) : format(this.costDec);
           } else {
             try {
               this.formattedCost = format(srcCost);
@@ -235,7 +236,7 @@ export default {
             }
           }
           // cost currency (static text)
-          this.costCurrency = upg.costCurrency ?? (layer.currency ?? "");
+          this.costCurrency = upg.costCurrency === "money" ? "" :  " " + (upg.costCurrency ?? (layer.currency ?? ""));
         }
 
         // afford check (cheap)

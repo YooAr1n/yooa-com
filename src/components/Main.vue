@@ -4,6 +4,7 @@
     <div class="tabs">
       <button :class="{ active: isCurrentTab('main') }" @click="changeTab('Main', 'main')">Main</button>
       <button :class="{ active: isCurrentTab('upgrade') }" @click="changeTab('Main', 'upgrade')">Upgrades</button>
+      <button v-if="powerUnlocked" :class="{ active: isCurrentTab('energy') }" @click="changeTab('Main', 'energy')">Energy</button>
     </div>
 
     <!-- Tab Content: Main -->
@@ -12,7 +13,9 @@
       <h3>You have solved {{ solved }} math problems. (+{{ problemGain }}/solve)</h3>
       <MathProblem layerName="YooA" refName="MainMath" />
 
-      <h2 v-if="rankUnlocked">Each dimension's rank directly amplifies its own per-level multiplier and its output effect.</h2><br>
+      <h2 v-if="rankUnlocked">Each dimension's rank directly amplifies its own per-level multiplier and its output effect.</h2>
+      <h2 v-if="powerUnlocked">Each dimension's power comes from its amount, level, and rank. That power generates energy, which boosts the previous dimension's power. 
+        YooA Lines and Points create YooA Power, which generates YooA energy.</h2>
       <h3>Dimension costs increase faster at Level <span v-html="scalingStart"></span></h3><br>
       <h3 v-html="dimMultDisp"></h3><br>
       <h3 v-if="unlockedDim3" v-html="dim3MultDisp"></h3><br>
@@ -31,6 +34,7 @@
         :canAfford="canAffordDimension(dim)" 
         :allDimensions="allDimensions"
         :maxUnlocked="maxDimUnlocked"
+        :powerUnlocked="powerUnlocked"
         :rankUnlocked="rankUnlocked"
         :rankMaxUnlocked="rankMaxUnlocked"
       />
@@ -40,6 +44,11 @@
     <div v-if="isCurrentTab('upgrade')" class="tab-content">
       <button v-if="maxDimUnlocked" class="max" @click="maxAllUpgrades">Max All YooA Upgrades</button>
       <UpgradeGrid layerName="YooA" />
+    </div>
+
+    <div v-if="isCurrentTab('energy')" class="tab-content">
+      <div class="efftext">You have <span v-html="YooAPower"></span> YooA Power and <span v-html="YooAEnergy"></span> YooA Energy</div>
+      <UpgradeGrid layerName="YooA_energy" />
     </div>
   </div>
 </template>
@@ -98,18 +107,27 @@ export default {
       dim3MultDisp: "",
       dimRankMultDisp: "",
       scalingStart: "",
+      YooAPower: "",
+      YooAEnergy: "",
       unlockedDim3: false,
       maxUnlocked: false,
       maxAllUnlocked: false,
       maxDimUnlocked: false,
+      powerUnlocked: false,
       rankUnlocked: false,
       rankMaxUnlocked: false,
       subtab: "main"
     };
   },
   methods: {
+    fmtColor(layerName, text) {
+      const color = (gameLayers[layerName] && gameLayers[layerName].color) || '#ffffff';
+      return colorText('h3', color, text);
+    },
     update() {
       this.YooAGainFormatted = format(GameCache.YooAGain.value);
+      this.YooAPower = this.fmtColor("YooA", formatSI(gameLayers.YooA_energy.getYooAPower(), "W"));
+      this.YooAEnergy = this.fmtColor("YooA", formatSI(player.YooA.energy, "J"));
       this.solved = formatWhole(player.math.YooA.solved);
       this.problemGain = format(gameLayers.YooA.problemGain());
       this.allDimensions = player.dimensions.YooA
@@ -120,11 +138,12 @@ export default {
       this.dimMultDisp = `Dimension 1-2 Multiplier per level: x${format(mult12, 3)}`
       this.dim3MultDisp = `Dimension 3+ Multiplier per level: x${format(mult3, 3)}`;
       this.dimRankMultDisp = `Dimension Multiplier per rank: x${format(multRank, 3)}`;
-      this.scalingStart = format(getScalingStart("YooA"))
+      this.scalingStart = formatWhole(getScalingStart("YooA"))
       this.unlockedDim3 = hasAchievement(18);
       this.maxUnlocked = hasAchievement(27);
       this.maxAllUnlocked = hasMilestone("YooAity", 3);
       this.maxDimUnlocked = hasAchievement(23);
+      this.powerUnlocked = hasUpgrade("YooAmatter", 45)
       this.rankUnlocked = hasMilestone("YooAity", 14);
       this.rankMaxUnlocked = hasUpgrade("Hyojung", 21);
       this.subtab = player.subtabs["Main"]
@@ -214,5 +233,13 @@ button.max {
 
 button.max:hover {
   background-color: #b86cc3;
+}
+
+h2 {
+  margin: 8px
+}
+
+.efftext {
+  font-size: 16pt;
 }
 </style>

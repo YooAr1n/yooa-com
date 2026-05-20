@@ -703,7 +703,8 @@
             </p>
             <ul>
               <li>Numbers start normal (<code>x</code>), and at <strong>9.17</strong> become <code>🌱x</code>. Rule:
-                <code>🌱x = x + 9.17</code>.</li>
+                <code>🌱x = x + 9.17</code>.
+              </li>
               <li>At <code>🌱9.17</code> it upgrades to <code>🌿x</code>: <code>🌿x = 🌱(9.17×x)</code>.</li>
               <li>At <code>🌿9.17</code> it becomes <code>🌺x</code>: <code>🌺x = 🌿(9.17^x)</code>.</li>
               <li>At <code>🌺9.17</code> it becomes <code>🌈x</code>: <code>🌈x = 🌺(9.17^^x)</code> (tetration layer).
@@ -717,8 +718,13 @@
                   <li>NaN: <code>☠️</code></li>
                 </ul>
               </li>
-              <li>Example: <code>🌿5</code> is <code>🌱(9.17×5)</code> = <code>🌱45.85</code> = <code>45.85 + 9.17</code> = <code>55.02</code></li>
-              <li>Example: <code>🌺2</code> is <code>🌿(9.17^2)</code> = <code>🌿84.0889</code> = <code>🌱(9.17×84.0889)</code> = <code>🌱771.095213</code> = <code>771.095213 + 9.17</code> = <code>780.265213</code></li>
+              <li>Example: <code>🌿5</code> is <code>🌱(9.17×5)</code> = <code>🌱45.85</code> =
+                <code>45.85 + 9.17</code> = <code>55.02</code>
+              </li>
+              <li>Example: <code>🌺2</code> is <code>🌿(9.17^2)</code> = <code>🌿84.0889</code> =
+                <code>🌱(9.17×84.0889)</code> = <code>🌱771.095213</code> = <code>771.095213 + 9.17</code> =
+                <code>780.265213</code>
+              </li>
             </ul>
             <p class="yooa-voice">🌸 YooA: “When numbers bloom past 9.17, sprinkle them with petals and call it
               notation.”</p>
@@ -746,6 +752,138 @@
             <p class="mini">Arin notation is meant to feel thematically different — calm, moonlit, and autogeneous
               (automation vibes).</p>
 
+            <!-- NEW: IS-tropy notation -->
+            <h4>🃏 IS-tropy notation</h4>
+            <p>
+              IS-tropy notation transforms numbers into a mystical <strong>card roster system</strong>,
+              where every digit becomes a member of the IS roster. Instead of reading plain digits,
+              enormous exponents are displayed as combinations of icons, names, or both.
+            </p>
+
+            <p>
+              The notation is inspired by collectible card decks and identity-based encoding:
+              each decimal digit corresponds to a unique character from the roster.
+            </p>
+
+            <ul>
+              <li><code>0 → 🌀 Kyle</code></li>
+              <li><code>1 → 🌱 Yssabelle</code></li>
+              <li><code>2 → 🎨 Regina</code></li>
+              <li><code>3 → 👋 Eishel</code></li>
+              <li><code>4 → 🌑 Kimberly</code></li>
+              <li><code>5 → 🔥 Ahn Jean</code></li>
+              <li><code>6 → ⚡ Serille</code></li>
+              <li><code>7 → 🌤 Alaine</code></li>
+              <li><code>8 → 🌸 Euryle</code></li>
+              <li><code>9 → 🍒 YooA</code></li>
+            </ul>
+
+            <h5>🎴 Display Modes</h5>
+            <p>
+              IS-tropy notation supports three display styles:
+            </p>
+
+            <ul>
+              <li>
+                <strong>Icons Mode</strong> — displays only emojis.
+                <br>
+                Example: <code>507</code> → <code>🔥🌀🌤</code>
+              </li>
+
+              <li>
+                <strong>Names Mode</strong> — displays only names.
+                <br>
+                Example: <code>507</code> → <code>Ahn Jean Kyle Alaine</code>
+              </li>
+
+              <li>
+                <strong>Both Mode</strong> — displays emoji + name together.
+                <br>
+                Example: <code>507</code> → <code>🔥 Ahn Jean 🌀 Kyle 🌤 Alaine</code>
+              </li>
+            </ul>
+
+            <h5>🧠 How the formula works</h5>
+            <p>
+              IS-tropy notation is not just a digit replacement system — it compresses
+              unimaginably huge values using a logarithmic entropy-like formula based on
+              <strong>super-logarithms (slog)</strong>.
+            </p>
+
+            <p>
+              The game first measures how "deep" a number is in exponential height using:
+            </p>
+
+            <p>
+              <code>slog10(x)</code>
+            </p>
+
+            <p>
+              This determines how many exponential layers the number contains.
+              The result is then normalized against the game's maximum decimal layer,
+              producing a transformed scientific value used for the final notation.
+            </p>
+
+            <p>
+              Internally, the simplified structure looks like:
+            </p>
+
+            <pre><code class="language-js">
+            num =
+            10^((log10(slog10(value) + 1) / log10(slog10(MAX_LAYER) + 1)) × 1.5e9)
+            </code></pre>
+
+            <p>
+              After the transformed number is generated:
+            </p>
+
+            <ul>
+              <li>
+                The <strong>mantissa</strong> is shown normally using scientific notation.
+              </li>
+              <li>
+                The <strong>exponent</strong> is converted digit-by-digit into IS roster cards.
+              </li>
+            </ul>
+
+            <p>
+              Example:
+            </p>
+
+            <ul>
+              <li>
+                <code>1.23e456</code>
+                might appear as:
+                <code>1.23 🌑🔥⚡</code>
+              </li>
+              <li>
+                because:
+                <code>456 → 🌑🔥⚡</code>
+              </li>
+            </ul>
+
+            <p>
+              Extremely huge values therefore become compact "deck signatures"
+              representing the entropy rank of the number rather than its raw exponent size.
+            </p>
+
+            <h5>🌌 Special states</h5>
+            <ul>
+              <li><code>🔥 [SUS ERROR] 🔥</code> — invalid or corrupted values (NaN).</li>
+              <li><code>🌑 Cumpio Dark ...</code> — negative numbers.</li>
+              <li><code>🚀 [MAX INVENTORY] 🚀</code> — infinite values.</li>
+            </ul>
+
+            <p class="mini">
+              IS-tropy notation is designed for absurdly large incremental-game values where
+              traditional notation becomes unreadable. Instead of showing gigantic exponent towers directly,
+              it converts the number's logarithmic structure into a symbolic collectible-card identity.
+            </p>
+
+            <p class="yooa-voice">
+              🃏 IS-tropy whisper:
+              <em>“Every digit carries a soul. Build the right deck, and even infinity becomes collectible.”</em>
+            </p>
             <!-- NEW: Blind & YesNo -->
             <h4>🔒 Blind notation & ✅ YesNo notation</h4>
             <p>
@@ -782,12 +920,12 @@
               <li><strong>YesNo:</strong> <code>YES</code> / <code>NO</code></li>
             </ul>
 
-            <p class="mini">Want a demo? Toggle notation in the game settings and watch a number change shape — it’s
+            <p class="mini">Want a demo? Toggle notation in the game settings and watch a number change shape — it's
               like an outfit change for math.</p>
 
             <footer class="help-small">
               <small>
-                Tip: notation preferences are purely visual — they don’t change game math. Use the notation that makes
+                Tip: notation preferences are purely visual — they don't change game math. Use the notation that makes
                 your run most delightful.
               </small>
             </footer>

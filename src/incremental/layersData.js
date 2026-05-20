@@ -5,6 +5,8 @@ import { hasAchievement, calculateAchievementMultiplier, player } from "./increm
 import { generateNewProblem } from "@/components/comps/MathProblem.vue"; // Import generateNewProblem function
 import { getArinEffect, getArinEffLevels, getAriniumEffect, getArinRankEffect, getArinTierEffect, updateAllAutobuyerTime } from "./automation.js";
 import { challengeEffect, getChallLevels, getUpgLevels, hasChallenge, hasMilestone, hasUpgrade, inChallenge, milestoneEffect, upgradeEffect } from "./mainFuncs.js";
+import { songs } from "./songs.js";
+import { getHighestRankedTier } from "./dimensions.js";
 
 // Hot bindings + per-tick cache
 const dZero = Decimal.dZero;
@@ -145,19 +147,19 @@ export const gameLayers = {
         costInternal: "YooAPoints",
         maxLvl: dOne,
         effect() {
-            let eff = pow(1.01, player.math.YooA.solved);
-            if (eff.gte(100)) {
-              const dil = hasUpgrade("YooAmatter", 52) ? 0.55 : 0.5;
-              if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10();
-              else eff = eff.log10().mul(50);
-              if (eff.gte(D_1e100)) eff = eff.log10().dilate(dTwo).pow(25);
-            }
-            if (inChallenge("YooAmatter", 3)) {
-              eff = eff.pow(19.95);
-              if (eff.gte(D_1e100)) eff = eff.div(D_1e100).root(19.95).mul(D_1e100);
-            }
-            if (hasMilestone("YooAity", 7)) eff = eff.pow(milestoneEffect("YooAity", 7));
-            return eff;
+          let eff = pow(1.01, player.math.YooA.solved);
+          if (eff.gte(100)) {
+            const dil = hasUpgrade("YooAmatter", 52) ? 0.55 : 0.5;
+            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10();
+            else eff = eff.log10().mul(50);
+            if (eff.gte(D_1e100)) eff = eff.log10().dilate(dTwo).pow(25);
+          }
+          if (inChallenge("YooAmatter", 3)) {
+            eff = eff.pow(19.95);
+            if (eff.gte(D_1e100)) eff = eff.div(D_1e100).root(19.95).mul(D_1e100);
+          }
+          if (hasMilestone("YooAity", 7)) eff = eff.pow(milestoneEffect("YooAity", 7));
+          return eff;
         },
         effectDisplay() {
           let eff = this.effect();
@@ -256,20 +258,20 @@ export const gameLayers = {
         costInternal: "YooAPoints",
         maxLvl: dOne,
         effect() {
-            let eff = pow(1.003, player.math.YooA.solved);
-            if (eff.gte(100)) {
-              let dil = 0.5;
-              if (hasUpgrade("YooAmatter", 52)) dil = 0.55;
-              if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10();
-              else eff = eff.log10().mul(50);
-              if (eff.gte(1e30)) eff = eff.log10().mul(10 / 3).dilate(2).pow(7.5);
-            }
-            if (inChallenge("YooAmatter", 3)) {
-              eff = eff.pow(19.95);
-              if (eff.gte(D_1e100)) eff = eff.div(D_1e100).root(19.95).mul(D_1e100);
-            }
-            if (hasMilestone("YooAity", 7)) eff = eff.pow(milestoneEffect("YooAity", 7));
-            return eff;
+          let eff = pow(1.003, player.math.YooA.solved);
+          if (eff.gte(100)) {
+            let dil = 0.5;
+            if (hasUpgrade("YooAmatter", 52)) dil = 0.55;
+            if (hasUpgrade("YooAmatter", 22)) eff = eff.log10().mul(5).dilate(dil).div(5).pow10();
+            else eff = eff.log10().mul(50);
+            if (eff.gte(1e30)) eff = eff.log10().mul(10 / 3).dilate(2).pow(7.5);
+          }
+          if (inChallenge("YooAmatter", 3)) {
+            eff = eff.pow(19.95);
+            if (eff.gte(D_1e100)) eff = eff.div(D_1e100).root(19.95).mul(D_1e100);
+          }
+          if (hasMilestone("YooAity", 7)) eff = eff.pow(milestoneEffect("YooAity", 7));
+          return eff;
         },
         effectDisplay() {
           let eff = this.effect();
@@ -471,11 +473,13 @@ export const gameLayers = {
         cost(x) {
           x = x === undefined ? getUpgLevels("YooA", 41) : x;
           if (hasUpgrade("YooAmatter", 15)) x = x.div(2.5)
+          if (hasUpgrade("YooA_energy", 14)) x = x.div(2)
           return pow(1.6, pow(1.6, x.pow(1.5)).sub(1)).mul(2e10).pow10().pow10();
         },
         invCost(x) {
           let cost = x.log10().log10().div(2e10).log(1.6).add(1).log(1.6).root(1.5);
           if (hasUpgrade("YooAmatter", 15)) cost = cost.mul(2.5)
+          if (hasUpgrade("YooA_energy", 14)) cost = cost.mul(2)
           return cost
         },
         costCurrency: "YooA Points",
@@ -540,7 +544,7 @@ export const gameLayers = {
       43: {
         title: "Miracle Light Amplifier (YU 43)",
         description() {
-          return "Multiply Miracle Light gain by " + format(this.base()) + " (based on YooA Points)."
+          return "Multiply Miracle Light" + (hasUpgrade("YooA_energy", 13) ? " and YooA Light" : "") + " gain by " + format(this.base()) + " (based on YooA Points)."
         },
         cost(x) {
           x = x === undefined ? getUpgLevels("YooA", 43) : x;
@@ -556,6 +560,7 @@ export const gameLayers = {
         costInternal: "YooAPoints",
         base() {
           let base = player.YooAPoints.add(10).log10().add(10).log10().add(10).log10().dilate(1.5)
+          if (hasUpgrade("YooA_energy", 13)) base = base.pow(2.5)
           return base;
         },
         effect() {
@@ -577,11 +582,6 @@ export const gameLayers = {
           return "YooA Points boost YooA aging speed. Start aging after Secret Garden release."
         },
         cost: new Decimal("eee14"),
-        invCost(x) {
-          let cost = x.log10().log10().div(1e12).sub(1).mul(13).root(1.55);
-          if (cost.gte(10)) cost = cost.div(10).log(1.1).add(10)
-          return cost
-        },
         costCurrency: "YooA Points",
         costInternal: "YooAPoints",
         maxLvl: dOne,
@@ -601,6 +601,133 @@ export const gameLayers = {
       },
       // Add more upgrades for other rows and columns as needed
     },
+  },
+  YooA_energy: {
+    unlocked: true,
+    color: "#d17be2",
+    getYooAPower() {
+      return player.dimensions.YooA[0].energy.div(10).add(1).mul(player.YooAPoints.add(1).log10().add(1).log10().add(1).log10())
+    },
+    upgrades: {
+      rows: 3,
+      cols: 4,
+      11: {
+        title: "Energetic Heart Dilation (Y_ENE 11)",
+        description() {
+          return "YooA Energy dilates YooA Point gain and double Fan Heart gain."
+        },
+        cost: new Decimal(1e8),
+        costCurrency: "YooA Energy",
+        costLayer: "YooA",
+        costInternal: "energy",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.YooA.energy.add(1).log10().pow(0.6).div(20).add(1)
+          if (eff.gte(10)) eff = eff.div(10).pow(3).pow10()
+          return eff;
+        },
+        effectDisplay() {
+          let eff = this.effect();
+          let dis = "Dilate^" + format(eff);
+          return dis;
+        },
+      },
+      12: {
+        title: "Resonant Cascade (Y_ENE 12)",
+        description() {
+          return "<span style='font-size:11px'>Multiply all YooA Dimension powers by " + format(1.0917) + " per " + format(9.17) + "x YooA Energy, starting at " + formatSI(9171995, "J") + " (Next at " +
+            formatSI(this.nextAt(), "J") + " YooA Energy). Unlock Arin Tier and OMG upgrade autobuyers and they cost nothing.</span>"
+        },
+        cost: new Decimal(1e18),
+        costCurrency: "YooA Energy",
+        costLayer: "YooA",
+        costInternal: "energy",
+        maxLvl: dOne,
+        effect() {
+          let exp = player.YooA.energy.max(0.001).div(9171995).log(9.17).floor().add(1).max(0)
+          let eff = pow(1.0917, exp)
+          return eff;
+        },
+        nextAt() {
+          let eff = pow(9.17, this.effect().log(1.0917)).mul(9171995)
+          return eff;
+        },
+        effectDisplay() {
+          let eff = this.effect();
+          let dis = "x" + format(eff);
+          return dis;
+        },
+      },
+      13: {
+        title() { 
+          return (getUpgLevels("YooA_energy", 13).gte(15) ? scaleText("Blooming", "blooming") + " ": "") + "Ethereal Energy Bloom (Y_ENE 13)"
+        },
+        description() {
+          return "<span style='font-size:11px'>Multiply all YooA Dimension powers by " + format(this.base()) + " (Based on YooA Essence). YU 43 boosts YooA Light gain and raise it to " + format(2.5) + ".</span>"
+        },
+        cost(x) {
+          x = x === undefined ? getUpgLevels("YooA_energy", 13) : x;
+          let y = x.sub(15)
+          if (x.gte(15)) x = x.add(y.mul(y.add(1)).div(20)) // x+(x-15)(x-14)/20 (at 15, adds +0.1 to the eff. level increase per level)
+          return pow(1e5, x.pow(1.35)).mul(1e50);
+        },
+        invCost(x) {
+          let cost = x.div(1e50).log(1e5).root(1.35);
+          //x+(x-15)(x-14)/20 = x + (x^2 - 29x + 210)/20 = (x^2 - 9x + 210)/20 => x^2 - 9x + 210 - 20*cost = 0 => x = (9 + sqrt(81 - 4*(210-20*cost)))/2 => x = (9 + sqrt(80*cost - 759))/2
+          if (cost.gte(15)) cost = cost.mul(80).sub(759).sqrt().add(9).div(2);
+          return cost
+        },
+        costCurrency: "YooA Energy",
+        costLayer: "YooA",
+        costInternal: "energy",
+        base() {
+          return player.YooAity.amount.add(10).log10().add(10).log10().add(10).log10().sub(43).max(0).div(20).add(1).dilate(1.3).pow(5)
+        },
+        effect() {
+          let eff = pow(this.base(), getUpgLevels("YooA_energy", 13))
+          return eff;
+        },
+        effectDisplay() {
+          let eff = this.effect();
+          let dis = "x" + format(eff);
+          return dis;
+        },
+      },
+      14: {
+        title: "Sparkling Energy Ascension (Y_ENE 14)",
+        description() {
+          return "<span style='font-size:11px'>Increase YooA Skill Sparkles gain exponent by " + format(this.base()) + " (Based on YooA Energy). 'YooA Rank Shifter' cost scales " + format(2) + "x slower.</span>"
+        },
+        cost(x) {
+          x = x === undefined ? getUpgLevels("YooA_energy", 14) : x;
+          return pow(1e5, x.pow(1.7)).mul(1e100);
+        },
+        invCost(x) {
+          let cost = x.div(1e100).log(1e5).root(1.7);
+          return cost
+        },
+        costCurrency: "YooA Energy",
+        costLayer: "YooA",
+        costInternal: "energy",
+        base() {
+          let base = player.YooA.energy.add(10).log10().div(1000)
+          if (base.gte(1)) base = base.pow(0.5)
+          if (base.gte(10)) base = base.div(10).pow(0.5).mul(10)
+          return base
+        },
+        effect() {
+          let eff = this.base().mul(getUpgLevels("YooA_energy", 14)).add(1)
+          if (eff.gte(2026)) eff = eff.div(2026).pow(0.4).mul(5065).sub(3039)
+          return eff;
+        },
+        effectDisplay() {
+          let eff = this.effect();
+          let dis = "^" + format(eff);
+          if (eff.gte(2026)) dis += softcapText("(softcapped)")
+          return dis;
+        },
+      },
+    }
   },
   YooAmatter: {
     currency: "YooAmatter",
@@ -626,112 +753,138 @@ export const gameLayers = {
       return player.YooAmatter.amount.add(1).pow(this.effectExp())
     },
     problemGain() {
-        // heavy base (YooAity computation) only once per tick
-        let gain = gameLayers.YooAity.getYooChroniumEffect()[1];
-        if (hasUpgrade("YooAmatter", 51)) gain = gain.mul(upgradeEffect("YooAmatter", 51)[1]);
-        if (hasUpgrade("YooAity", 21)) gain = gain.mul(upgradeEffect("YooAity", 21));
-        if (hasUpgrade("YooAity", 23)) gain = gain.mul(upgradeEffect("YooAity", 23));
-        if (hasAchievement(44)) gain = gain.mul(achievements[44].rewardEffect());
-        return gain;
+      // heavy base (YooAity computation) only once per tick
+      let gain = gameLayers.YooAity.getYooChroniumEffect()[1];
+      if (hasUpgrade("YooAmatter", 51)) gain = gain.mul(upgradeEffect("YooAmatter", 51)[1]);
+      if (hasUpgrade("YooAity", 21)) gain = gain.mul(upgradeEffect("YooAity", 21));
+      if (hasUpgrade("YooAity", 23)) gain = gain.mul(upgradeEffect("YooAity", 23));
+      if (hasAchievement(44)) gain = gain.mul(achievements[44].rewardEffect());
+      return gain;
     },
 
     YooAriumExp() {
-        let eff = dOne;
-        let eff2 = dOne;
-        if (hasUpgrade("YooAity", 25)) eff2 = eff2.mul(10);
-        if (hasUpgrade("YooAity", 45)) eff2 = eff2.mul(1995);
-        return [eff, eff2];
+      let eff = dOne;
+      let eff2 = dOne;
+      if (hasUpgrade("YooAity", 25)) eff2 = eff2.mul(10);
+      if (hasUpgrade("YooAity", 45)) eff2 = eff2.mul(1995);
+      return [eff, eff2];
     },
 
     YooAriumEffect() {
-        const expArr = gameLayers.YooAmatter.YooAriumExp();
-        // localize player value
-        const ya = player.YooAmatter.YooArium;
-        const eff = ya.add(1).pow(expArr[0]).dilate(hasUpgrade("YooAmatter", 35) ? 1.2 : 1);
-        const eff2 = ya.pow(0.5).div(10).add(1).pow(expArr[1]);
-        return [eff, eff2];
+      const expArr = gameLayers.YooAmatter.YooAriumExp();
+      // localize player value
+      const ya = player.YooAmatter.YooArium;
+      const eff = ya.add(1).pow(expArr[0]).dilate(hasUpgrade("YooAmatter", 35) ? 1.2 : 1);
+      const eff2 = ya.pow(0.5).div(10).add(1).pow(expArr[1]);
+      return [eff, eff2];
     },
 
     YooAmatterSparkEffect() {
-        const sparks = player.YooAmatter.sparks;
-        let eff = sparks.add(1).pow(0.75);
-        const sc = gameLayers.YooAmatter.sparkSoftcap();
-        if (eff.gte(sc)) {
-          eff = eff.log10().div(sc.log10()).pow(0.8)
-            .mul(sc.log10().mul(4 / 7))
-            .add(sc.log10().mul(3 / 7))
-            .pow10();
-        }
-
-        let eff2 = sparks.add(1).log10().pow(0.5).div(100).add(1);
-        if (eff2.gte(1.6) && !hasUpgrade("Hyojung", 21)) eff2 = eff2.div(1.6).pow(0.5).add(0.6);
-        if (eff2.gte(4) && !hasUpgrade("Hyojung", 21)) eff2 = eff2.div(4).pow(0.4).add(3);
-        return [eff, eff2];
+      const sparks = player.YooAmatter.sparks;
+      let eff = sparks.add(1).pow(0.75);
+      const sc = gameLayers.YooAmatter.sparkSoftcap();
+      if (eff.gte(sc)) {
+        eff = eff.log10().div(sc.log10()).pow(0.8)
+          .mul(sc.log10().mul(4 / 7))
+          .add(sc.log10().mul(3 / 7))
+          .pow10();
+      }
+      let exp2 = hasUpgrade("YooAmatter", 55) ? 1 : 0.5;
+      exp2 = upgradeEffect("sparks", 21).mul(exp2);
+      let eff2 = sparks.add(1).log10().pow(exp2).div(100).add(1);
+      if (eff2.gte(1.6) && !hasUpgrade("Hyojung", 21)) eff2 = eff2.div(1.6).pow(0.5).add(0.6);
+      if (eff2.gte(4) && !hasUpgrade("Hyojung", 21)) eff2 = eff2.div(4).pow(0.4).add(3);
+      return [eff, eff2];
     },
 
     sparkSoftcap() {
-        let eff = new Decimal(1e140);
-        if (hasUpgrade("YooAity", 14)) eff = eff.mul(upgradeEffect("YooAity", 14));
-        return eff;
+      let eff = new Decimal(1e140);
+      if (hasUpgrade("YooAity", 14)) eff = eff.mul(upgradeEffect("YooAity", 14));
+      return eff;
+    },
+
+    getYooAmatterResonance() {
+      let eff = upgradeEffect("sparks", 22)
+      .mul(upgradeEffect("Fandom", 21))
+      .mul(upgradeEffect("Fandom", 24))
+      .mul(gameLayers.OMG.getSkillEffect("Yubin", "dance"))
+      if (hasAchievement(77)) eff = eff.mul(GameCache.AchievementMult.value)
+      for (let i = 0; i < 5; i++) {
+        eff = eff.mul(player.dimensions.YooAmatter[i].rankEffect)
+      }
+      return eff
+    },
+
+    getYooAmatterHarmonicsGain() {
+      let eff = this.getYooAmatterResonance().dilate(1.5).sub(1);
+      if (hasUpgrade("Yubin", 32)) eff = eff.mul(1.909)
+      if (hasMilestone("YooAity", 30)) eff = eff.mul(milestoneEffect("YooAity", 30)[1])
+      if (hasMilestone("YooAity", 31)) eff = eff.mul(milestoneEffect("YooAity", 31))
+      return eff.max(0)
+    },
+
+    getYooAmatterHarmonicsEffect() {
+      let eff = player.YooAmatter.harmonics.add(1).pow(5).dilate(0.75);
+      return eff
     },
 
     getYooAriumGain() {
-        // localize frequently used heavy results
-        const arin0 = GameCache.Arin_effect.value[0];
-        const spark0 = gameLayers.YooAmatter.YooAmatterSparkEffect()[0];
-        const u31 = upgradeEffect("YooAmatter", 31);
-        const u41 = upgradeEffect("YooAmatter", 41);
-        const ar26 = upgradeEffect("Arinium", 26)[0];
-        const ym21 = hasMilestone("YooAity", 21) ? milestoneEffect("YooAity", 21)[1] : dOne;
+      // localize frequently used heavy results
+      const arin0 = GameCache.Arin_effect.value[0];
+      const spark0 = gameLayers.YooAmatter.YooAmatterSparkEffect()[0];
+      const u31 = upgradeEffect("YooAmatter", 31);
+      const u41 = upgradeEffect("YooAmatter", 41);
+      const ar26 = upgradeEffect("Arinium", 26)[0];
+      const ym21 = hasMilestone("YooAity", 21) ? milestoneEffect("YooAity", 21)[1] : dOne;
 
-        let gain = new Decimal(0.01)
-          .mul(arin0)
-          .mul(spark0)
-          .mul(u31)
-          .mul(u41);
+      let gain = new Decimal(0.01)
+        .mul(arin0)
+        .mul(spark0)
+        .mul(u31)
+        .mul(u41);
 
-        if (player.achievements[41]) gain = gain.mul(GameCache.AchievementMult.value);
-        if (hasUpgrade("YooAmatter", 32)) gain = gain.mul(upgradeEffect("YooAmatter", 32));
-        if (hasUpgrade("YooAmatter", 44)) gain = gain.mul(upgradeEffect("YooAmatter", 44)[0]);
-        if (hasUpgrade("YooAmatter", 43)) gain = gain.mul(3);
-        if (hasMilestone("YooAity", 1)) gain = gain.mul(milestoneEffect("YooAity", 1));
-        if (hasChallenge("YooAmatter", 2)) gain = gain.mul(challengeEffect("YooAmatter", 2)[1]);
-        if (hasChallenge("YooAmatter", 3)) gain = gain.mul(challengeEffect("YooAmatter", 3)[1]);
-        gain = gain.pow(ar26.mul(ym21))
-        return gain;
+      if (player.achievements[41]) gain = gain.mul(GameCache.AchievementMult.value);
+      if (hasUpgrade("YooAmatter", 32)) gain = gain.mul(upgradeEffect("YooAmatter", 32));
+      if (hasUpgrade("YooAmatter", 44)) gain = gain.mul(upgradeEffect("YooAmatter", 44)[0]);
+      if (hasUpgrade("YooAmatter", 43)) gain = gain.mul(3);
+      if (hasMilestone("YooAity", 1)) gain = gain.mul(milestoneEffect("YooAity", 1));
+      if (hasChallenge("YooAmatter", 2)) gain = gain.mul(challengeEffect("YooAmatter", 2)[1]);
+      if (hasChallenge("YooAmatter", 3)) gain = gain.mul(challengeEffect("YooAmatter", 3)[1]);
+      gain = gain.pow(ar26.mul(ym21))
+      return gain;
     },
 
     digits() {
-        return gameLayers.YooAmatter.upgrades[31].digits().toNumber() + 1;
+      return gameLayers.YooAmatter.upgrades[31].digits().toNumber() + 1;
     },
 
     getGainMult() {
-        let mult = GameCache.YooAmatter_YooAriumEffect.value[0];
-        if (hasAchievement(32)) mult = mult.mul(achievements[32].rewardEffect());
-        if (hasAchievement(35)) mult = mult.mul(achievements[35].rewardEffect());
-        return mult;
+      let mult = GameCache.YooAmatter_YooAriumEffect.value[0];
+      if (hasAchievement(32)) mult = mult.mul(achievements[32].rewardEffect());
+      if (hasAchievement(35)) mult = mult.mul(achievements[35].rewardEffect());
+      return mult;
     },
 
     getResetGain() {
-        let mult = gameLayers.YooAmatter.getGainMult();
-        let gain = player.YooAPoints.div(1e12).dilate(0.8).pow(0.5);
-        if (gain.gte(300)) gain = gain.div(300).pow(0.5).mul(300);
-        if (gain.gte(1e50)) gain = gain.log10().div(50).pow(0.9).mul(500 / 9).add(400 / 9).div(2).pow10().mul(2).sub(1e50);
-        if (gain.gte(1e220)) gain = gain.log10().div(220).pow(0.7).mul(2200 / 7).add(880 / 7).div(2).pow10().mul(2).sub(1e220);
-        if (gain.gte("e1400")) gain = gain.div("e1400").pow(0.6).mul("e1400");
-        return gain.mul(mult).floor();
+      let mult = gameLayers.YooAmatter.getGainMult();
+      let gain = player.YooAPoints.div(1e12).dilate(0.8).pow(0.5);
+      if (gain.gte(300)) gain = gain.div(300).pow(0.5).mul(300);
+      if (gain.gte(1e50)) gain = gain.log10().div(50).pow(0.9).mul(500 / 9).add(400 / 9).div(2).pow10().mul(2).sub(1e50);
+      if (gain.gte(1e220)) gain = gain.log10().div(220).pow(0.7).mul(2200 / 7).add(880 / 7).div(2).pow10().mul(2).sub(1e220);
+      if (gain.gte("e1400")) gain = gain.div("e1400").pow(0.6).mul("e1400");
+      return gain.mul(mult).floor();
     },
 
     getNextAt() {
-        let mult = gameLayers.YooAmatter.getGainMult();
-        let gain = gameLayers.YooAmatter.getResetGain();
-        if (gain.gte(1e6)) gain = gain.log10().floor().add(1).pow10().div(mult);
-        else gain = gain.add(1).div(mult);
-        if (gain.gte("e1400")) gain = gain.div("e1400").root(0.6).mul("e1400");
-        if (gain.gte(1e220)) gain = gain.add(1e220).div(2).log10().mul(2).sub(880 / 7).div(2200 / 7).root(0.7).mul(220).pow10();
-        if (gain.gte(1e50)) gain = gain.add(1e50).div(2).log10().mul(2).sub(400 / 9).div(500 / 9).root(0.9).mul(50).pow10();
-        if (gain.gte(300)) gain = gain.div(300).pow(2).mul(300);
-        return gain.pow(2).dilate(1.25).mul(1e12).max(1e12);
+      let mult = gameLayers.YooAmatter.getGainMult();
+      let gain = gameLayers.YooAmatter.getResetGain();
+      if (gain.gte(1e6)) gain = gain.log10().floor().add(1).pow10().div(mult);
+      else gain = gain.add(1).div(mult);
+      if (gain.gte("e1400")) gain = gain.div("e1400").root(0.6).mul("e1400");
+      if (gain.gte(1e220)) gain = gain.add(1e220).div(2).log10().mul(2).sub(880 / 7).div(2200 / 7).root(0.7).mul(220).pow10();
+      if (gain.gte(1e50)) gain = gain.add(1e50).div(2).log10().mul(2).sub(400 / 9).div(500 / 9).root(0.9).mul(50).pow10();
+      if (gain.gte(300)) gain = gain.div(300).pow(2).mul(300);
+      return gain.pow(2).dilate(1.25).mul(1e12).max(1e12);
     },
     getPrestigesGain() {
       let gain = dOne
@@ -868,7 +1021,7 @@ export const gameLayers = {
       22: {
         title: "Problem Accelerator (YM 22)",
         description() {
-          return "Gain " + format(this.percent()) + "% of YooA math problems gained on solve per second (" + format(this.effect()) + "/s) and make 'YooA Solver' (YU 12) and 'Dimension Solver' (YU 22) softcaps weaker."
+          return "<span style='font-size:11px'>Gain " + format(this.percent()) + "% of YooA math problems gained on solve per second (" + format(this.effect()) + "/s) and make 'YooA Solver' (YU 12) and 'Dimension Solver' (YU 22) softcaps weaker.</span>"
         },
         cost: new Decimal(2e29),
         costCurrency: "YooAmatter",
@@ -884,7 +1037,7 @@ export const gameLayers = {
           return gain
         },
         effect() {
-          return gameLayers.YooA.problemGain().mul(this.percent().div(100));
+          return GameCache.YooA_problemGain.value.mul(this.percent().div(100));
         },
         effectDisplay() {
           let gain = this.effect()
@@ -945,7 +1098,7 @@ export const gameLayers = {
         },
         effectDisplay() {
           let eff = this.effect()
-          let dis = format(Decimal.sub(1, eff[0].recip()).mul(100)) + "% weaker, x" + format(eff[1]) + " YooA Light, x" + format(eff[2]) + " Arin Light"
+          let dis = "<span style='font-size:10px'>" + format(Decimal.sub(1, eff[0].recip()).mul(100)) + "% weaker, x" + format(eff[1]) + " YooA Light, x" + format(eff[2]) + " Arin Light</span>"
           return dis;
         },
         unlocked() {
@@ -1086,7 +1239,7 @@ export const gameLayers = {
       35: {
         title: "Miracle Light Chain (YM 35)",
         description() {
-          return "<span style='font-size: 11px;'>Miracle Light boosts YooA Light, which boosts Arin Light, which boosts Seunghee Light. Dilate YooArium 1st effect to " + format(1.2) + " and Blooming OMG 14 starts " + formatWhole(35) + " levels later.</span>"
+          return "<span style='font-size: 10px;'>Miracle Light boosts YooA Light, which boosts Arin Light, which boosts Seunghee Light. Dilate YooArium 1st effect to " + format(1.2) + " and Blooming OMG 14 starts " + formatWhole(35) + " levels later.</span>"
         },
         cost: new Decimal("ee6e28"),
         costCurrency: "YooAmatter",
@@ -1101,7 +1254,7 @@ export const gameLayers = {
         },
         effectDisplay() {
           let eff = this.effect()
-          let dis = "x" + format(eff[0]) + " YooA Light, x" + format(eff[1]) + " Arin Light, x" + format(eff[2]) + " Seunghee Light"
+          let dis = "<span style='font-size:10px'>x" + format(eff[0]) + " YooA Light, x" + format(eff[1]) + " Arin Light, x" + format(eff[2]) + " Seunghee Light</span>"
           return dis;
         },
         unlocked() {
@@ -1222,6 +1375,20 @@ export const gameLayers = {
           return dis;
         },
       },
+      45: {
+        title: "Dimensional Power Genesis (YM 45)",
+        description() {
+          return "Each YooA Dimension creates Power and Energy, and Blooming OMG 14 starts " + formatWhole(25) + " levels later."
+        },
+        cost: new Decimal("ee6e36"),
+        costCurrency: "YooAmatter",
+        costLayer: "YooAmatter",
+        costInternal: "amount",
+        maxLvl: dOne,
+        unlocked() {
+          return hasUpgrade("OMG", 33)
+        }
+      },
       51: {
         title: "YooArium Simplifier (YM 51)",
         description() {
@@ -1248,7 +1415,7 @@ export const gameLayers = {
       52: {
         title: "Transcendent Computation (YM 52)",
         description() {
-          return "YooAmatter Sparks boost YMC last rewards, and make 'YooA Solver' (YU 12) and 'Dimension Solver' (YU 22) softcaps weaker."
+          return "<span style='font-size:11px'>YooAmatter Sparks boost YMC last rewards, and make 'YooA Solver' (YU 12) and 'Dimension Solver' (YU 22) softcaps weaker.</span>"
         },
         cost: new Decimal(1e7),
         costCurrency: "YooAmatter Sparks",
@@ -1270,7 +1437,7 @@ export const gameLayers = {
       53: {
         title: "Mathematical Ascendancy (YM 53)",
         description() {
-          return "Boost all YooAmatter Formations based on math problems solved, and add " + formatWhole(5) + " levels to 'YooA Mastery' (YU 32) and increase its added levels by " + formatWhole(2) + "."
+          return "<span style='font-size:11px'>Boost all YooAmatter Formations based on math problems solved, and add " + formatWhole(5) + " levels to 'YooA Mastery' (YU 32) and increase its added levels by " + formatWhole(2) + ".</span>"
         },
         cost: new Decimal(1e13),
         costCurrency: "YooAmatter Sparks",
@@ -1302,6 +1469,28 @@ export const gameLayers = {
         maxLvl: dOne,
         effect() {
           let eff = player.YooAPoints.div("e55555").add(1).dilate(0.5).pow(0.02)
+          return eff;
+        },
+        effectDisplay() {
+          let dis = "x" + format(this.effect())
+          return dis;
+        },
+        onBuy() {
+          updateAllAutobuyerTime(player.autobuyers)
+        }
+      },
+      55: {
+        title: "Spark Formation Heartlink (YM 55)",
+        description() {
+          return "YooA Points boost Fan Heart gain, add " + format(0.5) + " to YooAmatter Spark 2nd effect exponent, and unlock YooAmatter Formation Ranks."
+        },
+        cost: new Decimal("ee3e45"),
+        costCurrency: "YooAmatter Sparks",
+        costLayer: "YooAmatter",
+        costInternal: "sparks",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.YooAPoints.add(10).log10().add(10).log10().add(10).log10().sub(46).max(0).pow(1.2).div(2).add(1)
           return eff;
         },
         effectDisplay() {
@@ -1406,16 +1595,17 @@ export const gameLayers = {
 
           let tril = 1
           if (hasUpgrade("OMG", 24)) tril *= 1.0618
+          if (hasUpgrade("OMG", 34)) tril *= 1.08
           if (hasUpgrade("Seunghee", 33)) tril *= 1.125
 
           let eff2 = player.stats.YooAmatter.resets.add(1).log10().pow(2).div(200).add(1)
           if (hasUpgrade("Arinium", 15)) eff2 = eff2.pow(3)
           eff2 = eff2.dilate(dil).trilate(tril)
-          
+
           let exp3 = 0.8
           if (hasUpgrade("YooAmatter", 52)) exp3 = Decimal.mul(exp3, upgradeEffect("YooAmatter", 52))
           let eff3 = player.stats.YooAmatter.resets.div(100).add(1).pow(exp3)
-          
+
           return [0.85, eff2, eff3];
         },
         rewardEffectDisplay() {
@@ -1559,6 +1749,79 @@ export const gameLayers = {
           return "+" + format(this.effect().sub(1).mul(100)) + "% stronger";
         },
       },
+      21: {
+        title() {
+          return (getUpgLevels("sparks", 21).gte(308) ? scaleText("Blooming", "blooming") + " " : "") + "Harmonic Spark Dilation (YS 21)"
+        },
+        description() {
+          return "Multiply YooAmatter Sparks 2nd effect exponent and dilate YooA Points by " + format(this.base()) + " (Based on YooAmatter Harmonics)."
+        },
+        cost(x = getUpgLevels("sparks", 21)) {
+          if (x.gte(308)) x = x.div(308).pow(2).mul(308)
+          if (x.gte(25)) x = x.div(25).pow(1.1).mul(40).sub(15)
+          if (x.gte(12)) x = x.div(12).pow(1.5).mul(12)
+          return pow(1.8, x.pow(1.2)).mul(50);
+        },
+        invCost(x) {
+          let cost = x.div(50).log(1.8).root(1.2)
+          if (cost.gte(12)) cost = cost.div(12).pow(1/1.5).mul(12)
+          if (cost.gte(25)) cost = cost.add(15).div(40).pow(1/1.1).mul(25)
+          if (cost.gte(308)) cost = cost.div(308).pow(0.5).mul(308)
+          return cost;
+        },
+        costCurrency: "YooAmatter Harmonics",
+        costLayer: "YooAmatter",
+        costInternal: "harmonics",
+        base() {
+          let base = player.YooAmatter.harmonics.add(10).log10().pow(0.3)
+          if (base.gte(2)) base = base.div(2).root(1.75).mul(3.5).sub(1.5)
+          return base
+        },
+        effect() {
+          return this.base().pow(getUpgLevels("sparks", 21));
+        },
+        effectDisplay() {
+          return "x" + format(this.effect()) + " YS 2nd effect exponent and YooA Point dilation";
+        },
+        unlocked() {
+          return hasUpgrade("OMG", 33)
+        }
+      },
+      22: {
+        title() {
+          return (getUpgLevels("sparks", 22).gte(25) ? scaleText("Blooming", "blooming") + " " : "") + "Transcendent Formation Resonance (YS 22)"
+        },
+        description() {
+          return "Multiply YooAmatter Resonance by " + format(this.base()) + " (Based on Transcension time and Highest Tier Formation with Ranks)."
+        },
+        cost(x = getUpgLevels("sparks", 22)) {
+          if (x.gte(25)) x = x.div(25).pow(2).mul(25)
+          return pow(4, x.pow(2)).mul(1e3);
+        },
+        invCost(x) {
+          let cost = x.div(1e3).log(4).root(2)
+          if (cost.gte(25)) cost = cost.div(25).pow(0.5).mul(25)
+          return cost;
+        },
+        costCurrency: "YooAmatter Harmonics",
+        costLayer: "YooAmatter",
+        costInternal: "harmonics",
+        base() {
+          let highestTier = new Decimal(getHighestRankedTier(player.dimensions.YooAmatter)).max(1)
+          let exp = highestTier.sub(1).min(2).add(highestTier.sub(3).max(0).pow(0.5).div(2))
+          let base = player.stats.YooAity.time.div(60).add(1).log10().pow(0.4).mul(exp).div(5).pow10()
+          return base
+        },
+        effect() {
+          return this.base().pow(getUpgLevels("sparks", 22));
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+        unlocked() {
+          return hasUpgrade("OMG", 33)
+        }
+      },
     },
   },
   YooAity: {
@@ -1580,6 +1843,7 @@ export const gameLayers = {
       let gain = upgradeEffect("OMG", 14)[0]
       if (hasMilestone("YooAity", 23)) gain = gain.mul(2015)
       if (hasUpgrade("Seunghee", 32)) gain = gain.mul(upgradeEffect("Seunghee", 32))
+      if (hasUpgrade("Yubin", 31)) gain = gain.mul(upgradeEffect("Yubin", 31))
       return gain
     },
     problemGain() {
@@ -1641,8 +1905,11 @@ export const gameLayers = {
       return gain
     },
     getEffectiveProblems() {
-      let x = player.math.YooAity.solved
-      if (hasUpgrade("Seunghee", 31)) x = x.dilate(1.15)
+      let dil = 1
+      if (hasUpgrade("Seunghee", 31)) dil *= 1.15
+      if (hasUpgrade("Yubin", 31)) dil *= 1.02
+      if (hasUpgrade("Arinium", 32)) dil *= 1.15
+      let x = player.math.YooAity.solved.dilate(dil)
       return x;
     },
     getEffectiveAge(baseAge = player.YooAity.age) { //age is in seconds
@@ -1657,14 +1924,22 @@ export const gameLayers = {
       if (age.gte(196e6)) age = age.pow(0.5).mul(1400).add(1764e5)
       if (age.gte(292e6)) age = age.mul(0.15).add(2482e5)
       if (age.gte(4e8)) age = age.pow(0.5).mul(5e3).add(3e8).min(7155 * 86400)
-      let age2req = hasUpgrade("YooAity", 55) ? "ee5" : "ee6"
+
+      // after debut
+      let age2req = hasUpgrade("YooAity", 55) ? "ee5" : Decimal.dInf 
       let age2 = baseAge.div(age2req).add(1).log10().pow(0.8)
       if (age2.gte(3e7)) age2 = age2.add(97e7).mul(0.03).min(995 * 86400)
-      let age3req = hasUpgrade("YooA", 44) ? "ee22" : "ee33"
+
+      // after secret garden
+      let age3req = hasUpgrade("YooA", 44) ? "ee22" : Decimal.dInf
       let age3 = baseAge.div(age3req).add(1).log10().div(Decimal.log10(age3req)).add(1).log10().dilate(2).pow(2)
       if (age3.gte(19e6)) age3 = age3.div(19e6).pow(0.2).mul(3e6).add(16e6).min(244 * 86400)
-      let age4req = hasUpgrade("YooA", 44) && !hasUpgrade("YooA", 44) ? "eee2222" : "eee3333"
-      let age4 = baseAge.div(age4req).add(1).log10().div(Decimal.log10(age4req)).add(1).log10().dilate(2).pow(2).min(995 * 86400)
+
+      // after remember me
+      let age4req = hasMilestone("YooAity", 34) ? "ee2000" : Decimal.dInf
+      let age4 = baseAge.div(age4req).add(1).log10().div(Decimal.log10(age4req)).add(1).log10()
+      if (hasMilestone("YooAity", 34)) age4 = age4.mul(milestoneEffect("YooAity", 34)[1])
+      if (hasUpgrade("Arinium", 34)) age4 = age4.mul(upgradeEffect("Arinium", 34))
       age = age.add(age2).add(age3).add(age4)
       return age
     },
@@ -1683,7 +1958,7 @@ export const gameLayers = {
       return base.pow(exp).mul(this.getYooChroniumEffect()[0]).pow(exp2)
     },
     getAgeEffGain() {
-      const effAge = this.getEffectiveAge();
+      const effAge = GameCache.YooAity_getEffectiveAge.value;
       const realAge = player.YooAity.age;
       const realGain = this.getAgeGain();
 
@@ -1800,7 +2075,7 @@ export const gameLayers = {
       return effGain;
     },
     getAgeEffect() {
-      let age = this.getEffectiveAge()
+      let age = GameCache.YooAity_getEffectiveAge.value
       let eff = age.add(1)
       if (age.gte(315e6)) age = age.div(315e6).pow(5).mul(2315e6).sub(2e9)
       if (age.gte(196e6)) age = age.div(196e6).pow(5).mul(7e8).sub(504e6)
@@ -1822,6 +2097,7 @@ export const gameLayers = {
       if (player.achievements[61]) gain = gain.mul(GameCache.AchievementMult.value);
       if (hasUpgrade("YooAity", 33)) gain = gain.mul(upgradeEffect("YooAity", 33))
       if (hasUpgrade("Seunghee", 34)) gain = gain.pow(upgradeEffect("Seunghee", 34))
+      if (hasUpgrade("Yubin", 32)) gain = gain.pow(upgradeEffect("Yubin", 32))
       return gain
     },
     getYooChroniumEffectExp() {
@@ -1856,6 +2132,7 @@ export const gameLayers = {
       if (hasMilestone("YooAity", 25)) {
         let exp = gameLayers.Seunghee.upgrades[21].gainExp().mul(gameLayers.OMG.getSkillEffect("Seunghee", "vocals"))
         if (hasUpgrade("Seunghee", 33)) exp = exp.mul(upgradeEffect("Seunghee", 33))
+        if (hasUpgrade("Yubin", 34)) exp = exp.mul(upgradeEffect("Yubin", 34))
         gain = gain.pow(exp)
       }
       return gain
@@ -1880,7 +2157,12 @@ export const gameLayers = {
       if (hasUpgrade("YooAity", 45)) gain = gain.mul(9.17)
       if (hasUpgrade("Yubin", 23)) gain = gain.mul(upgradeEffect("Yubin", 23))
       if (hasUpgrade("Yubin", 24)) gain = gain.mul(upgradeEffect("Yubin", 24))
-      if (hasMilestone("YooAity", 25)) gain = gain.pow(Decimal.sub(1, gameLayers.Yubin.upgrades[21].exp()).recip())
+        if (hasMilestone("YooAity", 25)) {
+        let exp = gameLayers.Yubin.upgrades[21].gainExp().mul(gameLayers.OMG.getSkillEffect("Yubin", "vocals"))
+        if (hasUpgrade("Yubin", 33)) exp = exp.mul(upgradeEffect("Yubin", 33))
+        if (hasUpgrade("Yubin", 34)) exp = exp.mul(upgradeEffect("Yubin", 34))
+        gain = gain.pow(exp)
+      }
       return gain
     },
     getYubinEffect() {
@@ -1900,6 +2182,7 @@ export const gameLayers = {
         .mul(gameLayers.OMG.getMiracleLightEffect()[0])
       if (hasUpgrade("Hyojung", 12)) gain = gain.mul(upgradeEffect("Hyojung", 12))
       if (hasUpgrade("Arinium", 24)) gain = gain.mul(upgradeEffect("Arinium", 24))
+      if (hasUpgrade("Hyojung", 31)) gain = gain.pow(upgradeEffect("Hyojung", 31))
       return gain
     },
     getHyojungEffect() {
@@ -1907,6 +2190,7 @@ export const gameLayers = {
       if (hasUpgrade("Hyojung", 22)) dil *= 1.3
       if (hasUpgrade("Hyojung", 23)) dil *= 1.1
       if (hasUpgrade("Mimi", 23)) dil *= 1.2
+      if (hasUpgrade("Yubin", 33)) dil *= 1.45
       let x = player.YooAity.HyojungPoints.dilate(dil)
 
       let exp = 1
@@ -1933,6 +2217,7 @@ export const gameLayers = {
       if (hasUpgrade("Hyojung", 22)) dil *= 1.3
       if (hasUpgrade("Hyojung", 23)) dil *= 1.1
       if (hasUpgrade("Mimi", 23)) dil *= 1.2
+      if (hasUpgrade("Yubin", 33)) dil *= 1.8
       let x = player.YooAity.MimiPoints.dilate(dil)
 
       let exp = 1
@@ -2026,7 +2311,7 @@ export const gameLayers = {
           return gain
         },
         effect() {
-          return gameLayers.YooAmatter.problemGain().mul(this.percent().div(100));
+          return GameCache.YooAmatter_problemGain.value.mul(this.percent().div(100));
         },
         effectDisplay() {
           let gain = this.effect()
@@ -2269,10 +2554,10 @@ export const gameLayers = {
           }
           if (hasUpgrade("Arinium", 23)) exp1 = exp1.mul(9.17)
           if (hasUpgrade("Seunghee", 33)) exp2 *= 420
-          
+
           let eff = x.add(1).dilate(3).pow(exp1)
           let eff2 = prob.add(10).log10().pow(exp2)
-          
+
           return [eff, eff2]
         },
         effectDisplay() {
@@ -2354,7 +2639,7 @@ export const gameLayers = {
           if (hasMilestone("YooAity", 15)) digits *= 1.7
           let prob = pow(pow10(digits * 3), Decimal.abs(pow10(digits)))
           if (prob.gte(1e75)) prob = prob.log10().div(75).pow(0.6).mul(75).pow10()
-          
+
           let exp = prob.add(10).log10().pow(0.5).mul(0.06)
           if (hasUpgrade("Arinium", 12)) exp = exp.mul(1.1)
           if (hasUpgrade("Yubin", 24)) exp = exp.mul(1.4)
@@ -2479,7 +2764,7 @@ export const gameLayers = {
         costLayer: "YooAity",
         costInternal: "amount",
         base() {
-          let base = gameLayers.YooAity.getEffectiveAge().div(5.5e7).pow(0.6).sub(1).div(5).max(0)
+          let base = GameCache.YooAity_getEffectiveAge.value.div(5.5e7).pow(0.6).sub(1).div(5).max(0)
           if (base.gte(0.025)) base = base.div(0.025).pow(0.25).mul(0.05).sub(0.025)
           return base
         },
@@ -2510,7 +2795,7 @@ export const gameLayers = {
         costLayer: "YooAity",
         costInternal: "amount",
         base() {
-          let base = gameLayers.YooAity.getEffectiveAge().div(8e7).pow(0.45).sub(1).div(5).max(0)
+          let base = GameCache.YooAity_getEffectiveAge.value.div(8e7).pow(0.45).sub(1).div(5).max(0)
           if (base.gte(0.03)) base = base.div(0.03).pow(0.2).mul(0.15).sub(0.12)
           if (base.gte(0.037)) base = base.div(0.037).pow(0.8).mul(0.02).add(0.017)
           return base
@@ -2765,7 +3050,7 @@ export const gameLayers = {
           return "Unlock YooChronium, YooA Dimensions scale " + formatWhole(1e4) + " levels later, and YooAmatter Formations and YooAmatter and Spark Upgrades cost nothing."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(60)
+          return GameCache.YooAity_getEffectiveAge.value.gte(60)
         },
       },
       13: {
@@ -2774,7 +3059,7 @@ export const gameLayers = {
           return "Gain " + format(1) + "% of YooAmatter gained on Ascension per second, YooA Dimensions scale " + formatWhole(8e4) + " levels later, and 'Shi-ah's Temporal Chorus' (YE 15) is based on fastest Ascension this game."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(28800)
+          return GameCache.YooAity_getEffectiveAge.value.gte(28800)
         },
       },
       14: {
@@ -2783,7 +3068,7 @@ export const gameLayers = {
           return "Unlock YooA Dimension ranks, buy max Shi-ah Echoes, YooA Lines and YooA Planes cost multipliers are raised to " + format(1e-4) + ", and Arin levels cost nothing."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400)
         },
       },
       15: {
@@ -2792,7 +3077,7 @@ export const gameLayers = {
           return "Unlock max Arin Rank. Reduce the digits in YooAity math problems by " + format(40) + "% and increase the effective digits in YE 32 by " + format(70) + "%."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 30)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 30)
         },
         onComplete() {
           generateNewProblem("YooAity")
@@ -2804,7 +3089,7 @@ export const gameLayers = {
           return "Unlock Seunghee."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 130)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 130)
         },
       },
       17: {
@@ -2813,7 +3098,7 @@ export const gameLayers = {
           return "Unlock Yubin, Arin Rank autobuyer, and more YooAity Prestiger options."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 723)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 723)
         },
       },
       18: {
@@ -2822,7 +3107,7 @@ export const gameLayers = {
           return "Unlock Arinium."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 1370)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 1370)
         },
       },
       19: {
@@ -2831,7 +3116,7 @@ export const gameLayers = {
           return "Unlock Hyojung, YooAity upgrade autobuyer, and Shi-ah Echoes autobuyer. Arin Ranks, YooAity upgrades, and Shi-ah Echoes cost nothing."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 2506)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 2506)
         },
       },
       20: {
@@ -2840,7 +3125,7 @@ export const gameLayers = {
           return "Unlock Mimi and YooA Dimension Rank autobuyer."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 3514)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 3514)
         },
       },
       21: {
@@ -2858,7 +3143,7 @@ export const gameLayers = {
           return "^" + format(eff[0]) + " YooA Points, ^" + format(eff[1]) + " YooArium"
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 7166)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 7166)
         },
       },
       22: {
@@ -2867,7 +3152,7 @@ export const gameLayers = {
           return "Unlock Arinium, Hyojung, and Mimi upgrades autobuyer and Arin Tier."
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 7214)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 7214)
         },
       },
       23: {
@@ -2881,7 +3166,7 @@ export const gameLayers = {
           if (hasMilestone("YooAity", 15)) digits *= 1.7
           let prob = pow(pow10(digits * 3), Decimal.abs(pow10(digits)))
           if (prob.gte(1e75)) prob = prob.log10().div(75).pow(0.6).mul(75).pow10()
-          
+
           let exp2 = 1
           if (hasUpgrade("Arinium", 12)) exp2 *= 1.3
           if (hasUpgrade("Yubin", 24)) exp2 *= 1.4
@@ -2894,7 +3179,7 @@ export const gameLayers = {
           return format(this.effect()) + "/s"
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 7521)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 7521)
         },
       },
       24: {
@@ -2913,7 +3198,9 @@ export const gameLayers = {
         },
         effect() {
           let e = Decimal.mul(5, hasUpgrade("OMG", 32) ? 10 : 1)
-          return player.stats.YooAity.totalAmount.add(10).log10().add(10).log10().div(1e12).add(1).pow(e);
+          let d = hasMilestone("YooAity", 30) ? 1.4 : 1
+          d *= hasMilestone("YooAity", 31) ? 1.1 : 1
+          return player.stats.YooAity.totalAmount.add(10).log10().add(10).log10().div(1e12).add(1).pow(e).dilate(d);
         },
         effectDisplay() {
           return "x" + format(this.effect())
@@ -2949,7 +3236,7 @@ export const gameLayers = {
           return "^" + format(this.effect())
         },
         done() {
-          return gameLayers.YooAity.getEffectiveAge().gte(86400 * 8166)
+          return GameCache.YooAity_getEffectiveAge.value.gte(86400 * 8166)
         },
       },
       28: {
@@ -2968,6 +3255,112 @@ export const gameLayers = {
         },
         done() {
           return gameLayers.OMG.getLevels("Seunghee", "vocals").gte(50)
+        },
+      },
+      29: {
+        title() { return formatWhole(5) + " CLOSER Album Streams" },
+        description() {
+          return "CLOSER Album Streams boost Fan Heart gain."
+        },
+        effect() {
+          let eff = pow(91.7, player.YooAity.stream.streams["CLOSER"].add(1).log10().dilate(1.2)).div(100).add(1)
+          return eff;
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "x" + format(eff)
+        },
+        done() {
+          return player.YooAity.stream.streams["CLOSER"].gte(5)
+        },
+      },
+      30: {
+        title() { return "Yubin Vocals Level " + formatWhole(5) },
+        description() {
+          return "Gain " + format(909) + "x Seunghee Light and " + format(1.03) + "x Fan Hearts and YooAmatter Harmonics per Yubin Vocal level. Dilate YooAity milestone 25 effect to " + format(1.4) + "."
+        },
+        effect() {
+          let eff = pow(909, gameLayers.OMG.getLevels("Yubin", "vocals"))
+          let eff2 = pow(1.03, gameLayers.OMG.getLevels("Yubin", "vocals"))
+          return [eff, eff2];
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "x" + format(eff[0]) + " Seunghee Light, x" + format(eff[1]) + " Fan Hearts and YooAmatter Harmonics"
+        },
+        done() {
+          return gameLayers.OMG.getLevels("Yubin", "vocals").gte(5)
+        },
+      },
+      31: {
+        title() { return formatWhole(1e6) + " MIRACLEs" },
+        description() {
+          return "Gain " + format(1.1) + "x Fan Hearts and YooAmatter Harmonics per cube-rooted MIRACLE beyond " + formatWhole(1e6) + ". Dilate YooAity milestone 25 effect to " + format(1.1) + " and unlock buy max Fandom Upgrades."
+        },
+        effect() {
+          let eff = pow(1.1, gameLayers.OMG.getMIRACLEs().sub(1e6).pow(1/3))
+          return eff;
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "x" + format(eff) + " Fan Hearts and YooAmatter Harmonics"
+        },
+        done() {
+          return gameLayers.OMG.getMIRACLEs().gte(1e6)
+        },
+      },
+      32: {
+        title() { return "COLORING BOOK Unlocked" },
+        description() {
+          return "COLORING BOOK Album streams boost MIR 11 effective level amount and MIR 12 effective level exponent."
+        },
+        effect() {
+          let eff = player.YooAity.stream.streams.COLORINGBOOK.add(1).log10().mul(0.2).add(1)
+          return eff;
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "x" + format(eff)
+        },
+        done() {
+          return player.YooAity.stream.unlocked.COLORINGBOOK
+        },
+      },
+      33: {
+        title() { return "SECRET GARDEN Unlocked" },
+        description() {
+          return "SECRET GARDEN Album streams boost MIR 11 effective level exponent and Formation multiplier per rank. Trilate AR 12 effect to " + format(1.3) + "."
+        },
+        effect() {
+          let eff = player.YooAity.stream.streams.SECRETGARDEN.div(10).add(1).log10().pow(0.6).mul(0.03)
+          let eff2 = player.YooAity.stream.streams.SECRETGARDEN.div(20).add(1).log10().pow(0.3).mul(0.0123)
+          return [eff, eff2];
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "+" + format(eff[0], 3) + " MIR 11 effective level exponent, +" + format(eff[1], 3) + " Formation multiplier per rank"
+        },
+        done() {
+          return player.YooAity.stream.unlocked.SECRETGARDEN
+        },
+      },
+      34: {
+        title() { return "REMEMBER ME Unlocked" },
+        description() {
+          return "REMEMBER ME Album streams boost MIR 14 effective level exponent and YooA effective aging speed (Remember Me release), and YooA can start aging after Remember Me release."
+        },
+        effect() {
+          let eff = player.YooAity.stream.streams.REMEMBERME.div(10).add(1).log10().pow(0.6).mul(0.1)
+          let eff2 = player.YooAity.stream.streams.REMEMBERME.div(10).add(1)
+          if (eff2.gte(100)) eff2 = eff2.div(100).pow(1/3).mul(40).add(60)
+          return [eff, eff2];
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "+" + format(eff[0], 3) + " MIR 14 effective level exponent, x" + format(eff[1]) + " YooA effective aging speed"
+        },
+        done() {
+          return player.YooAity.stream.unlocked.REMEMBERME
         },
       },
     }
@@ -3421,7 +3814,7 @@ export const gameLayers = {
         },
         gainExp() {
           let x = getUpgLevels("Yubin", 21)
-          //if (hasUpgrade("Yubin", 34)) x = x.pow(1.1)
+          if (hasUpgrade("Yubin", 34)) x = x.pow(1.1)
           let exp = x.div(20).add(1)
           return exp
         },
@@ -3495,6 +3888,78 @@ export const gameLayers = {
           return "x" + format(this.effect());
         },
       },
+      31: {
+        title: "Prismatic Theorem (YB 31)",
+        description() {
+          return "Yubin Points boost YooAity math problem and YooA Light gain. Dilate effective YooAity math problems to " + format(1.02) + "."
+        },
+        cost: new Decimal("ee90"),
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.YooAity.YubinPoints.add(10).log10().div(1e85).add(1).dilate(1.6).pow(10);
+          return eff
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      32: {
+        title: "Harmonic Chronoprism (YB 32)",
+        description() {
+          return "Yubin Points boost YooChronium gain. Raise YooA Skill Sparkles gain to " + format(1.5) + " and gain " + format(1.909) + "x more YooAmatter Harmonics."
+        },
+        cost: new Decimal("ee102"),
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.YooAity.YubinPoints.add(10).log10().div(1e100).dilate(0.5).pow(0.2);
+          return eff
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      33: {
+        title: "Prismatic Member Convergence (YB 33)",
+        description() {
+          return "Arinium boosts effective Yubin Point gain. Cube Miracle Light exponent's effect on the 1st effect and dilate effective Arinium, Hyojung, and Mimi Points in 1st effects to " + format(1.4) + ", " + format(1.45) + ", " + format(1.8) + "."
+        },
+        cost: new Decimal("e1.11e111"),
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.Arin.Arinium.add(10).log10().div(1e40).add(1).pow(0.25);
+          return eff
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      34: {
+        title: "Ascension's Prismatic Bloom (YB 34)",
+        description() {
+          return "Ascensions raise effective Seunghee and Yubin Point gain and dilate YooA Point gain. Raise 'Prismatic Bloom' (YB 21) effective levels to " + format(1.1) + " and unlock Yubin's Training."
+        },
+        cost: new Decimal("ee120"),
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        maxLvl: dOne,
+        effect() {
+          let eff = player.stats.YooAmatter.resets.add(10).log10().dilate(0.2).pow(0.1).add(1)
+          return eff
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
     },
   },
   Arinium: {
@@ -3528,10 +3993,15 @@ export const gameLayers = {
         costLayer: "Arin",
         costInternal: "Arinium",
         effect() {
+          let tril = hasUpgrade("OMG", 43) ? 1.2 : 1
+          tril *= hasUpgrade("Fandom", 25) ? 1.1 : 1
+          tril *= hasMilestone("YooAity", 33) ? 1.3 : 1
+          let dil = hasUpgrade("OMG", 32) ? 4.2015 : 1
+          dil *= hasUpgrade("OMG", 42) ? 909 : 1
           let x = player.stats.YooAity.resets
           if (x.gte(1e18)) x = x.log10().div(18).pow(0.25).mul(72).sub(54).pow10().div(1e18).pow(0.5).mul(2e18).sub(1e18)
           if (x.gte(1e9)) x = x.div(1e9).pow(0.5).mul(2e9).sub(1e9)
-          let eff = x.pow(Decimal.mul(0.3, hasUpgrade("OMG", 32) ? 4.2015 : 1)).pow10()
+          let eff = x.log10().mul(Decimal.mul(0.3, dil)).pow(tril).pow10().pow10()
           return eff;
         },
         effectDisplay() {
@@ -3566,8 +4036,9 @@ export const gameLayers = {
         costLayer: "Arin",
         costInternal: "Arinium",
         effect() {
-          let eff = gameLayers.YooAity.getEffectiveAge().sub(15e7).div(2e7).pow(1.2).pow10().add(1)
-          eff = eff.pow(gameLayers.YooAity.getEffectiveAge().sub(649e6).div(5e5).pow(1.5).add(1))
+          const age = GameCache.YooAity_getEffectiveAge.value
+          let eff = age.sub(15e7).div(2e7).pow(1.2).pow10().add(1)
+          eff = eff.pow(age.sub(649e6).div(5e5).pow(1.5).add(1))
           return eff
         },
         effectDisplay() {
@@ -3644,10 +4115,13 @@ export const gameLayers = {
         costLayer: "Arin",
         costInternal: "Arinium",
         effect() {
+          let dil = hasUpgrade("OMG", 32) ? 1.2 : 1
+          dil *= hasUpgrade("OMG", 42) ? 1.2 : 1
+          dil *= hasUpgrade("OMG", 43) ? 1.1 : 1
           const transTime = player.stats.YooAity.time
           const base = player.YooAPoints.add(10).log10().add(10).log10().dilate(3).pow(0.2)
           const time = transTime.min(5).mul(transTime.div(5).max(1).pow(0.6))
-          let eff = base.mul(time).dilate(hasUpgrade("OMG", 32) ? 1.2 : 1)
+          let eff = base.mul(time).dilate(dil)
           return eff
         },
         effectDisplay() {
@@ -3746,6 +4220,130 @@ export const gameLayers = {
           return "^" + format(eff[0]) + " YooArium, x" + format(eff[1]) + " Arinium";
         },
       },
+      31: {
+        title: "Perpetual Spiral Stream (AR 31)",
+        description() {
+          return "AR 23 effect raises Arinium gain. 'OH MY GIRL' Album can be streamed without being selected."
+        },
+        cost: new Decimal("e1.6e106"),
+        maxLvl: dOne,
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        effect() {
+          let base = upgradeEffect("Arinium", 23)
+          return base.add(10).log10().div(1e50).add(1)
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      32: {
+        title: "Golden Dilation Cascade (AR 32)",
+        description() {
+          return "Arinium 1st effect dilates YooA Point gain. Dilate effective YooAity math problems to " + format(1.15) + "."
+        },
+        cost: new Decimal("ee142"),
+        maxLvl: dOne,
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        effect() {
+          let base = GameCache.Arinium_effect.value[0]
+          return base.add(10).log10().div(1e150).add(1).pow(0.5)
+        },
+        effectDisplay() {
+          return "Dilate^" + format(this.effect());
+        },
+      },
+      33: {
+        title: "Ensemble Dilation Flow (AR 33)",
+        description() {
+          return "All OMG members' points' first effects dilate YooA Point gain. Multiply streaming speed by " + format(1.5) + " and allocate " + format(1) + "% Yubin Light to all skills per second without cost."
+        },
+        cost: new Decimal("ee290"),
+        maxLvl: dOne,
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        effect() {
+          let layer = gameLayers.YooAity
+          let base = layer.getSeungheeEffect()[0].add(10).log10()
+          .mul(layer.getYubinEffect()[0].add(10).log10())
+          .mul(layer.getHyojungEffect()[0].add(10).log10())
+          .mul(layer.getMimiEffect()[0].add(10).log10())
+          .div("e1380").add(1).pow(0.1)
+          return base
+        },
+        effectDisplay() {
+          return "Dilate^" + format(this.effect());
+        },
+      },
+      34: {
+        title: "Remember Me's Echo (AR 34)",
+        description() {
+          return "Arinium boosts YooA effective aging speed (after Remember Me release). Multiply streaming speed by " + format(1.5) + " and raise MIR 14 effective levels to " + format(1.25) + "."
+        },
+        cost: new Decimal("ee720"),
+        maxLvl: dOne,
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        effect() {
+          let base = player.Arin.Arinium.add(10).log10().add(10).log10().sub(720).max(0).div(1000).pow(0.35).add(1)
+          return base
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      35: {
+        title: "Fan Heart Radiance (AR 35)",
+        description() {
+          return "Arinium boosts MIRACLEs boost to Fan Hearts and raise MIR 14 effective levels to " + format(1.25) + "."
+        },
+        cost: new Decimal("ee1165"),
+        maxLvl: dOne,
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        effect() {
+          let base = player.Arin.Arinium.add(10).log10().add(10).log10().sub(1160).max(0).div(5).pow(0.6).add(1)
+          return base
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      36: {
+        title: "Arin's Sparkling Aria (AR 36)",
+        description() {
+          const base = this.base()
+          return "Increase Arin Skill Sparkles gain exponent by " + format(base) + " (based on Arinium) and Arin Vocals level boost to effect is better."
+        },
+        cost(x = getUpgLevels("Arinium", 36)) {
+          return pow(1e20, x.pow(1.2)).mul("e1240").pow10();
+        },
+        invCost(x) {
+          let cost = x.log10().div("e1240").log(1e20).root(1.2)
+          return cost;
+        },
+        costCurrency: "Arinium",
+        costLayer: "Arin",
+        costInternal: "Arinium",
+        base() {
+          let eff = player.Arin.Arinium.add(10).log10().add(10).log10().sub(1e3).max(0).pow(0.5).div(200)
+          return eff
+        },
+        effect() {
+          let eff = this.base().mul(getUpgLevels("Arinium", 36)).add(1)
+          return eff
+        },
+        effectDisplay() {
+          const eff = this.effect()
+          return "^" + format(eff);
+        },
+      },
     },
   },
   Hyojung: {
@@ -3794,7 +4392,7 @@ export const gameLayers = {
       12: {
         title: "Celestial Accord (HJ 12)",
         description() {
-          return "Each YooA Dimension rank multiplies Hyojung Point gain by x" + format(1.01) + ". Raise effective ranks for harmonization costs to " + format(0.9) + "."
+          return "Each YooA Dimension rank multiplies Hyojung Point gain by x" + format(1.01) + ". Raise effective YD ranks for harmonization costs to " + format(0.9) + "."
         },
         cost: new Decimal(10),
         maxLvl: dOne,
@@ -3948,6 +4546,64 @@ export const gameLayers = {
         },
         effect() {
           return this.base().mul(getUpgLevels("Hyojung", 24));
+        },
+        effectDisplay() {
+          return "+" + format(this.effect());
+        },
+      },
+      31: {
+        title: "Celestial Formation Bloom (HJ 31)",
+        description() {
+          return "Each 10 YooAmatter Formation ranks<sup>1.5</sup> raises Hyojung Point gain by ^" + format(1.01728, 5) + ". Gain 1.728x more money per stream."
+        },
+        cost: new Decimal("e15e240"),
+        maxLvl: dOne,
+        costCurrency: "Hyojung Points",
+        costLayer: "YooAity",
+        costInternal: "HyojungPoints",
+        effect() {
+          let ranks = dZero
+          for (let i = 0; i < 5; i++) {
+            ranks = ranks.add(player.dimensions.YooAmatter[i].rank)
+          }
+          let eff = pow(1.01728, ranks.pow(1.5).div(10))
+          return eff;
+        },
+        effectDisplay() {
+          return "^" + format(this.effect());
+        },
+      },
+      32: {
+        title: "Celestial MIRACLE Stream (HJ 32)",
+        description() {
+          return "Hyojung Points boost MIRACLE streaming speed."
+        },
+        cost: new Decimal("ee385"),
+        maxLvl: dOne,
+        costCurrency: "Hyojung Points",
+        costLayer: "YooAity",
+        costInternal: "HyojungPoints",
+        effect() {
+          let eff = player.YooAity.HyojungPoints.add(10).log10().add(10).log10().sub(380).div(100).pow(0.3).add(1)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      33: {
+        title: "Radiant Formation Resonance (HJ 33)",
+        description() {
+          return "Hyojung Points boost YooAmatter Formation multiplier per rank."
+        },
+        cost: new Decimal("ee850"),
+        maxLvl: dOne,
+        costCurrency: "Hyojung Points",
+        costLayer: "YooAity",
+        costInternal: "HyojungPoints",
+        effect() {
+          let eff = player.YooAity.HyojungPoints.add(10).log10().add(10).log10().sub(850).div(1000).pow(0.2).div(100)
+          return eff;
         },
         effectDisplay() {
           return "+" + format(this.effect());
@@ -4162,46 +4818,75 @@ export const gameLayers = {
     },
     getSparklesGain(member, skill) {
       const alloc = player.YooAity.OMGLightAllocated[member][skill]
+      let YooASparklesExp = hasUpgrade("Yubin", 32) ? new Decimal(1.5) : dOne
+      YooASparklesExp = YooASparklesExp.mul(upgradeEffect("YooA_energy", 14))
+      let ArinSparklesExp = upgradeEffect("Arinium", 36)
+
       let base = alloc.pow(0.4)
       let gain
       let vocalMult = {
         YooA: upgradeEffect("OMG", 16),
         Arin: upgradeEffect("OMG", 26),
-        Seunghee: dOne,
-        Yubin: dOne,
+        Seunghee: upgradeEffect("OMG", 36),
+        Yubin: upgradeEffect("OMG", 46),
         Hyojung: dOne,
         Mimi: dOne,
       }
       let danceMult = {
         YooA: upgradeEffect("OMG", 26),
-        Arin: new Decimal(0.1),
-        Seunghee: new Decimal(0.1),
-        Yubin: dOne,
+        Arin: new Decimal(0.1).mul(upgradeEffect("OMG", 36)),
+        Seunghee: new Decimal(0.1).mul(upgradeEffect("OMG", 46).pow(9.17)),
+        Yubin: new Decimal(0.3),
         Hyojung: dOne,
         Mimi: dOne,
       }
       let charismaMult = {
-        YooA: dOne,
-        Arin: dOne,
+        YooA: upgradeEffect("OMG", 36),
+        Arin: upgradeEffect("OMG", 46).pow(91.7),
         Seunghee: dOne,
         Yubin: dOne,
         Hyojung: dOne,
         Mimi: dOne,
       }
+      let vocalExp = {
+        YooA: YooASparklesExp,
+        Arin: ArinSparklesExp,
+        Seunghee: dOne,
+        Yubin: dOne,
+        Hyojung: dOne,
+        Mimi: dOne,
+      }
+      let danceExp = {
+        YooA: YooASparklesExp,
+        Arin: ArinSparklesExp,
+        Seunghee: dOne,
+        Yubin: dOne,
+        Hyojung: dOne,
+        Mimi: dOne,
+      }
+      let charismaExp = {
+        YooA: YooASparklesExp,
+        Arin: ArinSparklesExp,
+        Seunghee: dOne,
+        Yubin: dOne,
+        Hyojung: dOne,
+        Mimi: dOne,
+      }
+
       switch (skill) {
         case "vocals":
           if (base.gte(1e130)) base = base.log10().div(130).pow(0.65).mul(200).sub(70).pow10()
-          gain = base.mul(vocalMult[member])
+          gain = base.mul(vocalMult[member]).pow(vocalExp[member])
           break;
         case "dance":
           base = base.div(1.25 ** 100).pow(0.1)
           if (base.gte(1e130)) base = base.log10().div(130).pow(0.65).mul(200).sub(70).pow10()
-          gain = base.mul(danceMult[member])
+          gain = base.mul(danceMult[member]).pow(danceExp[member])
           break;
         case "charisma":
           base = base.div(1.25 ** 1100).pow(0.01)
           if (base.gte(1e130)) base = base.log10().div(130).pow(0.65).mul(200).sub(70).pow10()
-          gain = base.mul(charismaMult[member])
+          gain = base.mul(charismaMult[member]).pow(charismaExp[member])
           break;
       }
       return gain
@@ -4212,11 +4897,24 @@ export const gameLayers = {
     },
     getSkillEffect(member, skill) {
       const level = this.getLevels(member, skill)
-      let age = gameLayers.YooAity.getEffectiveAge()
+      let age = GameCache.YooAity_getEffectiveAge.value
       if (age.gte(8150 * 86400 + 19e6)) age = age.pow(age.sub(8150 * 86400 + 19e6).div(1e7).add(1).pow(0.5))
       let BaseDanceExp = age.sub(8150 * 86400).div(100).pow(0.5).add(1)
       if (BaseDanceExp.gte(5)) BaseDanceExp = BaseDanceExp.mul(5).pow(0.5).add(25).div(6)
       let DanceExp = BaseDanceExp.mul(level)
+
+      let sLevel = level.min(4e3).mul(level.div(4e3).pow(0.5).max(1).mul(2).sub(1))
+      let sLevel2 = sLevel.min(1e3).mul(sLevel.div(1e3).pow(0.5).max(1).mul(2).sub(1))
+      let SeungheeDanceLvl = sLevel2.min(120).mul(sLevel2.div(120).pow(0.75).max(1).mul(4/3).sub(1/3))
+      let SeungheeDanceEff = pow(1.03, GameCache.YooAity_getEffectiveAge.value.sub(8394 * 86400).div(1e4).pow(0.4).add(1).mul(SeungheeDanceLvl))
+      if (SeungheeDanceEff.gte(1e200)) SeungheeDanceEff = SeungheeDanceEff.log10().div(200).pow(0.5).mul(400).sub(200).pow10()
+
+      let yLevel = level.min(2e3).mul(level.div(2e3).pow(0.5).max(1).mul(2).sub(1))
+      let YubinDanceLvl = yLevel.min(600).mul(yLevel.div(600).pow(0.75).max(1).mul(4/3).sub(1/3))
+      let YubinDanceEff = pow(1.05, GameCache.YooAity_getEffectiveAge.value.sub(8394 * 86400).div(1e3).pow(0.4).add(1).mul(YubinDanceLvl))
+      if (YubinDanceEff.gte("e700")) YubinDanceEff = YubinDanceEff.log10().div(700).pow(0.5).mul(1400).sub(700).pow10()
+
+      let ArinVocalEffExp = level.div(1e6).add(1).pow(0.35)
       let eff;
       switch (member) {
         case "YooA":
@@ -4228,7 +4926,7 @@ export const gameLayers = {
           break;
         case "Arin":
           eff = {
-            vocals: player.Arin.Arinium.add(10).log10().add(10).log10().pow(0.7).div(100).mul(level).add(1),
+            vocals: player.Arin.Arinium.add(10).log10().add(10).log10().pow(0.7).div(100).mul(level).add(1).pow(ArinVocalEffExp),
             dance: DanceExp.min(1600).add(DanceExp.sub(1600).max(0).pow(0.75)),
             charisma: level.pow(1.3).mul(5).floor()
           };
@@ -4236,8 +4934,15 @@ export const gameLayers = {
         case "Seunghee":
           eff = {
             vocals: player.YooAity.SeungheePoints.add(10).log10().add(10).log10().pow(0.7).div(100).mul(level.pow(2)).add(1),
-            dance: pow(1.03, gameLayers.YooAity.getEffectiveAge().sub(8394 * 86400).div(100).pow(0.4).add(1).mul(level)),
-            charisma: level,
+            dance: SeungheeDanceEff,
+            charisma: level.pow(1.5).mul(100).floor(),
+          };
+          break;
+        case "Yubin":
+          eff = {
+            vocals: player.YooAity.YubinPoints.add(10).log10().add(10).log10().pow(0.7).div(100).mul(level.pow(3)).add(1),
+            dance: YubinDanceEff,
+            charisma: level.pow(1.8).mul(1e5).floor(),
           };
           break;
       }
@@ -4265,24 +4970,55 @@ export const gameLayers = {
         case "Seunghee":
           dis = {
             vocals: "^" + eff + " effective Seunghee Points (based on Seunghee Points)",
-            dance: "x" + eff + " Fan Hearts (based on YooA age) - NEXT UPDATE",
+            dance: "x" + eff + " Fan Hearts (based on YooA age)",
+            charisma: "+" + eff + " MIRACLEs"
+          };
+          break;
+        case "Yubin":
+          dis = {
+            vocals: "^" + eff + " effective Yubin Points (based on Yubin Points)",
+            dance: "x" + eff + " YooAmatter Resonance (based on YooA age)",
             charisma: "+" + eff + " MIRACLEs"
           };
           break;
       }
       return dis[skill]
     },
-    getMIRACLEs() {
-      return this.getSkillEffect("YooA", "charisma").add(this.getSkillEffect("Arin", "charisma"))
+    getBaseMIRACLEs() { // number of miracles (Oh My Girl fans) based on charisma levels without the softcap
+      let miracles = this.getSkillEffect("YooA", "charisma").add(this.getSkillEffect("Arin", "charisma")).add(this.getSkillEffect("Seunghee", "charisma")).add(this.getSkillEffect("Yubin", "charisma"))
+      return miracles.floor()
+    },
+    getMIRACLEs() { // number of miracles (Oh My Girl fans)
+      let miracles = this.getBaseMIRACLEs()
+      if (miracles.gte(2e5)) miracles = miracles.div(2e5).pow(0.5).mul(4e5).sub(2e5)
+      if (miracles.gte(1e6)) miracles = miracles.div(1e6).pow(0.1).mul(1e7).sub(9e6)
+      return miracles.floor()
+    },
+    getFanHeartGain() {
+      let miracles = this.getMIRACLEs()
+      if (hasUpgrade("Arinium", 35)) miracles = miracles.pow(upgradeEffect("Arinium", 35))
+      let gain = this.getSkillEffect("Seunghee", "dance").mul(miracles).mul(upgradeEffect("Fandom", 14)).mul(upgradeEffect("Fandom", 25))
+      if (hasUpgrade("Fandom", 12)) gain = gain.mul(upgradeEffect("Fandom", 12))
+      if (hasUpgrade("Fandom", 13)) gain = gain.mul(upgradeEffect("Fandom", 13))
+      if (hasUpgrade("YooAmatter", 55)) gain = gain.mul(upgradeEffect("YooAmatter", 55))
+      if (hasUpgrade("YooA_energy", 11)) gain = gain.mul(2)
+      if (hasMilestone("YooAity", 29)) gain = gain.mul(milestoneEffect("YooAity", 29))
+      if (hasMilestone("YooAity", 30)) gain = gain.mul(milestoneEffect("YooAity", 30)[1])
+      if (hasMilestone("YooAity", 31)) gain = gain.mul(milestoneEffect("YooAity", 31))
+      if (hasAchievement(77)) gain = gain.mul(GameCache.AchievementMult.value)
+      return gain
     },
     getMemberLightGainMult(member) {
       let mult = this.getMIRACLEEffect()[0]
       switch (member) {
         case "YooA":
           mult = mult.mul(upgradeEffect("OMG", 14)[1]).mul(upgradeEffect("OMG", 15))
+          if (hasUpgrade("YooA_energy", 13)) mult = mult.mul(upgradeEffect("YooA", 43))
           if (hasUpgrade("OMG", 12)) mult = mult.mul(upgradeEffect("OMG", 12))
           if (hasUpgrade("OMG", 23)) mult = mult.mul(upgradeEffect("OMG", 23))
           if (hasUpgrade("OMG", 33)) mult = mult.mul(upgradeEffect("OMG", 33))
+          if (hasUpgrade("OMG", 43)) mult = mult.mul(upgradeEffect("OMG", 43))
+          if (hasUpgrade("Yubin", 31)) mult = mult.mul(upgradeEffect("Yubin", 31))
           if (hasUpgrade("YooAmatter", 25)) mult = mult.mul(upgradeEffect("YooAmatter", 25)[1])
           if (hasUpgrade("YooAmatter", 35)) mult = mult.mul(upgradeEffect("YooAmatter", 35)[0])
           break;
@@ -4290,16 +5026,23 @@ export const gameLayers = {
           mult = mult.mul(upgradeEffect("OMG", 24)).mul(upgradeEffect("OMG", 25))
           if (hasUpgrade("OMG", 22)) mult = mult.mul(upgradeEffect("OMG", 22))
           if (hasUpgrade("OMG", 33)) mult = mult.mul(upgradeEffect("OMG", 33))
+          if (hasUpgrade("OMG", 43)) mult = mult.mul(upgradeEffect("OMG", 43))
           if (hasUpgrade("YooAmatter", 25)) mult = mult.mul(upgradeEffect("YooAmatter", 25)[2])
           if (hasMilestone("YooAity", 28)) mult = mult.mul(milestoneEffect("YooAity", 28)[1])
           if (hasUpgrade("YooAmatter", 35)) mult = mult.mul(upgradeEffect("YooAmatter", 35)[1])
           break;
         case "Seunghee":
-          //mult = mult
+          mult = mult.mul(upgradeEffect("Fandom", 11)).mul(upgradeEffect("OMG", 34)).mul(upgradeEffect("OMG", 35))
           if (hasUpgrade("OMG", 32)) mult = mult.mul(upgradeEffect("OMG", 32))
+          if (hasUpgrade("OMG", 43)) mult = mult.mul(upgradeEffect("OMG", 43))
           if (hasUpgrade("YooAmatter", 15)) mult = mult.mul(10)
           if (hasMilestone("YooAity", 28)) mult = mult.mul(milestoneEffect("YooAity", 28)[0])
+          if (hasMilestone("YooAity", 30)) mult = mult.mul(milestoneEffect("YooAity", 30)[0])
           if (hasUpgrade("YooAmatter", 35)) mult = mult.mul(upgradeEffect("YooAmatter", 35)[2])
+          break;
+        case "Yubin":
+          mult = mult.mul(upgradeEffect("OMG", 44)).mul(upgradeEffect("OMG", 45))
+          if (hasUpgrade("OMG", 42)) mult = mult.mul(upgradeEffect("OMG", 42))
           break;
       }
       return mult
@@ -4312,6 +5055,7 @@ export const gameLayers = {
       let gain = lights.YooA.dilate(dil).pow(lightExp.div(2)).div(10).mul(upgradeEffect("OMG", 14)[1]).mul(upgradeEffect("YooA", 43))
         .mul(lights.Arin.dilate(dil * 1.2).add(1).pow(lightExp))
         .mul(lights.Seunghee.dilate(dil * 1.4).add(1).pow(lightExp.mul(10)))
+        .mul(lights.Yubin.dilate(dil * 1.6).add(1).pow(lightExp.mul(909)))
         .mul(getArinTierEffect()[0])
       if (hasUpgrade("OMG", 12)) gain = gain.mul(4.2015)
       if (hasUpgrade("OMG", 13)) gain = gain.mul(upgradeEffect("OMG", 13))
@@ -4323,19 +5067,22 @@ export const gameLayers = {
       const lights = player.YooAity.OMGLight
       let exp2 = dOne
       if (hasUpgrade("OMG", 24)) exp2 = exp2.mul(1.1)
+      if (hasUpgrade("Fandom", 25)) exp2 = exp2.mul(1.3)
       if (hasMilestone("YooAity", 27)) exp2 = exp2.mul(milestoneEffect("YooAity", 27))
 
       let exp = lights.YooA.add(1).log10().pow(0.35)
         .mul(lights.Arin.add(1).log10().pow(0.4).div(10).add(1))
         .mul(lights.Seunghee.add(1).log10().pow(0.45).div(10).add(1))
+        .mul(lights.Yubin.add(1).log10().pow(0.5).div(10).add(1))
         .pow(exp2)
-      
+
       return exp
     },
     getMiracleLightEffect() {
       const x = player.YooAity.MiracleLight
       const exp = this.getMiracleLightExp()
       let exp1 = exp.pow(hasMilestone("YooAity", 27) ? 3 : 1)
+      exp1 = exp1.pow(hasUpgrade("Yubin", 33) ? 3 : 1)
       if (hasUpgrade("OMG", 16)) exp1 = exp1.mul(4.2015)
       if (hasUpgrade("OMG", 26)) exp1 = exp1.mul(42015)
       let eff = x.add(1).pow(exp1)
@@ -4347,6 +5094,7 @@ export const gameLayers = {
       if (x.gte(5)) x = x.div(5).pow(0.5).mul(10).sub(5)
       let eff = pow(6, x)
       if (eff.gte(1e75)) eff = eff.log10().div(75).pow(0.8).mul(20).add(55).pow10()
+      if (eff.gte(1e200)) eff = eff.log10().div(200).pow(0.67).mul(40).add(160).pow10()
       let eff2 = x.pow(0.5).div(20).add(1)
       return [eff, eff2]
     },
@@ -4356,7 +5104,7 @@ export const gameLayers = {
     },
     upgrades: {
       costsNothing() {
-        return false
+        return hasUpgrade("YooA_energy", 12)
       },
       rows: 6,
       cols: 6,
@@ -4420,6 +5168,7 @@ export const gameLayers = {
         start() {
           let start = new Decimal(65)
           if (hasUpgrade("YooAmatter", 35)) start = start.add(35)
+          if (hasUpgrade("YooAmatter", 45)) start = start.add(25)
           return start;
         },
         description() {
@@ -4484,7 +5233,7 @@ export const gameLayers = {
         title: "Sparkle-Tuned Resonance (OMG 15)",
         description() {
           const base = this.base()
-          return "Gain " + format(base) + "x YooA Light (based on Allocated YooA Light). Raise effective ranks for harmonization costs to " + format(0.99) + "."
+          return "Gain " + format(base) + "x YooA Light (based on Allocated YooA Light). Raise effective YD ranks for harmonization costs to " + format(0.99) + "."
         },
         cost(x = getUpgLevels("OMG", 15)) {
           if (x.gte(15)) x = x.div(15).pow(1.15).mul(23).sub(8)
@@ -4516,7 +5265,7 @@ export const gameLayers = {
         title: "Vocal Stardust Overflow (OMG 16)",
         description() {
           const base = this.base()
-          return "Gain " + format(base) + "x YooA Vocal Sparkles (based on YooA Points). Raise effective ranks for harmonization costs to " + format(0.98) + " and Miracle Light 1st eff to " + format(4.2015, 4) + "."
+          return "Gain " + format(base) + "x YooA Vocal Sparkles (based on YooA Points). Raise effective YD ranks for harmonization costs to " + format(0.98) + " and Miracle Light 1st eff to " + format(4.2015, 4) + "."
         },
         cost(x = getUpgLevels("OMG", 16)) {
           return pow(7, x.pow(1.6)).mul(5e10);
@@ -4594,7 +5343,7 @@ export const gameLayers = {
         costLayer: "Arin",
         costInternal: "Arinium",
         effect() {
-          let eff = player.YooAity.OMGLight.Arin.add(1).pow(0.7 * (hasUpgrade("OMG", 33) ? 1.5 : 1))
+          let eff = player.YooAity.OMGLight.Arin.add(1).pow(0.7 * (hasUpgrade("OMG", 33) ? 1.5 : 1) * (hasUpgrade("OMG", 34) ? 1.1 : 1))
           return eff;
         },
         effectDisplay() {
@@ -4636,6 +5385,7 @@ export const gameLayers = {
           const level = gameLayers.OMG.getLevels("YooA", "dance")
           let effLog = level.pow(0.85).mul(Math.log10(1.05))
           if (effLog.gte(4)) effLog = effLog.div(4).pow(0.6).mul(2).add(2)
+          if (effLog.gte(27e3)) effLog = effLog.div(27e3).pow(0.5).mul(9e3).add(18e3)
           return effLog.pow10();
         },
         effect() {
@@ -4650,7 +5400,7 @@ export const gameLayers = {
         title: "Arin's Allocated Brilliance (OMG 25)",
         description() {
           const base = this.base()
-          return "Gain " + format(base) + "x Arin Light (based on Allocated Arin Light). Raise effective ranks for harmonization costs to " + format(0.95) + "."
+          return "Gain " + format(base) + "x Arin Light (based on Allocated Arin Light). Raise effective YD ranks for harmonization costs to " + format(0.95) + "."
         },
         cost(x = getUpgLevels("OMG", 25)) {
           if (x.gte(40)) x = x.div(40).pow(1.15).mul(60).sub(20)
@@ -4684,7 +5434,7 @@ export const gameLayers = {
         title: "Arin-Mimi Spark Fusion (OMG 26)",
         description() {
           const base = this.base()
-          return "<span style='font-size: 11px;'>Gain " + format(base) + "x Arin Vocal and YooA Dance Sparkles (based on Arinium). Raise effective ranks for harmonization costs to " + format(0.9) + " and Miracle Light 1st eff to " + format(42015) + ". Dilate effective Mimi Points in 1st eff to " + format(1.25) + ".</span>"
+          return "<span style='font-size: 11px;'>Gain " + format(base) + "x Arin Vocal and YooA Dance Sparkles (based on Arinium). Raise effective YD ranks for harmonization costs to " + format(0.9) + " and Miracle Light 1st eff to " + format(42015) + ". Dilate effective Mimi Points in 1st eff to " + format(1.25) + ".</span>"
         },
         cost(x = getUpgLevels("OMG", 26)) {
           return pow(20, x.pow(1.65)).mul(1e78);
@@ -4720,7 +5470,7 @@ export const gameLayers = {
         costInternal: "SeungheePoints",
         effect() {
           let eff = player.YooAity.SeungheePoints.add(10).log(10).sub(5e50).pow(0.3).div(1e93).max(0)
-          eff = eff.mul(gameLayers.OMG.getMemberLightGainMult("Seunghee"))//.mul(player.YooAity.OMGLight.Seunghee.add(1).pow(0.97))
+          eff = eff.mul(gameLayers.OMG.getMemberLightGainMult("Seunghee"))
           return eff;
         },
         effectDisplay() {
@@ -4754,7 +5504,7 @@ export const gameLayers = {
       33: {
         title: "Seunghee Light Convergence (OMG 33)",
         description() {
-          return "Seunghee Light boosts YooA and Arin Light gain. Raise OMG 23 effect to " + format(1.5) + ". Unlock a row of Spark Upgrades (NEXT UPDATE) and a column of YooAmatter upgrades."
+          return "Seunghee Light boosts YooA and Arin Light gain. Raise OMG 23 effect to " + format(1.5) + ". Unlock a row of Spark Upgrades and a column of YooAmatter upgrades."
         },
         cost: new Decimal("e14e55"),
         maxLvl: dOne,
@@ -4762,7 +5512,7 @@ export const gameLayers = {
         costLayer: "YooAity",
         costInternal: "SeungheePoints",
         effect() {
-          let eff = player.YooAity.OMGLight.Seunghee.add(1).pow(3)
+          let eff = player.YooAity.OMGLight.Seunghee.add(1).pow(3 * (hasUpgrade("OMG", 34) ? 1.1 : 1))
           return eff;
         },
         effectDisplay() {
@@ -4771,6 +5521,545 @@ export const gameLayers = {
         unlocked() {
           return hasMilestone("YooAity", 27)
         }
+      },
+      34: {
+        title: "Arin's Dance Bloom (OMG 34)",
+        description() {
+          const base = this.base()
+          return "Gain " + format(base) + "x Seunghee Light (based on Arin Dance level). Trilate YMC 4 2nd effect to " + format(1.08) + " and raise OMG 23 and OMG 33 to " + format(1.1) + "."
+        },
+        cost(x = getUpgLevels("OMG", 34)) {
+          return pow(1e300, x.pow(2.2)).mul("e25000");
+        },
+        invCost(x) {
+          let cost = x.div("e25000").log(1e300).root(2.2)
+          return cost;
+        },
+        costCurrency: "Miracle Light",
+        costLayer: "YooAity",
+        costInternal: "MiracleLight",
+        base() {
+          const level = gameLayers.OMG.getLevels("Arin", "dance")
+          let effLog = level.pow(0.75).mul(Math.log10(1.03))
+          if (effLog.gte(2500)) effLog = effLog.div(2500).pow(0.5).mul(1500).add(1000)
+          return effLog.pow10();
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 34))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      35: {
+        title: "Seunghee's Allocated Radiance (OMG 35)",
+        description() {
+          const base = this.base()
+          return "Gain " + format(base) + "x Seunghee Light (based on Allocated Seunghee Light). Raise effective YD ranks for harmonization costs to " + format(0.9) + "."
+        },
+        cost(x = getUpgLevels("OMG", 35)) {
+          return pow("e400", x.pow(2.2)).mul("e30600");
+        },
+        invCost(x) {
+          let cost = x.div("e30600").log("e400").root(2.2)
+          return cost;
+        },
+        costCurrency: "Miracle Light",
+        costLayer: "YooAity",
+        costInternal: "MiracleLight",
+        base() {
+          const SeungheeLight = player.YooAity.OMGLightAllocated.Seunghee
+          let effLog = SeungheeLight.vocals.add(1).mul(SeungheeLight.dance.div(1e40).add(1)).mul(SeungheeLight.charisma.div(1e270).add(1)).log10().pow(0.5).mul(0.2)
+          if (effLog.gte(6)) effLog = effLog.div(6).pow(0.75).mul(2).add(4)
+          return effLog.pow10();
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 35))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      36: {
+        title: "Seunghee Sparkle Overflow (OMG 36)",
+        description() {
+          const base = this.base()
+          return "<span style='font-size: 11px;'>Gain " + format(base) + "x Seunghee Vocal, Arin Dance, and YooA Charisma Sparkles (based on Seunghee Points). Multiply all YooA Dimension powers by " + format(12.5) + "."
+        },
+        cost(x = getUpgLevels("OMG", 36)) {
+          return pow(1e5, x.pow(1.7)).mul(1e150);
+        },
+        invCost(x) {
+          let cost = x.div(1e150).log(1e5).root(1.7)
+          return cost;
+        },
+        costCurrency: "Seunghee Light",
+        costLayer: "YooAity",
+        costInternal: "OMGLight.Seunghee",
+        base() {
+          let eff = player.YooAity.SeungheePoints.add(10).log10().add(10).log10().dilate(1.2)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 36))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      41: {
+        title: "Yubin's Light (OMG 41)",
+        description() {
+          return "Gain Yubin Light (based on Yubin Points)."
+        },
+        cost: new Decimal("e25e130"),
+        maxLvl: dOne,
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        effect() {
+          let eff = player.YooAity.YubinPoints.add(10).log(10).sub(2e131).pow(0.03).div(1e204).max(0)
+          eff = eff.mul(gameLayers.OMG.getMemberLightGainMult("Yubin"))
+          return eff;
+        },
+        effectDisplay() {
+          return format(this.effect()) + "/s";
+        },
+        unlocked() {
+          return hasUpgrade("Yubin", 34)
+        }
+      },
+      42: {
+        title: "Yubin Radiance Bloom (OMG 42)",
+        description() {
+          return "Gain more Yubin Light (based on YooA Points). Dilate AR 12 effect to " + format(909) + " and AR 22 effect to " + format(1.2) + "."
+        },
+        cost: new Decimal("e3e213"),
+        maxLvl: dOne,
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        effect() {
+          let eff = player.YooAPoints.add(10).log(10).add(10).log(10).sub(1e147).div(1e147).max(0).add(1).dilate(1.1).pow(0.3)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+        unlocked() {
+          return hasUpgrade("Yubin", 34)
+        }
+      },
+      43: {
+        title: "Yubin Light Convergence (OMG 43)",
+        description() {
+          return "Yubin Light boosts YooA, Arin, and Seunghee Light gain. Trilate AR 12 effect to " + format(1.2) + " and dilate AR 22 effect to " + format(1.1) + "."
+        },
+        cost: new Decimal("ee259"),
+        maxLvl: dOne,
+        costCurrency: "Yubin Points",
+        costLayer: "YooAity",
+        costInternal: "YubinPoints",
+        effect() {
+          let eff = player.YooAity.OMGLight.Yubin.add(1).pow(50)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+        unlocked() {
+          return hasUpgrade("Yubin", 34)
+        }
+      },
+      44: {
+        title: "Seunghee's Dance Radiance (OMG 44)",
+        description() {
+          const base = this.base()
+          return "Gain " + format(base) + "x Yubin Light (based on Seunghee Dance level). Trilate YMC 4 2nd effect to " + format(1.08) + " and raise OMG 23 and OMG 33 to " + format(1.1) + "."
+        },
+        cost(x = getUpgLevels("OMG", 44)) {
+          return pow("ee5", x.pow(3)).mul("e18e6");
+        },
+        invCost(x) {
+          let cost = x.div("e18e6").log("ee5").root(3)
+          return cost;
+        },
+        costCurrency: "Miracle Light",
+        costLayer: "YooAity",
+        costInternal: "MiracleLight",
+        base() {
+          const level = gameLayers.OMG.getLevels("Seunghee", "dance")
+          let effLog = level.pow(0.65).mul(Math.log10(1.03))
+          return effLog.pow10();
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 44))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      45: {
+        title: "Yubin's Allocated Brilliance (OMG 45)",
+        description() {
+          const base = this.base()
+          return "Gain " + format(base) + "x Yubin Light (based on Allocated Yubin Light). Raise effective YD ranks for harmonization costs to " + format(0.9) + "."
+        },
+        cost(x = getUpgLevels("OMG", 45)) {
+          if (x.gte(20)) x = x.div(20).pow(1.5).mul(30).sub(10)
+          return pow("e3e5", x.pow(2.2)).mul("e63e6");
+        },
+        invCost(x) {
+          let cost = x.div("e63e6").log("e3e5").root(2.2)
+          if (cost.gte(20)) cost = cost.add(10).div(30).root(1.5).mul(20)
+          return cost;
+        },
+        costCurrency: "Miracle Light",
+        costLayer: "YooAity",
+        costInternal: "MiracleLight",
+        base() {
+          const YubinLight = player.YooAity.OMGLightAllocated.Yubin
+          let effLog = YubinLight.vocals.add(1).mul(YubinLight.dance.div(1e40).add(1)).mul(YubinLight.charisma.div("e310").add(1)).log10().pow(0.5).mul(0.2)
+          if (effLog.gte(6)) effLog = effLog.div(6).pow(0.75).mul(2).add(4)
+          return effLog.pow10();
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 45))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      46: {
+        title: "CLOSER Prismatic Fusion (OMG 46)",
+        description() {
+          const base = this.base()
+          return "<span style='font-size: 11px;'>Gain " + format(base) + "x Yubin Vocal, Seunghee Dance (^9.17), and Arin Charisma (^91.7) Sparkles (based on Yubin Points). Multiply streaming speed by " + format(1.5) + " and 'CLOSER' Album can be streamed without being selected."
+        },
+        cost(x = getUpgLevels("OMG", 46)) {
+          return pow(1e10, x.pow(1.7)).mul("e455");
+        },
+        invCost(x) {
+          let cost = x.div("e455").log(1e10).root(1.7)
+          return cost;
+        },
+        costCurrency: "Yubin Light",
+        costLayer: "YooAity",
+        costInternal: "OMGLight.Yubin",
+        base() {
+          let eff = player.YooAity.YubinPoints.add(10).log10().add(10).log10().dilate(1.2)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("OMG", 46))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+    }
+  },
+  Fandom: {
+    unlocked: true,
+    color: "#ff0099",
+    getMoneyGain(album = songs.albums[player.YooAity.stream.currentAlbumKey]) {
+      const miracles = gameLayers.OMG.getMIRACLEs()
+      let moneyPerMiracle = album.moneyPerMiracleSong
+      moneyPerMiracle = typeof moneyPerMiracle === "function" ? moneyPerMiracle() : moneyPerMiracle
+      let gain = miracles.mul(moneyPerMiracle)
+      if (hasUpgrade("Hyojung", 31)) gain = gain.mul(1.728)
+      return gain
+    },
+    getStreamSpeed() {
+      let speed = upgradeEffect("Fandom", 24)
+      if (hasUpgrade("Fandom", 23)) speed = speed.mul(upgradeEffect("Fandom", 23))
+      if (hasUpgrade("Hyojung", 32)) speed = speed.mul(upgradeEffect("Hyojung", 32))
+      if (hasUpgrade("OMG", 46)) speed = speed.mul(1.5)
+      if (hasUpgrade("Arinium", 33)) speed = speed.mul(1.5)
+      if (hasUpgrade("Arinium", 34)) speed = speed.mul(1.5)
+      return speed
+    },
+    upgrades: {
+      costsNothing() {
+        return false
+      },
+      rows: 4,
+      cols: 5,
+      11: {
+        title: "Seunghee's Fanlight Resonance (MIR 11)",
+        description() {
+          return "Fan Hearts boost Seunghee Light gain by " + format(this.base()) + "x."
+        },
+        cost(x = getUpgLevels("Fandom", 11)) {
+          return pow(1.1, x.pow(1.1)).mul(2e4)
+        },
+        invCost(x) {
+          return x.div(2e4).log(1.1).root(1.1)
+        },
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        base() {
+          let eff = pow(2, player.YooAity.FanHearts.add(1).log10().pow(0.7))
+          return eff;
+        },
+        effect() {
+          let x = getUpgLevels("Fandom", 11).mul(hasMilestone("YooAity", 32) ? milestoneEffect("YooAity", 32) : 1)
+          .pow(hasMilestone("YooAity", 33) ? milestoneEffect("YooAity", 33)[0].add(1) : 1)
+          let eff = this.base().pow(x)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      12: {
+        title: "Fan Heart Crescendo (MIR 12)",
+        description() {
+          return "Increase Fan Heart gain multiplier by " + format(this.base()) + ". You must have MIR 11 level 5 to purchase this."
+        },
+        cost(x = getUpgLevels("Fandom", 12)) {
+          if (getUpgLevels("Fandom", 11).lt(5)) return Decimal.dInf
+          return pow(1.2, x.pow(0.9)).mul(5e4)
+        },
+        invCost(x) {
+          if (getUpgLevels("Fandom", 11).lt(5)) return dZero
+          return x.div(5e4).log(1.2).root(0.9)
+        },
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        base() {
+          let eff = new Decimal(0.2)
+          return eff;
+        },
+        effect() {
+          const exp = upgradeEffect("Fandom", 22).add(1).mul(hasMilestone("YooAity", 32) ? milestoneEffect("YooAity", 32) : 1)
+          let eff = this.base().mul(getUpgLevels("Fandom", 12).pow(exp)).add(1)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      13: {
+        title: "Essence Royalty Bloom (MIR 13)",
+        description() {
+          return "Unlock Royalties and YooA Essence boosts Fan Heart gain. Allocate " + format(1) + "% Arin Light to all skills per second without cost. You must have MIR 11 level 20 to purchase this."
+        },
+        cost(x = getUpgLevels("Fandom", 13)) {
+          if (getUpgLevels("Fandom", 11).lt(20)) return Decimal.dInf
+          return D_1e6
+        },
+        maxLvl: dOne,
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        effect() {
+          let eff = player.YooAity.amount.add(10).log10().add(10).log10().add(10).log10().sub(33).max(0).pow(2).div(50).add(1)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      14: {
+        title: "Royalty Heart Surge (MIR 14)",
+        description() {
+          return "Multiply Fan Heart gain by " + format(this.base()) + "."
+        },
+        cost(x = getUpgLevels("Fandom", 14)) {
+          if (x.gte(15)) x = x.div(15).pow(1.5).mul(10).add(5)
+          return pow(1.15, x.pow(1.2)).mul(10)
+        },
+        invCost(x) {
+          let cost = x.div(10).log(1.15).root(1.2)
+          if (cost.gte(15)) cost = cost.sub(5).div(10).root(1.5).mul(15)
+          return cost;
+        },
+        costCurrency: "money",
+        costLayer: "YooAity",
+        costInternal: "stream.money",
+        base() {
+          let eff = new Decimal(1.4)
+          return eff;
+        },
+        effect() {
+          let exp = milestoneEffect("YooAity", 34)[0].add(1)
+          if (hasUpgrade("Arinium", 34)) exp = exp.mul(1.25)
+          if (hasUpgrade("Arinium", 35)) exp = exp.mul(1.25)
+          let x = getUpgLevels("Fandom", 14)
+          if (hasMilestone("YooAity", 34)) x = x.pow(exp)
+          let eff = this.base().pow(x)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      15: {
+        title: "OH MY GIRL Revenue Bloom (MIR 15)",
+        description() {
+          return "Multiply money gain from OH MY GIRL album songs by " + format(this.base()) + " (based on OH MY GIRL album streams)."
+        },
+        cost(x = getUpgLevels("Fandom", 15)) {
+          return pow(5, x).mul(100)
+        },
+        invCost(x) {
+          return x.div(100).log(5)
+        },
+        maxLvl: new Decimal(5),
+        costCurrency: "money",
+        costLayer: "YooAity",
+        costInternal: "stream.money",
+        base() {
+          let eff = player.YooAity.stream.streams.OHMYGIRL.div(300).add(1).pow(.25)
+          if (eff.gte(8)) eff = eff.div(8).pow(0.3).mul(8)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("Fandom", 15))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      21: {
+        title: "CLOSER Harmonic Revenue (MIR 21)",
+        description() {
+          return "Multiply YooAmatter Resonance and money gain from CLOSER album songs by " + format(this.base()) + " (based on CLOSER album streams)."
+        },
+        cost(x = getUpgLevels("Fandom", 21)) {
+          return pow(100, x).mul(1e20)
+        },
+        invCost(x) {
+          return x.div(1e20).log(100)
+        },
+        maxLvl: new Decimal(6),
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        base() {
+          let eff = player.YooAity.stream.streams.CLOSER.div(100).add(1).pow(.27)
+          if (eff.gte(5)) eff = eff.div(5).pow(0.3).mul(5)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("Fandom", 21))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      22: {
+        title: "Revenue Resonance Amplifier (MIR 22)",
+        description() {
+          return "Increase MIR 12 effective level exponent by " + format(this.base()) + " (based on Money)."
+        },
+        cost(x = getUpgLevels("Fandom", 22)) {
+          return pow(1e3, x.pow(1.11)).mul(1e23)
+        },
+        invCost(x) {
+          return x.div(1e20).log(1e3).root(1.11)
+        },
+        maxLvl: new Decimal(10),
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        base() {
+          let eff = player.YooAity.stream.money.div(3e3).add(1).log10().div(10)
+          if (eff.gte(0.2)) eff = eff.div(0.2).pow(0.5).mul(0.2)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().mul(getUpgLevels("Fandom", 22))
+          return eff;
+        },
+        effectDisplay() {
+          return "+" + format(this.effect());
+        },
+      },
+      23: {
+        title: "PINK OCEAN Surge (MIR 23)",
+        description() {
+          return "PINK OCEAN album streams boost MIRACLE streaming speed. Allocate " + format(1) + "% Seunghee Light to all skills per second without cost."
+        },
+        cost: new Decimal(1e35),
+        maxLvl: dOne,
+        costCurrency: "Fan Hearts",
+        costLayer: "YooAity",
+        costInternal: "FanHearts",
+        effect() {
+          let eff = player.YooAity.stream.streams.PINKOCEAN.div(20).add(1).pow(0.2)
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      24: {
+        title: "MIRACLE Resonance Drive (MIR 24)",
+        description() {
+          return "Multiply MIRACLE streaming speed and YooAmatter Resonance by " + format(this.base()) + " (Based on MIRACLEs)."
+        },
+        cost(x = getUpgLevels("Fandom", 24)) {
+          return pow(1.3, x.pow(1.25)).mul(2e7)
+        },
+        invCost(x) {
+          let cost = x.div(2e7).log(1.3).root(1.25)
+          return cost;
+        },
+        maxLvl: new Decimal(5),
+        costCurrency: "money",
+        costLayer: "YooAity",
+        costInternal: "stream.money",
+        base() {
+          let eff = gameLayers.OMG.getMIRACLEs().div(1e5).add(1).log10().div(10).add(1)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("Fandom", 24))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
+      },
+      25: {
+        title: "Listen to My Heart (MIR 25)",
+        description() {
+          return "Multiply Fan Hearts by " + format(this.base()) + " (Based on LISTEN TO MY WORD streams). Raise Miracle Light exponent to " + format(1.3) + " and trilate AR 12 effect to " + format(1.1) + "."
+        },
+        cost(x = getUpgLevels("Fandom", 25)) {
+          return pow(1.6, x.pow(1.25)).mul(4e8)
+        },
+        invCost(x) {
+          let cost = x.div(4e8).log(1.6).root(1.25)
+          return cost;
+        },
+        maxLvl: new Decimal(5),
+        costCurrency: "money",
+        costLayer: "YooAity",
+        costInternal: "stream.money",
+        base() {
+          let eff = player.YooAity.stream.streams.LISTENTOMYWORD.add(1).dilate(1.3).pow(1.5).div(1e3).add(1)
+          return eff;
+        },
+        effect() {
+          let eff = this.base().pow(getUpgLevels("Fandom", 25))
+          return eff;
+        },
+        effectDisplay() {
+          return "x" + format(this.effect());
+        },
       },
     }
   }
@@ -5282,7 +6571,7 @@ export const achievements = {
       return "Age YooA to " + formatWhole(1) + " year."
     },
     done() {
-      return gameLayers.YooAity.getEffectiveAge().gte(31536000)
+      return GameCache.YooAity_getEffectiveAge.value.gte(31536000)
     }
   },
   61: {
@@ -5338,7 +6627,7 @@ export const achievements = {
       return "Age YooA to " + formatWhole(7155) + " days (OH MY GIRL debut)."
     },
     done() {
-      return gameLayers.YooAity.getEffectiveAge().gte(7155 * 86400)
+      return GameCache.YooAity_getEffectiveAge.value.gte(7155 * 86400)
     }
   },
   66: {
@@ -5363,7 +6652,7 @@ export const achievements = {
   },
   68: {
     title: "First Miracle Bloom",
-    img: require("@/assets/Achievements/ach68.webp"),
+    img: require("@/assets/Achievements/ach68.webp"), //image of Oh My Girl lightstick
     description() {
       return "Have " + formatWhole(1) + " MIRACLE (OH MY GIRL Fan)."
     },
@@ -5371,9 +6660,9 @@ export const achievements = {
       return gameLayers.OMG.getMIRACLEs().gte(1)
     }
   },
-  /*71: {
+  71: {
     title: "Miracle Constellation",
-    img: require("@/assets/Achievements/ach68.webp"),
+    img: require("@/assets/Achievements/ach71.webp"),
     description() {
       return "Have " + formatWhole(1e3) + " MIRACLEs."
     },
@@ -5383,7 +6672,80 @@ export const achievements = {
     done() {
       return gameLayers.OMG.getMIRACLEs().gte(1e3)
     }
-  },*/
+  },
+  72: {
+    title: "YooAmatter Harmony",
+    img: require("@/assets/Achievements/ach72.webp"),
+    description() {
+      return "Harmonize YooAmatter Threads to Rank " + formatWhole(1) + "."
+    },
+    done() {
+      return player.dimensions.YooAmatter[0].rank.gte(1)
+    }
+  },
+  73: {
+    title: "Miracle Galaxy",
+    img: require("@/assets/Achievements/ach73.jpg"),
+    description() {
+      return "Have " + formatWhole(1e4) + " MIRACLEs."
+    },
+    done() {
+      return gameLayers.OMG.getMIRACLEs().gte(1e4)
+    }
+  },
+  74: {
+    title: "Infinite Miracle",
+    img: require("@/assets/Achievements/ach74.png"),
+    description() {
+      return "Have " + formatWhole(1e5) + " MIRACLEs."
+    },
+    done() {
+      return gameLayers.OMG.getMIRACLEs().gte(1e5)
+    }
+  },
+  75: {
+    title: "YooA Omniverse",
+    img: require("@/assets/Achievements/ach75.webp"),
+    description() {
+      return "Have " + formatWhole("eee100") + " YooA Points."
+    },
+    done() {
+      return player.YooAPoints.gte("eee100")
+    }
+  },
+  76: {
+    title: "Abyssal Convergence",
+    img: require("@/assets/Achievements/ach76.jpg"),
+    description() {
+      return "Harmonize YooAmatter Cores to Rank " + formatWhole(1) + "."
+    },
+    done() {
+      return player.dimensions.YooAmatter[4].rank.gte(1)
+    }
+  },
+  77: {
+    title: "YooA Absolute",
+    img: require("@/assets/Achievements/ach77.webp"),
+    description() {
+      return "Have " + formatWhole("eee1000") + " YooA Points."
+    },
+    rewardDescription() {
+      return "Achievement multiplier boosts Fan Hearts and YooAmatter Resonance."
+    },
+    done() {
+      return player.YooAPoints.gte("eee1000")
+    }
+  },
+  78: { // https://www.korea.net/NewsFocus/Business/view?articleId=275461
+    title: "National Asset",
+    img: require("@/assets/Achievements/ach78.jpg"),
+    description() {
+      return "Have OH MY GIRL be worth more than " + formatCurrency(1.615e13) + " (South Korea's total net national wealth)."
+    },
+    done() {
+      return player.stats.YooAity.totalMoney.gte(1.615e13)
+    }
+  },
 };
 
 // layersData.js — register caches for layer fns, upgrades, milestones
@@ -5403,10 +6765,12 @@ export const achievements = {
   const layerFuncs = [
     ['YooA', 'problemGain'],
     ['YooA', 'digits'],
+    ['YooAmatter', 'problemGain'],
     ['YooAmatter', 'YooAriumEffect'],
     ['YooAmatter', 'YooAmatterSparkEffect'],
     ['YooAmatter', 'getYooAriumGain'],
     ['YooAity', 'problemGain'],
+    ['YooAity', 'getEffectiveAge'],
     // add more pairs for heavy fns you find in layersData
   ];
 
@@ -5456,7 +6820,7 @@ export const achievements = {
   }
 
   // helper: optional convenience function to get a cached value
-  GameCache.getCached = function(keyOrParts) {
+  GameCache.getCached = function (keyOrParts) {
     if (Array.isArray(keyOrParts)) keyOrParts = keyOrParts.join('_');
     const c = GameCache[keyOrParts];
     return c ? c.value : undefined;

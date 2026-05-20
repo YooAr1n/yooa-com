@@ -143,6 +143,24 @@ export default {
                         "Expanded News. – Added more news entries reflecting new mechanics, world events, and story progression.",
                         "Bug Fixes & Optimizations. – Fixed various issues and optimized systems for smoother performance and stability."
                     ]
+                },
+                {
+                    version: "v1.1",
+                    title: "Fandom Awakening",
+                    date: "2026-05-20",
+                    description: [
+                        "Added Fandom System. – YooA's fanbase continues to grow! Build your fandom to unlock powerful progression bonuses and new mechanics.",
+                        "Added Streaming Mechanic. – Stream alongside YooA to generate support, strengthen the fandom, and accelerate progression across multiple layers.",
+                        "Added YooA Energy. – A new resource generated through advanced progression systems, boosting production and empowering upgrades.",
+                        "Added YooAmatter Resonance. – Resonance amplifies YooAmatter-related effects and creates stronger synergy between prestige layers.",
+                        "Added IS-tropy Notation. – Introduced a brand-new symbolic notation system that transforms gigantic exponents into collectible roster-card identities using slog-based entropy compression.",
+                        "Added Multiple IS-tropy Display Modes. – Choose between Icons, Names, or Both modes for displaying IS roster digits.",
+                        "More Upgrades. – Added additional upgrades for YooAity, Fandom, YooAmatter, and other late-game systems.",
+                        "Expanded Achievements. – New achievements have been added for dedicated MIRACLEs pushing deeper into the endgame.",
+                        "Expanded News Ticker. – Added more dynamic news messages covering fandom growth, streaming events, and world progression.",
+                        "Balance Changes. – Adjusted scaling and progression pacing for smoother advancement throughout the mid and late game.",
+                        "Bug Fixes & Performance Improvements. – Fixed save/export issues, improved stability, and optimized several game systems."
+                    ]
                 }
             ],
             expandedVersions: [],

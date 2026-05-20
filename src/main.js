@@ -6,6 +6,7 @@ import awsExports from './aws-exports';
 
 import "./shims";
 import "./format";
+import "./currency"
 import "./event-hub";
 import "./incremental/incMath";
 import "./incremental/incremental.js";

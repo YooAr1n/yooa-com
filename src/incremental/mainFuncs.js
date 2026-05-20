@@ -274,6 +274,7 @@ export function prestige(layer, isChall) {
 
   // Batch resets (only fields changed)
   player.YooAPoints = dZero;
+  player.YooA.energy = dZero;
   player.upgrades.YooA = {};
   player.math.YooA.solved = dZero;
   player.YooAmatter.sparks = dZero;
@@ -282,6 +283,7 @@ export function prestige(layer, isChall) {
   if (layerTier > 1) {
     player.YooAmatter.amount = dZero;
     player.YooAmatter.YooArium = dZero;
+    player.YooAmatter.harmonics = dZero;
     player.YooAity.embers = dZero;
     player.Arin.level = dZero;
     player.YooAity.MiracleLight = dZero;

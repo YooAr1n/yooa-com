@@ -186,7 +186,7 @@ export default {
 
   computed: {
     format100() {
-      return format(100);
+      return formatWhole(100);
     },
   },
 

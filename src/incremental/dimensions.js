@@ -5,7 +5,7 @@ import {
   hasAchievement
 } from "./incremental.js";
 import { gameLayers } from "./layersData.js";
-import { hasMilestone, hasUpgrade, inChallenge, upgradeEffect } from "./mainFuncs.js";
+import { hasMilestone, hasUpgrade, inChallenge, milestoneEffect, upgradeEffect } from "./mainFuncs.js";
 import { Lazy, GameCache } from "./cache.js"; // <- added cache primitives
 
 // Local aliases (fewer property lookups)
@@ -13,7 +13,7 @@ const dZero = Decimal.dZero;
 const dOne = Decimal.dOne;
 const dInf = Decimal.dInf;
 const floor = Decimal.floor;
-const min = Decimal.min;  
+const min = Decimal.min;
 
 // micro-optimized duck-typed Decimal check (faster than instanceof)
 function isDecimalLike(v) {
@@ -42,6 +42,12 @@ const LEVEL_SCALE_THRESHOLD = {
   Shiah: new Decimal(123456789)
 };
 
+const RANK_SCALE_THRESHOLD = {
+  YooA: null,
+  YooAmatter: new Decimal(100),
+  Shiah: null
+};
+
 const BASE_COSTS = {
   YooA: [null, new Decimal(10), new Decimal(10000), new Decimal(10), new Decimal(1e5), new Decimal(1e10)],
   YooAmatter: [null, new Decimal("1e150"), new Decimal("1e250"), new Decimal("e400"), new Decimal("e700"), new Decimal("e1400")],
@@ -56,14 +62,14 @@ const COST_MULTS = {
 
 const RANK_BASE_COSTS = {
   YooA: [null, new Decimal(1e6), new Decimal(1e10), new Decimal(1e20), new Decimal(1e50), new Decimal(1e100)],
-  YooAmatter: [null, new Decimal("1e150"), new Decimal("1e250"), new Decimal("e400"), new Decimal("e700"), new Decimal("e1400")],
-  Shiah: [null, new Decimal(1), new Decimal(100), new Decimal(1e4), new Decimal(1e10), new Decimal(1e25), new Decimal(1e50), new Decimal(1e100)],
+  YooAmatter: [null, new Decimal(1e9), new Decimal(1e15), new Decimal(1e25), new Decimal(1e40), new Decimal(1e60)],
+  //Shiah: [null, new Decimal(1), new Decimal(100), new Decimal(1e4), new Decimal(1e10), new Decimal(1e25), new Decimal(1e50), new Decimal(1e100)],
 };
 
 const RANK_COST_MULTS = {
   YooA: [null, new Decimal(1.1), new Decimal(1.13), new Decimal(1.2), new Decimal(1.25), new Decimal(1.3)],
-  YooAmatter: [null, new Decimal(1e5), new Decimal(1e10), new Decimal(1e20), new Decimal(1e30), new Decimal(1e50)],
-  Shiah: [null, new Decimal(2), new Decimal(3), new Decimal(4), new Decimal(10), new Decimal(50), new Decimal(1995), new Decimal(1e5)],
+  YooAmatter: [null, new Decimal(10), new Decimal(50), new Decimal(500), new Decimal(1e4), new Decimal(1e6)],
+  //Shiah: [null, new Decimal(2), new Decimal(3), new Decimal(4), new Decimal(10), new Decimal(50), new Decimal(1995), new Decimal(1e5)],
 };
 
 // --------------------
@@ -71,11 +77,12 @@ const RANK_COST_MULTS = {
 const _hasMilestone = hasMilestone;
 const _hasUpgrade = hasUpgrade;
 const _upgradeEffect = upgradeEffect;
+const _milestoneEffect = milestoneEffect;
 const _inChallenge = inChallenge;
 
 // cheap cached booleans per tick replaced with direct calls (tickCache removed)
 function costNothing(type) {
-  switch(type) {
+  switch (type) {
     case "YooA": return !!_hasMilestone("YooAity", 11);
     case "YooAmatter": return !!_hasMilestone("YooAity", 12);
     case "Shiah": return !!_hasMilestone("YooAity", 19);
@@ -110,13 +117,13 @@ export default class Dimension {
     this.currency = currency;
     this.rankLayer = rankLayer;
     this.rankCurrency = rankCurrency;
+    this.energy = dZero
 
     // Cache instance-specific precomputed decimals to reduce repeated array indexing
     this._baseCost = (BASE_COSTS[type] && BASE_COSTS[type][tier]) ? BASE_COSTS[type][tier] : new Decimal(1);
     this._costMultiplier = (COST_MULTS[type] && COST_MULTS[type][tier]) ? COST_MULTS[type][tier] : new Decimal(1);
-    this._rankBaseCost = (RANK_BASE_COSTS[type] && RANK_BASE_COSTS[type][tier]) ? RANK_BASE_COSTS[type][tier] : new Decimal(1);
-    this._rankCostMultiplier = (RANK_COST_MULTS[type] && RANK_COST_MULTS[type][tier]) ? RANK_COST_MULTS[type][tier] : new Decimal(1);
 
+    this._energyPath = `dimensions.${this.type}.${this.tier - 1}.energy`;
     if (this.tier > 1) {
       this._gainIndex = this.tier - 2;
       this._gainPath = `dimensions.${this.type}.${this._gainIndex}.amt`;
@@ -136,6 +143,7 @@ export default class Dimension {
     this._cachedRankMult = undefined;
     this._cachedEffect = undefined;
     this._cachedRankEffect = undefined;
+    this._cachedPower = undefined;
   }
 
   // simple accessors
@@ -148,8 +156,8 @@ export default class Dimension {
     return this._costMultiplier;
   }
 
-  get rankBaseCost() { return this._rankBaseCost; }
-  get rankCostMultiplier() { return this._rankCostMultiplier; }
+  get rankBaseCost() { return RANK_BASE_COSTS[this.type][this.tier]; }
+  get rankCostMultiplier() { return RANK_COST_MULTS[this.type][this.tier]; }
 
   // cached cost getters
   get cost() {
@@ -170,7 +178,10 @@ export default class Dimension {
     if (this._cachedMult !== undefined) return this._cachedMult;
     if (this.tier === 2 && this.type === "YooA" && _inChallenge("YooAmatter", 2)) return this._cachedMult = dZero;
     const basePerLvl = getDimMultPerLvl(this.type, this.tier) || CONST_1_01;
-    const rankEff = this.rankEffect || dOne;
+    let rankEff = dOne;
+    if (this.type === "YooA") {
+      rankEff = this.rankEffect || dOne;
+    }
     const lvl = this.level || dZero;
     let eff = basePerLvl.pow(rankEff.mul(lvl));
     const t = this.type;
@@ -188,7 +199,7 @@ export default class Dimension {
   }
 
   get rankMult() {
-    return this._cachedRankMult !== undefined ? this._cachedRankMult : (this._cachedRankMult = (getDimMultPerRank(this.type) || CONST_1_05).pow(this.rank || dZero));
+    return this._cachedRankMult !== undefined ? this._cachedRankMult : (this._cachedRankMult = (getDimMultPerRank(this.type, this.tier) || CONST_1_05).pow(this.rank || dZero));
   }
 
   get rankEffect() {
@@ -206,7 +217,10 @@ export default class Dimension {
       return this._cachedEffect = dZero;
     }
 
-    const r = this.rankEffect || dOne;
+    let r = dOne;
+    if (this.type === "YooA") {
+      r = this.rankEffect || dOne;
+    }
 
     const base = Decimal.mul(m, a);
     let eff;
@@ -218,6 +232,27 @@ export default class Dimension {
     return this._cachedEffect = result;
   }
 
+  get power() {
+    if (this._cachedPower !== undefined) return this._cachedPower;
+    if (!this.powerUnlocked) return dZero;
+    const a = this.amt || dZero
+    const l = this.level || dZero
+    const r = this.rank || dZero
+    const nextEnergy = player.dimensions[this.type][this.tier] ? player.dimensions[this.type][this.tier].energy : dZero
+
+    const amtMult = a.add(1).log10().add(1).log10().add(1).log10().pow(0.2)
+    const levelMult = l.add(1).log10().add(1).log10().pow(0.3)
+    const rankMult = r.pow(0.1)
+    const energyMult = nextEnergy.div(10).add(1)
+
+    let power = amtMult.mul(levelMult).mul(rankMult).mul(energyMult).div(100)
+
+    const t = this.type;
+    if (t === "YooA") power = power.mul(GameCache.YooADimensionPowerMult.value || dOne)
+
+    return this._cachedPower = power
+  }
+
   get unlocked() {
     if (this.type === "YooA") return this.tier < 3 || hasAchievement(18);
     if (this.type === "YooAmatter") return _hasUpgrade("YooAmatter", 44);
@@ -226,7 +261,11 @@ export default class Dimension {
   }
 
   get rankUnlocked() {
-    return (this.type === "YooA") ? _hasMilestone("YooAity", 14) : false;
+    return (this.type === "YooA") ? _hasMilestone("YooAity", 14) : (this.type === "YooAmatter") ? _hasUpgrade("YooAmatter", 55) : false;
+  }
+
+  get powerUnlocked() {
+    return (this.type === "YooA") ? _hasUpgrade("YooAmatter", 45) : false;
   }
 
   get effectDisplay() {
@@ -286,16 +325,32 @@ export default class Dimension {
       return this._cachedDimensionRankCost;
     }
 
-    let scaledRank = slogsub(rank, _upgradeEffect("YooA", 41));
+    const threshold = getRankScalingStart(this.type);
+    let scRank;
+    if (threshold && rank.gte(threshold)) {
+      scRank = rank.div(threshold).pow(2.5).mul(threshold);
+    } else {
+      scRank = rank;
+    }
 
-    const exp = _upgradeEffect("Hyojung", 13).pow(this.tier ** 1.2);
-    if (_hasUpgrade("Hyojung", 12)) scaledRank = scaledRank.pow(CONST_0_9);
-    if (_hasUpgrade("OMG", 15)) scaledRank = scaledRank.pow(CONST_0_99);
-    if (_hasUpgrade("OMG", 16)) scaledRank = scaledRank.pow(CONST_0_98);
-    if (_hasUpgrade("OMG", 25)) scaledRank = scaledRank.pow(CONST_0_95);
-    if (_hasUpgrade("OMG", 26)) scaledRank = scaledRank.pow(CONST_0_9);
+    if (this.type === "YooA") {
+      let scaledRank = slogsub(scRank, _upgradeEffect("YooA", 41));
 
-    this._cachedDimensionRankCost = this._rankBaseCost.pow(this._rankCostMultiplier.pow(scaledRank).mul(exp));
+      const exp = _upgradeEffect("Hyojung", 13).pow(this.tier ** 1.2);
+      if (_hasUpgrade("Hyojung", 12)) scaledRank = scaledRank.pow(CONST_0_9);
+      if (_hasUpgrade("OMG", 15)) scaledRank = scaledRank.pow(CONST_0_99);
+      if (_hasUpgrade("OMG", 16)) scaledRank = scaledRank.pow(CONST_0_98);
+      if (_hasUpgrade("OMG", 25)) scaledRank = scaledRank.pow(CONST_0_95);
+      if (_hasUpgrade("OMG", 35)) scaledRank = scaledRank.pow(CONST_0_9);
+      if (_hasUpgrade("OMG", 26)) scaledRank = scaledRank.pow(CONST_0_9);
+
+      this._cachedDimensionRankCost = this.rankBaseCost.pow(this.rankCostMultiplier.pow(scaledRank).mul(exp));
+    }
+
+    if (this.type === "YooAmatter") {
+      this._cachedDimensionRankCost = this.rankCostMultiplier.pow(scRank).mul(this.rankBaseCost);
+    }
+
     this._cachedDimensionRankCostLevelRef = rank;
     return this._cachedDimensionRankCost;
   }
@@ -304,14 +359,28 @@ export default class Dimension {
     const currency = (this.rankLayer === "") ? player.YooAPoints : player[this.rankLayer][this.rankCurrency];
     x = x === undefined ? currency : x;
 
-    const exp = _upgradeEffect("Hyojung", 13).pow(this.tier ** 1.2);
-    let rank = x.log(this._rankBaseCost).div(exp).log(this._rankCostMultiplier);
-    rank = slogsub(rank, _upgradeEffect("YooA", 41).neg())
-    if (_hasUpgrade("Hyojung", 12)) rank = rank.root(CONST_0_9);
-    if (_hasUpgrade("OMG", 15)) rank = rank.root(CONST_0_99);
-    if (_hasUpgrade("OMG", 16)) rank = rank.root(CONST_0_98);
-    if (_hasUpgrade("OMG", 25)) rank = rank.root(CONST_0_95);
-    if (_hasUpgrade("OMG", 26)) rank = rank.root(CONST_0_9);
+    let rank;
+    if (this.type === "YooA") {
+      const exp = _upgradeEffect("Hyojung", 13).pow(this.tier ** 1.2);
+      rank = x.log(this.rankBaseCost).div(exp).log(this.rankCostMultiplier);
+      rank = slogsub(rank, _upgradeEffect("YooA", 41).neg())
+      if (_hasUpgrade("Hyojung", 12)) rank = rank.root(CONST_0_9);
+      if (_hasUpgrade("OMG", 15)) rank = rank.root(CONST_0_99);
+      if (_hasUpgrade("OMG", 16)) rank = rank.root(CONST_0_98);
+      if (_hasUpgrade("OMG", 25)) rank = rank.root(CONST_0_95);
+      if (_hasUpgrade("OMG", 35)) rank = rank.root(CONST_0_9);
+      if (_hasUpgrade("OMG", 26)) rank = rank.root(CONST_0_9);
+    }
+
+    if (this.type === "YooAmatter") {
+      rank = x.div(this.rankBaseCost).log(this.rankCostMultiplier);
+    }
+
+    // compute rank
+    const threshold = getRankScalingStart(this.type);
+    if (threshold && rank.gte(threshold)) {
+      rank = rank.div(threshold).root(2.5).mul(threshold);
+    }
 
     return rank;
   }
@@ -414,6 +483,7 @@ export default class Dimension {
 
   // production per tick (hot)
   updateAmount(diff) {
+    if (this.powerUnlocked) gainCurrency(player, this._energyPath, this.power, diff)
     if (this.tier <= 1) return;
     // fast path: no amount
     if (this.amt <= 0) {
@@ -430,6 +500,7 @@ export default class Dimension {
 
   // reset & caching
   reset(resetLayer, highestTier) {
+    this.energy = dZero
     if (this.type === "YooA") {
       const resetLevel = (gameLayers[resetLayer].layer <= 1 && this.tier > 2) ? this.level : dZero;
       this.level = resetLevel;
@@ -449,6 +520,7 @@ export default class Dimension {
     this._cachedEffect = undefined;
     this._cachedRankMult = undefined;
     this._cachedRankEffect = undefined;
+    this._cachedPower = undefined;
     this._cachedDimensionCost = undefined;
     this._cachedDimensionCostLevelRef = null;
     this._cachedDimensionRankCost = undefined;
@@ -501,16 +573,64 @@ export function getDimMultPerLvl(type, tier) {
   return lazy.value;
 }
 
-export function getDimMultPerRank(type) {
-  const key = `${type}|rank`;
+export function getDimMultPerRank(type, tier) {
+  // include tier in key so each tier has its own Lazy cache entry
+  const key = `${type}|rank|${tier}`;
   const lazy = _getOrCreateLazyMap("dimMultPerRank", key, () => {
-    if (type !== "YooA") return CONST_1_05;
+    // --- YooAmatter: depends on next tier's rankMult.log10() ---
+    if (type === "YooAmatter") {
+      let rankMult = CONST_1_05;
+      if (_hasUpgrade("Hyojung", 33)) rankMult = rankMult.add(_upgradeEffect("Hyojung", 33));
+      if (_hasMilestone("YooAity", 33)) rankMult = rankMult.add(_milestoneEffect("YooAity", 33)[1]);
+      if (tier >= 5) return rankMult; // no next tier
+      // defensive: make sure player and path exist
+      const ph = (typeof player !== "undefined" && player && player.YooAmatter && player.YooAmatter.harmonics)
+        ? player.YooAmatter.harmonics.add(10)
+        : dOne.add(10);
 
-    let base = CONST_1_05;
-    base = base.add(_upgradeEffect("YooAity", 44));
-    base = base.mul(_upgradeEffect("Hyojung", 22));
-    base = base.mul(gameLayers.OMG.getSkillEffect("YooA", "dance"));
-    return base;
+      const logHarmonics = Decimal.log10(ph);
+
+      const nextTier = tier; // tier is 1 based, and array is 0 based
+      let nextFormationMultLog = dOne; // fallback
+
+      // Defensive: ensure player.dimensions structure exists
+      if (typeof player !== "undefined" && player && player.dimensions && player.dimensions[type]) {
+        const nextDimension = player.dimensions[type][nextTier];
+
+        if (nextDimension) {
+          // prefer a cached internal value if present (avoid getter recursion)
+          if (nextDimension._cachedRankMult !== undefined && nextDimension._cachedRankMult) {
+            nextFormationMultLog = nextDimension._cachedRankMult.log10();
+          } else {
+            // If cached not present, try safe getter but guard against cycles:
+            try {
+              // this may still call getDimMultPerRank for nextTier (which is OK if keys include tier)
+              const nm = nextDimension.rankMult;
+              if (nm && typeof nm.log10 === "function") nextFormationMultLog = nm.log10();
+            } catch (e) {
+              // if anything goes wrong, fall back to 1
+              nextFormationMultLog = dOne;
+            }
+          }
+        }
+      }
+
+      let exp = logHarmonics.pow(0.5).mul(nextFormationMultLog).add(1).pow(0.5)
+      if (exp.gte(20)) exp = exp.div(20).pow(0.25).mul(20);
+
+      return rankMult.pow(exp);
+    }
+
+    // YooA and Shiah behave as before
+    if (type === "YooA") {
+      let base = CONST_1_05;
+      base = base.add(_upgradeEffect("YooAity", 44));
+      base = base.mul(_upgradeEffect("Hyojung", 22));
+      base = base.mul(gameLayers.OMG.getSkillEffect("YooA", "dance"));
+      return base;
+    }
+
+    return CONST_1_05;
   });
   return lazy.value;
 }
@@ -520,6 +640,18 @@ export function getHighestTier(dimensions) {
   for (let i = dimensions.length - 1; i >= 0; --i) {
     const d = dimensions[i];
     if (d.level.gte(dOne)) {
+      maxTier = d.tier;
+      break;
+    }
+  }
+  return maxTier;
+}
+
+export function getHighestRankedTier(dimensions) {
+  let maxTier = 0;
+  for (let i = dimensions.length - 1; i >= 0; --i) {
+    const d = dimensions[i];
+    if (d.rank.gte(dOne)) {
       maxTier = d.tier;
       break;
     }
@@ -539,6 +671,16 @@ export function getScalingStart(type) {
     } else if (type === "YooAmatter" && _hasUpgrade("YooAity", 42)) {
       start = start.add(_upgradeEffect("YooAity", 42));
     }
+    return start;
+  });
+  return lazy.value;
+}
+
+export function getRankScalingStart(type) {
+  const key = `${type}|rankScale`;
+  const lazy = _getOrCreateLazyMap("rankScalingStart", key, () => {
+    // compute body copied from original function
+    let start = RANK_SCALE_THRESHOLD[type] || dZero;
     return start;
   });
   return lazy.value;

@@ -29,6 +29,8 @@
       <SectionStats v-if="unlocked('YooAity')" :title="YooAityText + ' Stats'" :stats="[
         { label: 'Total Shi-ah Embers', value: totalSE },
         YooChroniumUnlocked ? { label: 'Total YooChronium', value: totalYC } : null,
+        FandomUnlocked ? { label: 'Total Fan Hearts', value: totalFanHearts } : null,
+        RoyaltiesUnlocked ? { label: 'OH MY GIRL\'s net worth', value: totalMoney } : null,
       ].filter(item => item)" :isUnlocked="true" :layer="'YooAity'" />
     </div>
 
@@ -42,7 +44,7 @@
 <script>
 import SectionStats from "./comps/SectionStats.vue";
 import { gameLayers } from "@/incremental/layersData";
-import { player } from "@/incremental/incremental.js";
+import { hasAchievement, player } from "@/incremental/incremental.js";
 import { hasUpgrade, hasMilestone } from "@/incremental/mainFuncs";
 import LastPrestigeStats from "./comps/LastPrestigeStats.vue";
 
@@ -59,10 +61,14 @@ export default {
       totalYS: "",
       totalSE: "",
       totalYC: "",
+      totalFanHearts: "",
+      totalMoney: "",
       pointsScale: "",
       YooAriumUnlocked: false,
       sparksUnlocked: false,
       YooChroniumUnlocked: false,
+      FandomUnlocked: false,
+      RoyaltiesUnlocked: false,
     };
   },
   computed: {
@@ -109,10 +115,14 @@ export default {
       this.totalYS = format(player.stats.YooAmatter.totalSparks);
       this.totalSE = format(player.stats.YooAity.totalEmbers);
       this.totalYC = format(player.stats.YooAity.totalYooChronium);
+      this.totalFanHearts = format(player.stats.YooAity.totalFanHearts);
+      this.totalMoney = formatCurrency(player.stats.YooAity.totalMoney)
       this.pointsScale = scale(player.YooAPoints);
       this.YooAriumUnlocked = hasUpgrade("YooAmatter", 23);
       this.sparksUnlocked = hasUpgrade("YooAmatter", 44);
       this.YooChroniumUnlocked = hasMilestone("YooAity", 12);
+      this.FandomUnlocked = hasAchievement(71)
+      this.RoyaltiesUnlocked = hasUpgrade("Fandom", 13)
     },
   },
   mounted() {

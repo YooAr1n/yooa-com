@@ -23,6 +23,7 @@ import Autobuyer, {
   updateAllAutobuyerTime
 } from "./automation.js";
 import { achievements, gameLayers } from "./layersData.js";
+import { songs } from "./songs.js";
 
 // ---------------- prebind Decimal constants ----------------
 const dZero = Decimal.dZero;
@@ -34,6 +35,8 @@ const d100 = new Decimal(100);
 // small Decimal constants used in hot paths (avoid allocating repeatedly)
 const DEC_0_1 = new Decimal(0.1);
 const DEC_0_5 = new Decimal(0.5);
+const DEC_0_8 = new Decimal(0.8);
+const DEC_0_6 = new Decimal(0.6);
 const DEC_0_4 = new Decimal(0.4);
 const DEC_1_3 = new Decimal(1 / 3);
 
@@ -102,11 +105,11 @@ function cloneDecimals(val) {
 }
 
 export function start() {
-    load();
-    precomputeMeta();
-    precomputeAchievementList();
-    precomputeMilestoneLists(gameLayers);
-    if (player && player.YooAity && player.YooAity.OMGLight) __OMGLights = Object.keys(player.YooAity.OMGLight);
+  load();
+  precomputeMeta();
+  precomputeAchievementList();
+  precomputeMilestoneLists(gameLayers);
+  if (player && player.YooAity && player.YooAity.OMGLight) __OMGLights = Object.keys(player.YooAity.OMGLight);
 }
 
 // ---------------- start player and helpers ----------------
@@ -114,7 +117,8 @@ export function getStartPlayer() {
   const p = {
     tab: 'Main', version: 2 /*2 is v1.0*/, subtabs: { Main: 'main', Options: 'saving', Stats: 'main', YooAmatter: 'main', YooAity: 'main', Automation: 'YooA' },
     time: Date.now(), YooAPoints: dZero,
-    YooAmatter: { amount: dZero, YooArium: dZero, sparks: dZero },
+    YooA: { energy: dZero },
+    YooAmatter: { amount: dZero, YooArium: dZero, sparks: dZero, harmonics: dZero },
     YooAity: {}, inChallenge: ['', ''], upgrades: {}, milestones: {}, challenges: {}, math: {}, dimensions: {}, stats: {}, gain: {}, achievements: {}, autobuyers: {}, Arin: { level: dZero, rank: dZero, tier: dZero, Arinium: dZero }
   };
 
@@ -127,7 +131,17 @@ export function getStartPlayer() {
   p.YooAity = {
     amount: dZero, embers: dZero, age: dZero, frameBasedAgeGain: dZero, effectiveAgeGainPerSecond: dZero, YooChronium: dZero,
     SeungheePoints: dZero, YubinPoints: dZero, HyojungPoints: dZero, MimiPoints: dZero, MiracleLight: dZero,
-    OMGLight: omgl, OMGSparkles: omgsparkles, OMGLightAllocated: alloc
+    OMGLight: omgl, OMGSparkles: omgsparkles, OMGLightAllocated: alloc, FanHearts: dZero,
+    stream: {
+      money: dZero,
+      currentAlbumKey: "OHMYGIRL",
+      currentSongIndex: { OHMYGIRL: 1, CLOSER: 1, PINKOCEAN: 1, LISTENTOMYWORD: 1, COLORINGBOOK: 1, SECRETGARDEN: 1, REMEMBERME: 1 },
+      progress: { OHMYGIRL: 0, CLOSER: 0, PINKOCEAN: 0, LISTENTOMYWORD: 0, COLORINGBOOK: 0, SECRETGARDEN: 0, REMEMBERME: 0 },
+      isStreaming: { OHMYGIRL: false, CLOSER: false, PINKOCEAN: false, LISTENTOMYWORD: false, COLORINGBOOK: false, SECRETGARDEN: false, REMEMBERME: false },
+      unlocked: { OHMYGIRL: true, CLOSER: false, PINKOCEAN: false, LISTENTOMYWORD: false, COLORINGBOOK: false, SECRETGARDEN: false, REMEMBERME: false },
+      hasAuto: { OHMYGIRL: false, CLOSER: false, PINKOCEAN: false, LISTENTOMYWORD: false, COLORINGBOOK: false, SECRETGARDEN: false, REMEMBERME: false },
+      streams: { OHMYGIRL: Decimal.dZero, CLOSER: Decimal.dZero, PINKOCEAN: Decimal.dZero, LISTENTOMYWORD: Decimal.dZero, COLORINGBOOK: Decimal.dZero, SECRETGARDEN: Decimal.dZero, REMEMBERME: Decimal.dZero }
+    }
   };
 
   p.upgrades = getStartUpgrades(); p.milestones = getStartMilestones(); p.challenges = getStartChallenges(); p.math = getStartMath();
@@ -139,13 +153,13 @@ export const player = getStartPlayer();
 window.player = player;
 
 export function getStartGains() {
-  return { YooA: { points: '', dimensions: Array(5).fill('') }, YooAmatter: { amount: '', dimensions: Array(5).fill(''), sparks: '' }, YooAity: { amount: '', embers: '', YooChronium: '', SeungheePoints: '', YubinPoints: '', HyojungPoints: '', MimiPoints: '', MiracleLight: '' }, Shiah: { dimensions: Array(7).fill('') }, Arin: { Arinium: '' } };
+  return { YooA: { points: '', dimensions: Array(5).fill(''), energy: '' }, YooAmatter: { amount: '', dimensions: Array(5).fill(''), sparks: '', harmonics: '' }, YooAity: { amount: '', embers: '', YooChronium: '', SeungheePoints: '', YubinPoints: '', HyojungPoints: '', MimiPoints: '', MiracleLight: '' }, Shiah: { dimensions: Array(7).fill('') }, Arin: { Arinium: '' } };
 }
-export function getStartUpgrades() { return { YooA: {}, YooAmatter: {}, YooAity: {}, sparks: {}, Seunghee: {}, Yubin: {}, Arinium: {}, Hyojung: {}, Mimi: {}, OMG: {} }; }
+export function getStartUpgrades() { return { YooA: {}, YooA_energy: {}, YooAmatter: {}, YooAity: {}, sparks: {}, Seunghee: {}, Yubin: {}, Arinium: {}, Hyojung: {}, Mimi: {}, OMG: {}, Fandom: {} }; }
 export function getStartMilestones() { return { YooAity: {} }; }
 export function getStartChallenges() { return { YooAmatter: {} }; }
 export function getStartMath() { return { YooA: { mathProblem: '1 + 1', correctAnswer: 2, solved: dZero, isCorrect: false, showCorrect: false }, YooAmatter: { mathProblem: '1 * 1', correctAnswer: 1, solved: dZero, isCorrect: false, showCorrect: false }, YooAity: { mathProblem: '1 ^ 1', correctAnswer: 1, solved: dZero, isCorrect: false, showCorrect: false } }; }
-export function getStartStats() { return { General: { totalPoints: dZero, totalTime: dZero, totalSolved: dZero }, YooA: { solved: dZero }, YooAmatter: { totalAmount: dZero, totalYooArium: dZero, totalSparks: dZero, time: dZero, bestTime: new Decimal(1e100), bestTimeThisReset: new Decimal(1e100), resets: dZero, solved: dZero }, YooAity: { totalAmount: dZero, totalEmbers: dZero, totalYooChronium: dZero, time: dZero, bestTime: new Decimal(1e100), bestTimeThisReset: new Decimal(1e100), resets: dZero, solved: dZero }, last_prestiges: { YooAmatter: Array(10).fill(null), YooAity: Array(10).fill(null) } } }
+export function getStartStats() { return { General: { totalPoints: dZero, totalTime: dZero, totalSolved: dZero }, YooA: { solved: dZero }, YooAmatter: { totalAmount: dZero, totalYooArium: dZero, totalSparks: dZero, time: dZero, bestTime: new Decimal(1e100), bestTimeThisReset: new Decimal(1e100), resets: dZero, solved: dZero }, YooAity: { totalAmount: dZero, totalEmbers: dZero, totalYooChronium: dZero, totalFanHearts: dZero, totalMoney: dZero, time: dZero, bestTime: new Decimal(1e100), bestTimeThisReset: new Decimal(1e100), resets: dZero, solved: dZero }, last_prestiges: { YooAmatter: Array(10).fill(null), YooAity: Array(10).fill(null) } } }
 
 export function getStartDimensions() {
   const names = ["Lines", "Planes", "Spaces", "Realms", "Entities"];
@@ -165,7 +179,18 @@ export function getStartDimensions() {
     "YooAity",
     "YooChronium"
   ));
-  out.YooAmatter = ymNames.map((name, i) => new Dimension("YooAmatter", `YooAmatter ${name}`, dZero, dZero, dZero, i + 1, "YooAmatter", undefined, "YooAmatter"));
+  out.YooAmatter = ymNames.map((name, i) => new Dimension(
+    "YooAmatter",
+    `YooAmatter ${name}`,
+    dZero, dZero, dZero,
+    i + 1,
+    "YooAmatter", // costDisp (display label if you want)
+    "Fan Hearts",                        // rankCostDisp
+    "YooAmatter",        // layer: use player.YooAmatter for tier>=3
+    "amount",                             // currency property within that layer
+    "YooAity",
+    "FanHearts"
+  ));
   out.Shiah = shNames.map((name, i) => new Dimension("Shiah", `Shi-ah ${name}`, dZero, dZero, dZero, i + 1, "YooA Essence", undefined, "YooAity"));
   return out;
 }
@@ -175,7 +200,19 @@ export function getStartAutobuyers() {
   return {
     YooA: { "YooA Lines": make("YooA", "YooAmatter", "YooA Lines", false, 0), "YooA Planes": make("YooA", "YooAmatter", "YooA Planes", false, 0), "YooA Dimension 3+": make("YooA", "YooAmatter", "YooA Dimension 3+", false, 0), "YooA Upgrades": make("YooA", "YooAmatter", "YooA Upgrades", false, 0), "YooA Dimension Rank": make("YooA", "YooAmatter", "YooA Dimension Rank", false, 0) },
     YooAmatter: { "YooAmatter Prestige": make("YooAmatter", "YooAity", "YooAmatter Prestige", false, 0, 0), "YooAmatter Formations": make("YooAmatter", "YooAity", "YooAmatter Formations", false, 0), "YooAmatter Upgrades": make("YooAmatter", "YooAity", "YooAmatter Upgrades", false, 0), "Spark Upgrades": make("YooAmatter", "YooAity", "Spark Upgrades", false, 0), "Arin Level": make("YooAmatter", "YooAity", "Arin Level", false, 0) },
-    YooAity: { "YooAity Prestige": make("YooAity", null, "YooAity Prestige", false, 0, 0), "Arin Rank": make("YooAity", null, "Arin Rank", false, 0), "YooAity Upgrades": make("YooAity", null, "YooAity Upgrades", false, 0), "Shi-ah Echoes": make("YooAity", null, "Shi-ah Echoes", false, 0), "Seunghee Upgrades": make("YooAity", null, "Seunghee Upgrades", false, 0), "Yubin Upgrades": make("YooAity", null, "Yubin Upgrades", false, 0), "Arinium Upgrades (Arin-Proof)": make("YooAity", null, "Arinium Upgrades (Arin-Proof)", false, 0), "Hyojung Upgrades (Arin-Proof)": make("YooAity", null, "Hyojung Upgrades (Arin-Proof)", false, 0), "Mimi Upgrades (Arin-Proof)": make("YooAity", null, "Mimi Upgrades (Arin-Proof)", false, 0) }
+    YooAity: {
+      "YooAity Prestige": make("YooAity", null, "YooAity Prestige", false, 0, 0),
+      "Arin Rank": make("YooAity", null, "Arin Rank", false, 0),
+      "YooAity Upgrades": make("YooAity", null, "YooAity Upgrades", false, 0),
+      "Shi-ah Echoes": make("YooAity", null, "Shi-ah Echoes", false, 0),
+      "Seunghee Upgrades": make("YooAity", null, "Seunghee Upgrades", false, 0),
+      "Yubin Upgrades": make("YooAity", null, "Yubin Upgrades", false, 0),
+      "Arinium Upgrades (Arin-Proof)": make("YooAity", null, "Arinium Upgrades (Arin-Proof)", false, 0),
+      "Hyojung Upgrades (Arin-Proof)": make("YooAity", null, "Hyojung Upgrades (Arin-Proof)", false, 0),
+      "Mimi Upgrades (Arin-Proof)": make("YooAity", null, "Mimi Upgrades (Arin-Proof)", false, 0),
+      "Arin Tier (Arin-Proof)": make("YooAity", null, "Arin Tier (Arin-Proof)", false, 0),
+      "OH MY GIRL Upgrades (Arin-Proof)": make("YooAity", null, "OH MY GIRL Upgrades (Arin-Proof)", false, 0)
+    }
   };
 }
 
@@ -222,7 +259,19 @@ function computeYooAExponent() {
   if (hasChallenge('YooAmatter', 4)) {
     gain = DEC_MUL.call(gain, challengeEffect('YooAmatter', 4)[1]);
   }
-  
+
+  return gain
+}
+
+function computeYooADilation() {
+  let gain = hasUpgrade("YooA_energy", 11) ? upgradeEffect("YooA_energy", 11) : dOne
+  if (inChallenge('YooAmatter', 4) && gameLayers.YooAmatter && gameLayers.YooAmatter.challenges && gameLayers.YooAmatter.challenges[4]) {
+    gain = DEC_MUL.call(gain, gameLayers.YooAmatter.challenges[4].dilEff());
+  }
+  gain = DEC_MUL.call(gain, upgradeEffect("sparks", 21));
+  if (hasUpgrade("Yubin", 34)) gain = DEC_MUL.call(gain, upgradeEffect("Yubin", 34));
+  if (hasUpgrade("Arinium", 32)) gain = DEC_MUL.call(gain, upgradeEffect("Arinium", 32));
+  if (hasUpgrade("Arinium", 33)) gain = DEC_MUL.call(gain, upgradeEffect("Arinium", 33));
   return gain
 }
 
@@ -250,20 +299,20 @@ export function computeYooAGainBase() {
   if (player.achievements[16]) gain = DEC_MUL.call(gain, achievements[16].rewardEffect());
 
   const exponent = computeYooAExponent();
+  const dilation = computeYooADilation();
 
   // Short-circuit expensive pow when exponent is 1
   if (!DEC_EQ.call(exponent, dOne)) {
     gain = DEC_POW.call(gain, exponent);
   }
-  if (inChallenge('YooAmatter', 4) && gameLayers.YooAmatter && gameLayers.YooAmatter.challenges && gameLayers.YooAmatter.challenges[4]) {
-    gain = gain.dilate(gameLayers.YooAmatter.challenges[4].dilEff());
+  if (!DEC_EQ.call(dilation, dOne)) {
+    gain = gain.dilate(dilation)
   }
 
   return gain;
 }
 
-// compute YooAGain
-export function computeYooAGain() {
+export function computeYooAGainBase2() {
   let gain = GameCache.YooAGainBase.value;
   let power = dOne;
   if (hasUpgrade("YooAmatter", 25)) power = DEC_DIV.call(dOne, upgradeEffect("YooAmatter", 25)[0]);
@@ -283,6 +332,24 @@ export function computeYooAGain() {
   if (DEC_GTE.call(gain, new Decimal('ee55555'))) {
     const lg = DEC_LOG10.call(gain);
     gain = DEC_POW.call(lg.div('e55555'), powC).mul(powC.recip().mul('e55555')).sub(powC.recip().sub(1).mul('e55555')).pow10();
+  }
+  return gain;
+}
+
+export function computeYooAGain() {
+  let gain = GameCache.YooAGainBase2.value;
+  let power = dOne;
+
+  const powA = DEC_POW.call(DEC_0_8, power);
+  const powB = DEC_POW.call(DEC_0_6, power);
+
+  if (DEC_GTE.call(gain, new Decimal('eee46'))) {
+    const lg = DEC_LOG10.call(DEC_LOG10.call(gain));
+    gain = DEC_POW.call(lg.div(1e46), powA).mul(powA.recip().mul(1e46)).sub(powA.recip().sub(1).mul(1e46)).pow10().pow10();
+  }
+  if (DEC_GTE.call(gain, new Decimal('eee200'))) {
+    const lg = DEC_LOG10.call(DEC_LOG10.call(gain));
+    gain = DEC_POW.call(lg.div(1e200), powB).mul(powB.recip().mul(1e200)).sub(powB.recip().sub(1).mul(1e200)).pow10().pow10();
   }
   return gain;
 }
@@ -308,6 +375,15 @@ export function computeYooADimensionMult() {
     const id = achievementIds[i]; if (player.achievements[id]) mult = DEC_MUL.call(mult, achievements[id].rewardEffect());
   }
   if (player.achievements[28]) mult = DEC_MUL.call(mult, GameCache.AchievementMult.value);
+  return mult;
+}
+
+// compute YooADimensionPowerMult 
+export function computeYooADimensionPowerMult() {
+  let mult = gameLayers.YooAmatter.getYooAmatterHarmonicsEffect();
+  if (hasUpgrade("OMG", 36)) mult = DEC_MUL.call(mult, 12.5)
+  if (hasUpgrade("YooA_energy", 12)) mult = DEC_MUL.call(mult, upgradeEffect("YooA_energy", 12))
+  mult = DEC_MUL.call(mult, upgradeEffect("YooA_energy", 13))
   return mult;
 }
 
@@ -352,10 +428,12 @@ export function computeAchievementMultiplier() {
 (function initGameCache() {
   // If GameCache was already populated (unlikely), overwrite to ensure correct bindings.
   GameCache.YooAGainBase = new Lazy(() => computeYooAGainBase());
+  GameCache.YooAGainBase2 = new Lazy(() => computeYooAGainBase2());
   GameCache.YooAGain = new Lazy(() => computeYooAGain());
   GameCache.YooAPerSecond = new Lazy(() => computeYooAPerSecond());
 
   GameCache.YooADimensionMult = new Lazy(() => computeYooADimensionMult());
+  GameCache.YooADimensionPowerMult = new Lazy(() => computeYooADimensionPowerMult());
   GameCache.YooAmatterFormationMult = new Lazy(() => computeYooAmatterFormationMult());
   GameCache.ShiahEchoMult = new Lazy(() => computeShiahEchoMult());
 
@@ -476,6 +554,7 @@ export function calc(diff) {
   const perSecondGain = __tickComputed.YooAPerSecond;
   const dimsYooAm = _pDims.YooAmatter;
   const dimsShiah = _pDims.Shiah;
+  const harmonicsGain = gameLayers.YooAmatter.getYooAmatterHarmonicsGain();
   const sparkGain = (dimsYooAm && dimsYooAm[0] && dimsYooAm[0].effect) || dZero;
   const emberGain = (dimsShiah && dimsShiah[0] && dimsShiah[0].effect) || dZero;
 
@@ -526,7 +605,12 @@ export function calc(diff) {
   const YooALightGain = upgradeEffect('OMG', 11);
   const ArinLightGain = upgradeEffect('OMG', 21);
   const SeungheeLightGain = upgradeEffect('OMG', 31);
+  const YubinLightGain = upgradeEffect('OMG', 41);
+  const YooAPower = gameLayers.YooA_energy.getYooAPower()
   const AllocYooAGain = DEC_DIV.call(player.YooAity.OMGLight.YooA, new Decimal(100));
+  const AllocArinGain = DEC_DIV.call(player.YooAity.OMGLight.Arin, new Decimal(100));
+  const AllocSeungheeGain = DEC_DIV.call(player.YooAity.OMGLight.Seunghee, new Decimal(100));
+  const AllocYubinGain = DEC_DIV.call(player.YooAity.OMGLight.Yubin, new Decimal(100));
   const AriniumGain = getAriniumGain();
   const MiracleLightGain = (gameLayers.OMG && gameLayers.OMG.getMiracleLightGain && gameLayers.OMG.getMiracleLightGain()) || dZero;
 
@@ -538,9 +622,13 @@ export function calc(diff) {
   const hasOMG11 = hasUpgrade('OMG', 11);
   const hasOMG21 = hasUpgrade('OMG', 21);
   const hasOMG31 = hasUpgrade('OMG', 31);
+  const hasOMG41 = hasUpgrade('OMG', 41);
   const hasY42 = hasUpgrade('YooAmatter', 42);
   const hasM13 = hasMilestone('YooAity', 13);
   const hasM23 = hasMilestone('YooAity', 23);
+  const hasMIR13 = hasUpgrade("Fandom", 13);
+  const hasMIR23 = hasUpgrade("Fandom", 23);
+  const hasAR33 = hasUpgrade("Arinium", 33);
 
   // compute effects only when needed and cache deltas (mul diff) for reuse inside this tick
   const u22 = hasY22 ? upgradeEffect('YooAmatter', 22) : dZero;
@@ -556,13 +644,19 @@ export function calc(diff) {
   const prestGainDelta = prestGain.mul(diffMul);
   const chroniumGainDelta = chroniumGain.mul(diffMul);
   const AllocYooADelta = AllocYooAGain.mul(diffMul);
+  const AllocArinDelta = AllocArinGain.mul(diffMul);
+  const AllocSeungheeDelta = AllocSeungheeGain.mul(diffMul);
+  const AllocYubinDelta = AllocYubinGain.mul(diffMul);
   const YooALightGainDelta = YooALightGain.mul(diffMul);
   const ArinLightGainDelta = ArinLightGain.mul(diffMul);
   const SeungheeLightGainDelta = SeungheeLightGain.mul(diffMul);
+  const YubinLightGainDelta = YubinLightGain.mul(diffMul);
+  const YooAEnergyGainDelta = YooAPower.mul(diffMul);
 
   const pGainYooAity = _pGain.YooAity;
   _pGain.YooA.points = gainCurrency(player, 'YooAPoints', perSecondGain, diff);
   _pGain.YooAmatter.sparks = gainCurrency(player, 'YooAmatter.sparks', sparkGain, diff);
+  _pGain.YooAmatter.harmonics = gainCurrency(player, 'YooAmatter.harmonics', harmonicsGain, diff);
   pGainYooAity.SeungheePoints = gainCurrency(player, 'YooAity.SeungheePoints', SeungheeGain, diff);
   pGainYooAity.YubinPoints = gainCurrency(player, 'YooAity.YubinPoints', YubinGain, diff);
   pGainYooAity.HyojungPoints = gainCurrency(player, 'YooAity.HyojungPoints', HyojungGain, diff);
@@ -590,7 +684,7 @@ export function calc(diff) {
   if (hasM23) { player.math.YooAity.solved = player.math.YooAity.solved.add(m23Delta); _pStats.General.totalSolved = _pStats.General.totalSolved.add(m23Delta); }
   if (hasU15) _pStats.YooAmatter.resets = _pStats.YooAmatter.resets.add(ascGainDelta);
   if (hasY42) { _pStats.YooAmatter.totalYooArium = _pStats.YooAmatter.totalYooArium.add(ariumGainDelta); player.YooAmatter.YooArium = player.YooAmatter.YooArium.add(ariumGainDelta); }
-  if (hasM13) { player.YooAmatter.amount = player.YooAmatter.amount.add(prestGainDelta); _pStats.YooAmatter.totalAmount = _pStats.YooAmatter.totalAmount.add(prestGainDelta);}
+  if (hasM13) { player.YooAmatter.amount = player.YooAmatter.amount.add(prestGainDelta); _pStats.YooAmatter.totalAmount = _pStats.YooAmatter.totalAmount.add(prestGainDelta); }
   if (hasU35) _pStats.YooAity.totalYooChronium = _pStats.YooAity.totalYooChronium.add(chroniumGainDelta);
   if (hasOMG11) player.YooAity.OMGLight.YooA = player.YooAity.OMGLight.YooA.add(YooALightGainDelta);
   if (hasOMG21) player.YooAity.OMGLight.Arin = player.YooAity.OMGLight.Arin.add(ArinLightGainDelta);
@@ -600,7 +694,24 @@ export function calc(diff) {
     player.YooAity.OMGLightAllocated.YooA.dance = player.YooAity.OMGLightAllocated.YooA.dance.add(AllocYooADelta);
     player.YooAity.OMGLightAllocated.YooA.charisma = player.YooAity.OMGLightAllocated.YooA.charisma.add(AllocYooADelta);
   }
+  if (hasOMG41) player.YooAity.OMGLight.Yubin = player.YooAity.OMGLight.Yubin.add(YubinLightGainDelta);
+  if (hasMIR13) {
+    player.YooAity.OMGLightAllocated.Arin.vocals = player.YooAity.OMGLightAllocated.Arin.vocals.add(AllocArinDelta);
+    player.YooAity.OMGLightAllocated.Arin.dance = player.YooAity.OMGLightAllocated.Arin.dance.add(AllocArinDelta);
+    player.YooAity.OMGLightAllocated.Arin.charisma = player.YooAity.OMGLightAllocated.Arin.charisma.add(AllocArinDelta);
+  }
 
+  if (hasMIR23) {
+    player.YooAity.OMGLightAllocated.Seunghee.vocals = player.YooAity.OMGLightAllocated.Seunghee.vocals.add(AllocSeungheeDelta);
+    player.YooAity.OMGLightAllocated.Seunghee.dance = player.YooAity.OMGLightAllocated.Seunghee.dance.add(AllocSeungheeDelta);
+    player.YooAity.OMGLightAllocated.Seunghee.charisma = player.YooAity.OMGLightAllocated.Seunghee.charisma.add(AllocSeungheeDelta);
+  }
+
+  if (hasAR33) {
+    player.YooAity.OMGLightAllocated.Yubin.vocals = player.YooAity.OMGLightAllocated.Yubin.vocals.add(AllocYubinDelta);
+    player.YooAity.OMGLightAllocated.Yubin.dance = player.YooAity.OMGLightAllocated.Yubin.dance.add(AllocYubinDelta);
+    player.YooAity.OMGLightAllocated.Yubin.charisma = player.YooAity.OMGLightAllocated.Yubin.charisma.add(AllocYubinDelta);
+  }
 
   const dimsYooA = _pDims.YooA;
   for (let i = 0, len = dimsYooA.length; i < len; i++) {
@@ -634,6 +745,40 @@ export function calc(diff) {
     }
 
   }
+
+  const playerStream = player.YooAity.stream;
+  for (const album in playerStream.isStreaming) {
+    const currentAlbumKey = album;
+    const currentAlbum = songs.albums[currentAlbumKey];
+    const songLength = currentAlbum.lengthPerSong / gameLayers.Fandom.getStreamSpeed(); // seconds per song
+    const isAutomated = playerStream.hasAuto[currentAlbumKey]
+    if (playerStream.isStreaming[currentAlbumKey] && (album === playerStream.currentAlbumKey || currentAlbum.isBackStreamable())) {
+      playerStream.progress[currentAlbumKey] += parseFloat(diff)
+      if (playerStream.progress[currentAlbumKey] >= songLength) {
+        const times = isAutomated ? Math.floor(playerStream.progress[currentAlbumKey] / songLength) : 1;
+        playerStream.progress[currentAlbumKey] -= times * songLength;
+        playerStream.streams[currentAlbumKey] = playerStream.streams[currentAlbumKey].add(times);
+        const fanGain = gameLayers.OMG.getFanHeartGain().mul(times)
+        const moneyGain = gameLayers.Fandom.getMoneyGain(currentAlbum).mul(times)
+        player.YooAity.FanHearts = player.YooAity.FanHearts.add(fanGain);
+        player.stats.YooAity.totalFanHearts = player.stats.YooAity.totalFanHearts.add(fanGain);
+
+        if (hasUpgrade("Fandom", 13)) {
+          player.YooAity.stream.money = player.YooAity.stream.money.add(moneyGain);
+          player.stats.YooAity.totalMoney = player.stats.YooAity.totalMoney.add(moneyGain);
+        }
+
+        if (!isAutomated) {
+          notifySong(currentAlbum.songs[playerStream.currentSongIndex[currentAlbumKey]]);
+          playerStream.isStreaming[currentAlbumKey] = false;
+          playerStream.progress[currentAlbumKey] = 0;
+        }
+        playerStream.currentSongIndex[currentAlbumKey] = (playerStream.currentSongIndex[currentAlbumKey] + times - 1) % Object.keys(currentAlbum.songs).length + 1;
+      }
+    }
+  }
+
+  if (player.dimensions.YooA[0].powerUnlocked) player.YooA.energy = player.YooA.energy.add(YooAEnergyGainDelta)
 
   if (__achKeysArray) {
     for (let ai = 0, alen = __achKeysArray.length; ai < alen; ++ai) {
@@ -711,6 +856,6 @@ export function gameLoop() {
 }
 
 const exportsObj = {
-    start
+  start
 };
 export default exportsObj;

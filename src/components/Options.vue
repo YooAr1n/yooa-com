@@ -73,7 +73,8 @@
     <!-- Saving Tab -->
     <transition name="tab-slide" mode="out-in">
       <div v-if="currentTab === 'saving'" key="saving" class="tab-content">
-        <div class="button-grid">
+        <div class="button-grid" style="align-items:start;">
+          <!-- existing action buttons (unchanged) -->
           <button @click="save(true)" class="btn-animated">Save Locally</button>
           <button @click="openCloudSaveConfirm()" class="btn-animated">Cloud Save</button>
           <button @click="openCloudLoadConfirm()" class="btn-animated">Cloud Load</button>
@@ -86,6 +87,50 @@
           <button id="offline" @click="changeOffline()" class="btn-animated">Offline Progress: {{ offlineOn }}</button>
           <button id="news" @click="changeNews()" class="btn-animated">News Ticker: {{ newsOn }}</button>
           <button id="notation" @click="changeNotation()" class="btn-animated">Notation: {{ notation }}</button>
+          <button class="currency-picker btn-animated" :class="{ primary: showCurrencyMenu }"
+            @click.stop="toggleCurrencyMenu" aria-haspopup="true" :aria-expanded="showCurrencyMenu">
+            Currency: {{ displayCurrency }}<span v-if="currentCurrencySymbol"
+              v-html="' (' + currentCurrencySymbol + ')'"></span>
+            <span style="margin-left:8px; opacity:0.8;">▾</span>
+          </button>
+
+          <!-- centered currency modal (replace the old floating currency menu block) -->
+          <div v-if="showCurrencyMenu" class="currency-modal-overlay" @click.self="showCurrencyMenu = false"
+            role="dialog" aria-modal="true">
+            <div class="currency-modal card enter-pop" ref="currencyMenu">
+              <div class="currency-modal-header">
+                <h4 class="currency-modal-title">🌸 YooA — Choose display currency</h4>
+                <button class="close-x" @click="showCurrencyMenu = false" aria-label="Close">✕</button>
+              </div>
+
+              <!-- optional search/filter area (kept small and unobtrusive) -->
+              <div style="margin:8px 0 12px; display:flex; gap:8px; align-items:center;">
+                <input v-model="currencyFilter" placeholder="Filter (code or symbol)"
+                  style="padding:8px 12px; border-radius:10px; width: 80%; border:1px solid #eee;" />
+                <button class="ghost btn-animated" style="padding:8px 12px; height:40px;"
+                  @click="currencyFilter = ''">Clear</button>
+              </div>
+
+              <div class="currency-grid">
+                <button v-for="c in currencyList
+                  .filter(item => item &&
+                    (!currencyFilter ||
+                      (item.code + (item.symbol || ''))
+                        .toLowerCase()
+                        .includes(currencyFilter.toLowerCase())
+                    )
+                  )" :key="c.code" @click.stop="setDisplayCurrency(c.code)"
+                  :class="['btn-animated', (c.code === displayCurrency) ? 'primary' : '']"
+                  style="height:70px; width: 140px; font-size:14pt;">
+                  <span v-if="c.symbol" v-html="'(' + c.symbol + ') '"></span>{{ c.code }}
+                </button>
+              </div>
+
+              <div style="margin-top:12px; text-align:center; color:#6a556a; font-size:13px;">
+                <small>🌸 YooA whispers: Pick a currency — this will be saved for your game display.</small>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
@@ -380,6 +425,17 @@ export default {
   data() {
     return {
       subtab: "saving",
+      displayCurrency: (() => {
+        let cur = (options && options.currency)
+          ? options.currency
+          : (localStorage.getItem('yemm_display_currency') || 'USD');
+
+        if (options) options.currency = cur;
+        return cur;
+      })(),
+
+      showCurrencyMenu: false,
+      currencyFilter: "",
 
       // auth UI state
       authView: 'choice',
@@ -429,10 +485,49 @@ export default {
     confirmations() { return options.confirmations },
     currentTab() { return this.subtab },
     interval() { return formatWhole(options.autosaveInterval) + "s" },
-    notation() { return options.notation},
+    notation() { return options.notation },
     autoSaveOn() { return options.autosave ? "ON" : "OFF" },
     offlineOn() { return options.offline ? "ON" : "OFF" },
     newsOn() { return options.news ? "ON" : "OFF" },
+
+    // inside computed:
+    currencyList() {
+      // Use the global rates map (window.currencyRates) to build the list of available codes.
+      // Fallback to a minimal list if rates are not yet available.
+      const rates = (typeof window !== 'undefined' && window.currencyRates) ? window.currencyRates : null;
+      const codes = rates ? Object.keys(rates) : ['USD', 'EUR', 'PHP', 'JPY', 'KRW'];
+
+      // Prefer a stable sorted order
+      codes.sort((a, b) => a.localeCompare(b));
+
+      // Try to get symbol from window.currencySymbols if exposed; otherwise fallback to basic map or code.
+      const symbolMap = (typeof window !== 'undefined' && window.currencySymbols) ? window.currencySymbols : {
+        USD: '$', EUR: '€', PHP: '₱', JPY: '¥', KRW: '₩'
+      };
+
+      return codes.map(code => ({
+        code,
+        symbol: symbolMap[code] || null
+      }));
+    },
+
+    // preview for the select (uses global formatCurrency if present)
+    currencyPreview() {
+      try {
+        const sample = new Decimal(1234.56); // sample amount
+        // If formatCurrency expects input in USD (old behavior), pass sample USD
+        return (typeof window !== 'undefined' && window.formatCurrency)
+          ? window.formatCurrency(sample, this.displayCurrency)
+          : (this.displayCurrency + ' ' + sample.toFixed(2));
+      } catch (e) {
+        return this.displayCurrency + ' 1234.56';
+      }
+    },
+
+    // symbol for toggle button
+    currentCurrencySymbol() {
+      return (typeof window !== 'undefined' && window.currencySymbols && window.currencySymbols[this.displayCurrency]) ? window.currencySymbols[this.displayCurrency] : null;
+    },
 
     // TRUE only when we have a real authenticated session token
     isAuthenticated() {
@@ -470,6 +565,24 @@ export default {
 
   async mounted() {
     window.addEventListener("GAME_EVENT.UPDATE", this.update)
+
+    // keep a bound handler references so we can remove on unmount
+    this._onFxUpdated = () => { this.$forceUpdate(); };
+    this._onDocClick = (e) => this.handleClickOutsideCurrencyMenu(e);
+
+    // ensure displayCurrency is synced to options/localStorage at mount
+    const saved = localStorage.getItem('yemm_display_currency');
+    if (saved && (!this.displayCurrency || this.displayCurrency !== saved)) {
+      this.displayCurrency = saved;
+      if (typeof options !== 'undefined') options.currency = saved;
+    }
+
+    // listen for FX updates so the picker updates if new currencies were fetched
+    window.addEventListener('_yemm_fx_updated', this._onFxUpdated);
+
+    // click outside handler
+    document.addEventListener('click', this._onDocClick);
+
     try {
       const session = await fetchAuthSession();
       const hasTokens = !!(session && session.tokens && session.tokens.idToken);
@@ -482,7 +595,7 @@ export default {
           console.warn('getCurrentUser returned error even though session tokens exist:', uErr);
           this.user = null;
         }
-        await this.fetchAndApplyAttributes();
+        await this.fetchAndApplyAttributes?.();
         if (this.authView !== 'verify') this.authView = 'profile';
       } else {
         this.user = null;
@@ -500,7 +613,10 @@ export default {
   },
 
   beforeUnmount() {
-    window.removeEventListener("GAME_EVENT.UPDATE", this.update)
+    // remove listeners
+    window.removeEventListener("GAME_EVENT.UPDATE", this.update);
+    window.removeEventListener('_yemm_fx_updated', this._onFxUpdated);
+    document.removeEventListener('click', this._onDocClick);
   },
 
   methods: {
@@ -515,6 +631,49 @@ export default {
 
     update() {
       this.subtab = player.subtabs["Options"]
+    },
+
+    toggleCurrencyMenu() {
+      this.showCurrencyMenu = !this.showCurrencyMenu;
+    },
+
+    setDisplayCurrency(code) {
+      this.displayCurrency = code;
+      try {
+        localStorage.setItem('yemm_display_currency', this.displayCurrency);
+        if (typeof options !== 'undefined') options.currency = this.displayCurrency;
+      } catch (e) { /* ignore localStorage failure */ }
+
+      this.showCurrencyMenu = false;
+      // notify other components to re-render using the new currency selection
+      try {
+        window.dispatchEvent(new CustomEvent('GAME_EVENT.UPDATE', { detail: { reason: 'currency-changed' } }));
+        this.notify(`🌸 YooA says: Display currency set to ${this.displayCurrency}`, 'saved');
+      } catch (e) { }
+    },
+
+    handleClickOutsideCurrencyMenu(e) {
+      if (!this.showCurrencyMenu) return;
+      const menu = this.$refs.currencyMenu;
+      if (!menu) return;
+      if (!menu.contains(e.target)) {
+        this.showCurrencyMenu = false;
+      }
+    },
+
+    onChangeCurrency() {
+      try {
+        // Persist user choice in localStorage and options (if exists)
+        localStorage.setItem('yemm_display_currency', this.displayCurrency);
+        if (typeof options !== 'undefined') options.currency = this.displayCurrency;
+
+        // optional: trigger a global update event so other UI can rerender
+        window.dispatchEvent(new CustomEvent('GAME_EVENT.UPDATE', { detail: { reason: 'currency-changed' } }));
+
+        this.notify(`🌸 YooA says: Display currency set to ${this.displayCurrency}`, 'saved');
+      } catch (e) {
+        console.warn('Failed to save display currency', e);
+      }
     },
 
     // attempt to extract player object from raw saved payload
@@ -1875,11 +2034,11 @@ button.btn-danger {
   transition: background .2s, transform .15s
 }
 
-.button-grid button {
+.button-grid > button {
   width: 100%;
   height: 90px;
   font-size: 15pt;
-  box-shadow: 0 8px 22px rgba(153, 24, 147, .06)
+  box-shadow: 0 8px 22px rgba(153, 24, 147, .06);
 }
 
 .button-grid button:hover,
@@ -1963,6 +2122,80 @@ button.btn-danger {
   color: #d17be2;
   letter-spacing: .2px;
   text-align: center
+}
+
+.currency-menu .button-grid {
+  margin: 0;
+  padding: 0;
+}
+
+/* Centered currency modal overlay */
+.currency-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1400;
+  /* above other UI */
+  padding: 20px;
+  background: rgba(20, 7, 20, 0.48);
+}
+
+/* Modal card */
+.currency-modal {
+  width: min(920px, 94%);
+  max-width: 920px;
+  max-height: 72vh;
+  overflow: auto;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff, #fffaf8);
+  box-shadow: 0 22px 60px rgba(30, 8, 40, .18);
+}
+
+/* header row inside modal */
+.currency-modal-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.currency-modal-title {
+  margin: 0;
+  font-size: 16pt;
+  color: #7a2a7a;
+}
+
+/* grid of currency buttons */
+.currency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+/* make sure the modal close-x sits nicely */
+.currency-modal .close-x {
+  position: static;
+  margin-left: 8px;
+  background: transparent;
+  color: #7a2a7a;
+  font-size: 18px;
+  border: 0;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.currency-modal .close-x:hover {
+  background: rgba(122, 42, 122, 0.08);
+  border-radius: 8px;
 }
 
 .auth-guest-note {

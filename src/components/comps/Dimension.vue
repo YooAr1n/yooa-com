@@ -2,6 +2,7 @@
   <div :class="dimensionClass">
     <h2 v-html="dimHeader"></h2>
     <h3 v-if="dimensionGain" v-html="dimensionGain"></h3>
+    <h3 v-if="powerUnlocked" v-html="dimensionPower"></h3>
 
     <p v-if="dimension.tier === 1" v-html="t1Text"></p>
     <p v-else-if="dimension.tier > 1">Produces <span v-html="prevDimensionName"></span>.</p>
@@ -44,12 +45,14 @@ export default {
     dimGain: { type: String, default: "N/A" },
     currentCurrency: { type: Object, default: null },
     maxUnlocked: { type: Boolean, default: false },
+    powerUnlocked: { type: Boolean, default: false },
     rankUnlocked: { type: Boolean, default: false },
     rankMaxUnlocked: { type: Boolean, default: false },
   },
   data() {
     return {
       dimHeader: "",
+      dimensionPower: "",
       dimensionGain: "",
       prevDimensionName: "",
       formattedCost: "",
@@ -63,6 +66,8 @@ export default {
 
       // stable Decimal buffers (no allocations per tick)
       amtDec: new Decimal(0),
+      powerDec: new Decimal(0),
+      energyDec: new Decimal(0),
       costDec: new Decimal(0),
       rankCostDec: new Decimal(0),
 
@@ -70,6 +75,8 @@ export default {
       lastKeys: {
         header: "",
         gain: "",
+        power: "",
+        energy: "",
         prevName: "",
         cost: "",
         rankCost: "",
@@ -109,7 +116,8 @@ export default {
         this.t1Text = dim.t1Text ?? "";
         const levelStr = formatWhole(dim.level ?? 0);
         const rankPart = (dim.rankUnlocked && (dim.rank != null)) ? `, Rank ${formatWhole(dim.rank)}` : "";
-        const rankMultPart = (dim.rankUnlocked && (dim.rankMult != null)) ? `, ^${format(dim.rankMult)}` : "";
+        const op = dim.type === "YooAmatter" ? "x" : "^";
+        const rankMultPart = (dim.rankUnlocked && (dim.rankMult != null)) ? `, ${op}${format(dim.rankMult)}` : "";
         this.dimHeader = `${format(this.amtDec)} ${dim.name} (Level ${levelStr}${rankPart}) x${format(dim.mult ?? 1)}${rankMultPart}`;
       }
 
@@ -118,6 +126,37 @@ export default {
         this.lastKeys.gain = this.dimGain;
         this.dimensionGain = (this.dimGain === "N/A") ? "" : this.dimGain;
       }
+
+      // ---------- power ----------
+      const powerSrc = dim.power;
+      const powerKey = decimalKey(powerSrc);
+      let powerText = ""
+      if (powerKey !== this.lastKeys.power) {
+        this.lastKeys.power = powerKey;
+        if (powerSrc && typeof powerSrc.copyFrom === "function") {
+          this.powerDec.copyFrom(powerSrc);
+        } else if (powerSrc && typeof powerSrc.toNumber === "function") {
+          this.powerDec.sign = powerSrc.toNumber();
+        } else {
+          this.powerDec.sign = Number(powerSrc) || 0;
+        }
+        powerText = " Power: " + formatSI(this.powerDec, "W");
+      }
+      const energySrc = dim.energy;
+      const energyKey = decimalKey(energySrc);
+      let energyText = ""
+      if (energyKey !== this.lastKeys.energy) {
+        this.lastKeys.energy = energyKey;
+        if (energySrc && typeof energySrc.copyFrom === "function") {
+          this.energyDec.copyFrom(energySrc);
+        } else if (energySrc && typeof energySrc.toNumber === "function") {
+          this.energyDec.sign = energySrc.toNumber();
+        } else {
+          this.energyDec.sign = Number(energySrc) || 0;
+        }
+        energyText = " Energy: " + formatSI(this.energyDec, "J");
+      }
+      this.dimensionPower = (this.dimGain.trim().length === 0 ? "" : "<br>") + powerText + ", " + energyText
 
       // ---------- prev name ----------
       const prevName = (dim.tier > 1 && this.allDimensions && this.allDimensions[dim.tier - 2])

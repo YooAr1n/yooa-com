@@ -57,6 +57,7 @@ export default {
       pointsDec: new Decimal(0),
       yooAGainDec: new Decimal(0),
       yooAGainBaseDec: new Decimal(1),
+      yooAGainBase2Dec: new Decimal(1),
       perSecDec: new Decimal(0),
       // lastKeys kept for compatibility but primary comparators are lastFormatted*
       lastKeys: {
@@ -64,19 +65,16 @@ export default {
         perSec: '',
         yooAGain: '',
         yooAGainBase: '',
+        yooAGainBase2: '',
         yooAGainLog: '',
       },
       // store last *formatted* HTML strings so notation changes trigger updates
       lastFormattedPoints: '',
       lastFormattedPerSec: '',
-      endgameText: '',
     };
   },
 
   mounted() {
-    // precompute static-ish text
-    this.endgameText = colorText("h3", gameLayers.OMG.color, formatWhole(1e3)) + " MIRACLEs";
-
     // bind update for points
     this.boundUpdate = this.update.bind(this);
     window.addEventListener("GAME_EVENT.UPDATE", this.boundUpdate);
@@ -86,7 +84,14 @@ export default {
   },
 
   computed: {
-    newsOn() { return options.news; }
+    newsOn() { return options.news; },
+    endgameText() {
+    return colorText(
+      "h3",
+      gameLayers.OMG.color,
+      formatWhole(9e6)
+    ) + " MIRACLEs";
+  }
   },
 
   methods: {
@@ -192,14 +197,18 @@ export default {
         // Celestial Overflow extra line when YooAGain is huge
         const srcYooAGain = GameCache.YooAGain?.value;
         const srcYooABase = GameCache.YooAGainBase?.value;
+        const srcYooABase2 = GameCache.YooAGainBase2?.value;
 
         // Determine isHuge in a safe way (don't rely solely on decimalKey)
         let isHuge = false;
+        let isHuge2 = false;
         try {
           if (srcYooAGain && typeof srcYooAGain.gte === 'function') {
             isHuge = srcYooAGain.gte("ee24");
+            isHuge2 = srcYooAGain.gte("eee46");
           } else if (this.yooAGainDec && typeof this.yooAGainDec.gte === 'function') {
             isHuge = this.yooAGainDec.gte("ee24");
+            isHuge2 = this.yooAGainDec.gte("eee46");
           } else {
             isHuge = false;
           }
@@ -211,7 +220,7 @@ export default {
           // compute a printable logVal (use safe helper). We compute res (string|number|Decimal).
           let logRes = null;
           try {
-            logRes = this.safeLogBaseAsString(srcYooAGain || this.yooAGainDec, srcYooABase || this.yooAGainBaseDec);
+            logRes = this.safeLogBaseAsString(srcYooABase2 || this.yooAGainBase2Dec, srcYooABase || this.yooAGainBaseDec);
           } catch (e) {
             logRes = null;
           }
@@ -232,6 +241,33 @@ export default {
             colorText("h3", "#d17be2", printableLog);
         }
 
+        if (isHuge2) {
+          // compute a printable logVal (use safe helper). We compute res (string|number|Decimal).
+          let logRes = null;
+          try {
+            const gain = srcYooAGain || this.yooAGainDec
+            const base = srcYooABase2 || this.yooAGainBase2Dec
+            logRes = this.safeLogBaseAsString(gain.log10(), base.log10());
+          } catch (e) {
+            logRes = null;
+          }
+
+          // derive printable string
+          let printableLog;
+          if (logRes == null) {
+            printableLog = 'N/A';
+          } else if (typeof logRes === 'string') {
+            printableLog = logRes;
+          } else if (typeof logRes === 'number') {
+            printableLog = String(logRes.toFixed(3));
+          } else {
+            try { printableLog = format(logRes); } catch (e) { printableLog = (logRes && logRes.toString) ? logRes.toString() : 'N/A'; }
+          }
+
+          perSecHtml += "<br>Because of YooA's Astral Miracle Dilation, YooA Point gain is dilated ^" +
+            colorText("h3", "#d17be2", printableLog);
+        }
+
         // Only update if the final HTML changed (so notation changes are caught)
         if (perSecHtml !== this.lastFormattedPerSec) {
           this.lastFormattedPerSec = perSecHtml;
@@ -245,6 +281,11 @@ export default {
           try {
             if (srcYooABase && typeof srcYooABase.copyFrom === 'function') this.yooAGainBaseDec.copyFrom(srcYooABase);
             else if (srcYooABase && typeof srcYooABase.toNumber === 'function') this.yooAGainBaseDec.sign = srcYooABase.toNumber();
+          } catch (e) { /* ignore */ }
+
+          try {
+            if (srcYooABase2 && typeof srcYooABase2.copyFrom === 'function') this.yooAGainBase2Dec.copyFrom(srcYooABase2);
+            else if (srcYooABase2 && typeof srcYooABase2.toNumber === 'function') this.yooAGainBase2Dec.sign = srcYooABase2.toNumber();
           } catch (e) { /* ignore */ }
 
           this.pointsPerSec = perSecHtml;

@@ -6,7 +6,7 @@ import { hasChallenge, hasMilestone, hasUpgrade, milestoneEffect, prestige, upgr
 import { inAnyChallenge, player } from "./incremental.js";
 import { gameLayers } from "./layersData.js";
 import { buyAllYMUpgrades, buySparkUpgrades, maxAllYMUpgrades, maxSparkUpgrades } from "@/components/YooAmatter.vue";
-import { buyAllHJUpgrades, buyAllMMUpgrades, buyAllSHUpgrades, buyAllYBUpgrades, buyAllYEUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from "@/components/YooAity.vue";
+import { buyAllHJUpgrades, buyAllMMUpgrades, buyAllOMGUpgrades, buyAllSHUpgrades, buyAllYBUpgrades, buyAllYEUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllOMGUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from "@/components/YooAity.vue";
 import { buyAllARUpgrades, maxAllARUpgrades } from "@/components/Automation.vue";
 import { Lazy, GameCache } from "./cache.js";
 
@@ -323,6 +323,22 @@ export const autobuyers = {
         this.autobuyerMode === "SINGLE" ? buyAllMMUpgrades() : maxAllMMUpgrades();
       }
     },
+    "Arin Tier (Arin-Proof)": {
+      type: "Buyer",
+      unlocked: () => _hasUpgrade("YooA_energy", 12),
+      interval: () => new Decimal(2e4).div(GameCache.Arin_proofSpeed.value),
+      tickMethod: function() {
+        this.autobuyerMode === "SINGLE" ? arinSingleTier() : arinTierBulkBuy();
+      }
+    },
+    "OH MY GIRL Upgrades (Arin-Proof)": {
+      type: "Buyer",
+      unlocked: () => _hasUpgrade("YooA_energy", 12),
+      interval: () => new Decimal(4e4).div(GameCache.Arin_proofSpeed.value),
+      tickMethod: function() {
+        this.autobuyerMode === "SINGLE" ? buyAllOMGUpgrades() : maxAllOMGUpgrades();
+      }
+    },
   }
 };
 
@@ -398,7 +414,7 @@ function getArinParams() {
     free: {
       YooAmatter: _hasMilestone("YooAity", 14),
       YooAity: _hasMilestone("YooAity", 19),
-      Miracle: false
+      Miracle: _hasUpgrade("YooA_energy", 12)
     },
     u42: _hasUpgrade("YooAmatter", 42),
     u44: (_upgradeEffect("YooAmatter", 44) || Decimal.dZero)[2] || null,
@@ -473,9 +489,11 @@ export function getAriniumGain() {
   if (hasUpgrade("Arinium", 23)) base = base.mul(upgradeEffect("Arinium", 23));
   if (hasUpgrade("YooAity", 52)) base = base.mul(upgradeEffect("YooAity", 52));
   if (hasUpgrade("YooAity", 53)) base = base.mul(upgradeEffect("YooAity", 53));
-  base = base.mul(upgradeEffect("Arinium", 26)[1]);
-  if (hasUpgrade("YooAity", 54)) base = base.pow(upgradeEffect("YooAity", 54));
-  base = base.pow(gameLayers.OMG.getSkillEffect("Arin", "vocals"));
+
+  let exp = gameLayers.OMG.getSkillEffect("Arin", "vocals");
+  if (hasUpgrade("YooAity", 54)) exp = exp.mul(upgradeEffect("YooAity", 54));
+  if (hasUpgrade("Arinium", 31)) exp = exp.mul(upgradeEffect("Arinium", 31));
+  base = base.mul(upgradeEffect("Arinium", 26)[1]).pow(exp);
   return base;
 }
 
@@ -520,10 +538,12 @@ export function getArinTierEffect() {
 
 export function getAriniumEffect() {
   let x = player.Arin.Arinium;
-  if (hasUpgrade("Hyojung", 22)) x = x.dilate(1.3);
-  if (hasUpgrade("Hyojung", 23)) x = x.dilate(1.1);
-  if (hasUpgrade("Mimi", 23)) x = x.dilate(1.1);
-  let eff1 = x.dilate(0.5).pow(0.8).div(10).add(1);
+  let dil = 1;
+  if (hasUpgrade("Hyojung", 22)) dil *= 1.3;
+  if (hasUpgrade("Hyojung", 23)) dil *= 1.1;
+  if (hasUpgrade("Mimi", 23)) dil *= 1.1;
+  if (hasUpgrade("Yubin", 33)) dil *= 1.4
+  let eff1 = x.dilate(dil * 0.5).pow(0.8).div(10).add(1);
   if (hasUpgrade("Hyojung", 14)) eff1 = eff1.pow(2);
   if (hasUpgrade("Mimi", 14)) eff1 = eff1.pow(2);
   if (hasUpgrade("YooAity", 14)) eff1 = eff1.pow(2.5);

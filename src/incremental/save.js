@@ -899,16 +899,36 @@ export function importSave(imported = undefined) {
 }
 
 export function exportSave() {
-  const saveData = { player: player, options: options };
+  // clone player/options so we don't mutate live data
+  const strippedPlayer = deepCopy(player);
+  const strippedOptions = deepCopy(options);
+
+  // remove gain (contains emoji notation/cache text)
+  delete strippedPlayer.gain;
+
+  // optional: also remove legacy alias
+  delete strippedPlayer.gains;
+
+  const saveData = {
+    player: strippedPlayer,
+    options: strippedOptions
+  };
+
   let str = btoa(JSON.stringify(saveData));
+
   const el = document.createElement("textarea");
   el.value = str;
+
   document.body.appendChild(el);
   el.select();
   el.setSelectionRange(0, 99999);
+
   document.execCommand("copy");
+
   document.body.removeChild(el);
+
   window.dispatchEvent(new CustomEvent('export-completed'));
+
   return str;
 }
 

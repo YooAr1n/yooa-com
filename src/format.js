@@ -1,4 +1,4 @@
-// format.js (this has the code for cancer formatting and other notations)
+// format.js (this has the code for cancer formatting and other notations) (this can format numbers up to 10^^1.8e308 and to 1 / 10^^1.8e308)
 
 (() => {
   const commaRegex = /\B(?=(\d{3})+(?!\d))/g;
@@ -143,7 +143,6 @@
     return [b, e]
   }
 
-
   window.format = function format(decimalIn, precision = 2, notation = options.notation ? options.notation : "Scientific") {
     if (notation === "Blind") return ""; // hahaha blind mode
     if (notation === "YesNo") return toDecimal(decimalIn).eq(dZero) ? "NO" : "YES"; // hahaha YES / NO
@@ -155,7 +154,86 @@
     if (notation === "Standard (Long Scale)") return formatStandard(decimalIn, precision, "long");
     if (notation === "Letters") return formatLetters(decimalIn, precision, letters);
     if (notation === "Cancer") return formatLetters(decimalIn, precision, emoji);
+
+    // NEW: Catch the different IS-tropy display options!
+    if (notation === "IS-tropy (Icons)") return formatISTropy(decimalIn, precision, "Icons");
+    if (notation === "IS-tropy (Names)") return formatISTropy(decimalIn, precision, "Names");
+    if (notation === "IS-tropy (Both)") return formatISTropy(decimalIn, precision, "Both");
   }
+
+  /*
+  IS-tropy Notation 🃏
+  */
+
+  const cardRosterIcons = {
+    "0": "🌀", // Kyle
+    "1": "🌱", // Yssabelle
+    "2": "🎨", // Regina
+    "3": "👋", // Eishel
+    "4": "🌑", // Kimberly
+    "5": "🔥", // Ahn Jean
+    "6": "⚡", // Serille
+    "7": "🌤", // Alaine
+    "8": "🌸", // Euryle
+    "9": "🍒"  // YooA
+  };
+  
+  const cardRosterIconsWithNames = {
+    "0": "🌀 Kyle", // Kyle
+    "1": "🌱 Yssabelle", // Yssabelle
+    "2": "🎨 Regina", // Regina
+    "3": "👋 Eishel", // Eishel
+    "4": "🌑 Kimberly", // Kimberly
+    "5": "🔥 Ahn Jean", // Ahn Jean
+    "6": "⚡ Serille", // Serille
+    "7": "🌤 Alaine", // Alaine
+    "8": "🌸 Euryle", // Euryle
+    "9": "🍒 YooA"  // YooA
+  };
+
+  const cardRosterWithNames = {
+    "0": "Kyle", // Kyle
+    "1": "Yssabelle", // Yssabelle
+    "2": "Regina", // Regina
+    "3": "Eishel", // Eishel
+    "4": "Kimberly", // Kimberly
+    "5": "Ahn Jean", // Ahn Jean
+    "6": "Serille", // Serille
+    "7": "Alaine", // Alaine
+    "8": "Euryle", // Euryle
+    "9": "YooA"  // YooA
+  };
+
+  // Updated to dynamically accept the active roster and add bracket formatting
+  function drawCards(numberString, mode) {
+    let currentRoster = cardRosterIcons;
+    if (mode === "Names") currentRoster = cardRosterWithNames;
+    if (mode === "Both") currentRoster = cardRosterIconsWithNames;
+    const separator = mode === "Icons" ? "" : " ";
+    return numberString.split('').map(digit => `${currentRoster[digit] || digit}`).join(separator);
+  }
+
+  // Updated to accept 'mode' parameter
+  window.formatISTropy = function formatISTropy(decimalIn, precision = 2, mode = "Icons") {
+    const dec = toDecimal(decimalIn);
+
+    // Edge Cases
+    if (isNaN(dec.sign) || isNaN(dec.layer) || isNaN(dec.mag)) return "🔥 [SUS ERROR] 🔥";
+    if (dec.sign < 0) return "🌑 Cumpio Dark " + formatISTropy(dec.neg(), precision, mode);
+    if (dec.mag === Number.POSITIVE_INFINITY) return "🚀 [MAX INVENTORY] 🚀";
+
+    const isSmall = dec.lt(1);
+    const max = slog10(Decimal.dLayerMax).add(1).log10();
+    const numD = isSmall ? ( dec.eq(0) ? Decimal.dLayerMax : dec.recip()) : dec;
+    const num = slog10(numD).add(1).log10().div(max).mul(isSmall ? -15e8 : 15e8).add(15e8).pow10();
+
+    let [mantissa, exponent] = scientifify(num, 1000)
+
+    const hand = formatSciEng(mantissa, precision, "Scientific"); // Passing args just to be safe
+    const deckTier = drawCards(exponent.toString(), mode);
+
+    return `${hand} ${deckTier}`;
+  };
 
   /*
   YooA notation 
@@ -489,7 +567,7 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
         t3TO = (t3mod100 < 20 ? "" : tens[2][Math.floor(index / 10) % 10] + tier3adds[index % 10]) + ones[2][index % 10];
       }
       illionName = hundreds[2][Math.floor(index / 100)] + (t3mod100 === 0 ? "T" : "") + t3TO
-      return illionName;
+      return multName + illionName;
     }
 
     let ot // ones and tens
@@ -615,13 +693,72 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
     return `${formatWhole(s.div(31536000), notation)}y ${formatWhole(s.div(86400).mod(365), notation)}d ${formatWhole(s.div(3600).mod(24), notation)}h ${formatWhole(s.div(60).mod(60), notation)}m ${format(s.mod(60), precision, notation)}s`;
   };
 
+  window.formatSI = function formatSI(decimalIn, unit, useDeciCentiDekaHecto = false, precision = 2) {
+    const dec = toDecimal(decimalIn);
+
+    if (dec.sign === 0) return format(dZero, precision) + unit;
+    if (isNaN(dec.sign) || isNaN(dec.layer) || isNaN(dec.mag)) return "NaN" + unit;
+    if (dec.mag === Number.POSITIVE_INFINITY) return "Infinity" + unit;
+
+    // Preserve negative sign separately
+    const isNegative = dec.sign < 0;
+    let value = isNegative ? dec.abs() : dec;
+
+    // Out of SI prefix range → fallback formatting
+    if (value.lt(1e-30) || value.gte(1e33)) {
+      return (isNegative ? "-" : "") + format(value, precision) + unit;
+    }
+
+    const SIPrefixes = [
+      "q", "r", "y", "z", "a", "f", "p", "n", "µ", "m",
+      "", "k", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q"
+    ];
+
+    const extendedPrefixes = {
+      "-2": "c",
+      "-1": "d",
+      "0": "",
+      "1": "da",
+      "2": "h"
+    };
+
+    let prefix = "";
+    let scaled = value;
+
+    let exp3 = Math.floor(value.log10().div(3).toNumber());
+
+    if (useDeciCentiDekaHecto) {
+      const log10 = value.log10().toNumber();
+      let exp10 = Math.floor(log10);
+
+      if (exp10 >= -2 && exp10 <= 2) {
+        prefix = extendedPrefixes[exp10.toString()] ?? "";
+        scaled = value.div(Decimal.pow(10, exp10));
+      } else {
+        const centerIndex = Math.floor(SIPrefixes.length / 2);
+        const clampedExp = Math.max(-centerIndex, Math.min(exp3, centerIndex));
+
+        prefix = SIPrefixes[clampedExp + centerIndex] ?? "";
+        scaled = value.div(Decimal.pow(1000, clampedExp));
+      }
+    } else {
+      const centerIndex = Math.floor(SIPrefixes.length / 2);
+      const clampedExp = Math.max(-centerIndex, Math.min(exp3, centerIndex));
+
+      prefix = SIPrefixes[clampedExp + centerIndex] ?? "";
+      scaled = value.div(Decimal.pow(1000, clampedExp));
+    }
+
+    return (isNegative ? "-" : "") + format(scaled, precision) + prefix + unit;
+  };
+
   window.toPlaces = function toPlaces(xIn, precision = 2, maxAccepted = Infinity) {
     const x = toDecimal(xIn);
     let result = x.toStringWithDecimalPlaces(precision);
     const rdec = toDecimal(result);
     if (rdec.gte(maxAccepted)) {
       result = toDecimal(maxAccepted).sub(D.pow(10, -precision)).toStringWithDecimalPlaces(precision);
-    } 
+    }
     return result;
   };
 
@@ -655,9 +792,15 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
         if (oom.gte(1e-3)) return `(+${format(oom)} OoMs^^2/s)`;
       }
       if (a.gte("ee100")) {
-        const tower = Math.floor(slog10(a).toNumber() - 1.3010299956639813);
-        const oom = slogsub(g, tower).sub(slogsub(a, tower)).mul(FPS);
-        if (oom.gte(1)) return `(+${format(oom)} OoMs^${tower}/s)`;
+        let tower = Math.floor(slog10(a).toNumber() - 1.3010299956639813);
+        let oom = slogsub(g, tower).sub(slogsub(a, tower)).mul(FPS), rated = false;
+        if (oom.gte(1)) rated = true;
+        else if (tower > 2) {
+          tower--
+          oom = slogsub(g, tower).sub(slogsub(a, tower)).mul(FPS)
+          if (oom.gte(1)) rated = true
+        }
+        if (rated) return `(+${format(oom)} OoMs^${tower}/s)`
       }
       if (a.gte(1e100) || percent) {
         const oom = g.div(a).log10().mul(FPS);

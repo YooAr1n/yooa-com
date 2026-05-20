@@ -10,6 +10,7 @@ export function getStartOptions() {
         offline: true,
         news: true,
         notation: "Scientific",
+        currency: "USD",
         confirmations: {
             YooAmatter: true,
             YooAity: true
@@ -27,7 +28,7 @@ export function changeAutoInt() {
 }
 
 export function changeNotation() {
-    let nots = ["Scientific", "Engineering", "Standard", "Standard (Long Scale)", "Mixed Scientific", "Mixed Scientific (Long Scale)", "Mixed Engineering", "Mixed Engineering (Long Scale)", "Logarithm", "Mixed Logarithm", "Mixed Logarithm (Long Scale)", "Letters", "Cancer", "YooA", "Arin", "Blind", "YesNo"];
+    let nots = ["Scientific", "Engineering", "Standard", "Standard (Long Scale)", "Mixed Scientific", "Mixed Scientific (Long Scale)", "Mixed Engineering", "Mixed Engineering (Long Scale)", "Logarithm", "Mixed Logarithm", "Mixed Logarithm (Long Scale)", "Letters", "Cancer", "YooA", "Arin", "IS-tropy (Icons)", "IS-tropy (Names)", "IS-tropy (Both)", "Blind", "YesNo"];
     options.notation = nots[(nots.indexOf(options.notation) + 1) % nots.length];
 }
 

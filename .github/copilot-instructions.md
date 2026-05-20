@@ -60,4 +60,4 @@ This file is aimed at AI coding agents and contributors to be immediately produc
 - Benchmark/normalize optimization example: `perf-compare.js` and `src/incremental/break_eternity.js`.
 
 ---
-If anything here is unclear or you'd like more specifics (e.g., exact code snippets for adding a new upgrade or a perf checklist for PRs), tell me which section to expand and I’ll update this file. ✨
+If anything here is unclear or you'd like more specifics (e.g., exact code snippets for adding a new upgrade or a perf checklist for PRs), tell me which section to expand and I'll update this file. ✨
