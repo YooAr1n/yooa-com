@@ -8,12 +8,27 @@ import { gameLayers } from "./layersData.js";
 import { buyAllYMUpgrades, buySparkUpgrades, maxAllYMUpgrades, maxSparkUpgrades } from "@/components/YooAmatter.vue";
 import { buyAllHJUpgrades, buyAllMMUpgrades, buyAllOMGUpgrades, buyAllSHUpgrades, buyAllYBUpgrades, buyAllYEUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllOMGUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from "@/components/YooAity.vue";
 import { buyAllARUpgrades, maxAllARUpgrades } from "@/components/Automation.vue";
-import { Lazy, GameCache, globalCacheVersion } from "./cache.js";
+import { Lazy, GameCache, GameDirty, globalCacheVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // ——— Constants ———
 const dZero = Decimal.dZero;
 const DEC_0_1 = new Decimal(0.1);
+const DEC_5 = new Decimal(5);
+const DEC_10 = new Decimal(10);
+const DEC_15 = new Decimal(15);
+const DEC_100 = new Decimal(100);
+const DEC_500 = new Decimal(500);
+const DEC_1995 = new Decimal(1995);
+const DEC_1999 = new Decimal(1999);
+const DEC_5000 = new Decimal(5000);
+const DEC_1E5 = new Decimal(1e5);
+const DEC_1E18 = new Decimal(1e18);
+const DEC_1E43 = new Decimal(1e43);
+const DEC_1E88 = new Decimal(1e88);
+const DEC_EE3 = new Decimal("ee3");
+const DEC_2E4 = new Decimal(2e4);
+const DEC_4E4 = new Decimal(4e4);
 const BUYER_MODES = ["SINGLE", "MAX"];
 const PRESTIGER_BASE = ["AMOUNT", "TIME"];
 
@@ -30,12 +45,18 @@ const _upgradeEffect = (...args) => (typeof upgradeEffect === 'function') ? upgr
 const _inAnyChallenge = (...args) => (typeof inAnyChallenge === 'function') ? inAnyChallenge(...args) : false;
 
 // ——— Helpers ———
-function computeModesFor(name, defType) {
-  if (defType === "Buyer") return BUYER_MODES;
-  const extras = [];
-  if (name === "YooAmatter Prestige" && _hasMilestone("YooAity", 6)) extras.push("X TIMES YOOAMATTER");
-  if (name === "YooAity Prestige" && _hasMilestone("YooAity", 17)) extras.push("X TIMES YOOA ESSENCE");
-  return PRESTIGER_BASE.concat(extras);
+function autobuyerModeName(name, defType, mode) {
+  let len = 2;
+  if (defType !== "Buyer") {
+    if (name === "YooAmatter Prestige" && _hasMilestone("YooAity", 6)) len++;
+    if (name === "YooAity Prestige" && _hasMilestone("YooAity", 17)) len++;
+  }
+  let idx = mode % len;
+  if (idx < 0) idx += len;
+  if (defType === "Buyer") return BUYER_MODES[idx];
+  if (idx < 2) return PRESTIGER_BASE[idx];
+  if (name === "YooAmatter Prestige") return "X TIMES YOOAMATTER";
+  return "X TIMES YOOA ESSENCE";
 }
 
 function makeDimTick(layerName, indices, isRank = false) {
@@ -73,7 +94,12 @@ export default class Autobuyer {
 
     // lazy: don't read global `autobuyers` now (it may be declared later).
     // we keep lightweight runtime wrappers that call the real def functions.
-    this._getDef = () => (typeof autobuyers !== 'undefined' && autobuyers[this.layer]) ? autobuyers[this.layer][this.name] : undefined;
+    this._def = null;
+    this._getDef = () => {
+      if (this._def) return this._def;
+      const layerDefs = (typeof autobuyers !== 'undefined' && autobuyers[this.layer]) ? autobuyers[this.layer] : null;
+      return (this._def = layerDefs ? layerDefs[this.name] : undefined);
+    };
 
     this._unlocked = () => {
       const d = this._getDef();
@@ -135,12 +161,7 @@ export default class Autobuyer {
   get autobuyerMode() {
     const def = this._getDef();
     const defType = def && def.type ? def.type : null;
-    const arr = computeModesFor(this.name, defType);
-    const len = arr.length;
-    if (len === 0) return arr[0];
-    let idx = this.mode % len;
-    if (idx < 0) idx += len;
-    return arr[idx];
+    return autobuyerModeName(this.name, defType, this.mode);
   }
 
   resetTime() {
@@ -151,25 +172,29 @@ export default class Autobuyer {
 
   tick() {
     const __perf = perfBegin();
-    if (!this.isOn || !this._unlocked()) { perfEnd('tick', __perf); return; }
+    if (!this.isOn || !this._unlocked()) { perfEnd('tickDue', __perf); return; }
     const ttn = this.timeToNextTick;
-    if (!isDecimalLike(ttn) || ttn.gt(Decimal.dZero)) { perfEnd('tick', __perf); return; }
+    if (!isDecimalLike(ttn) || ttn.gt(Decimal.dZero)) { perfEnd('tickDue', __perf); return; }
     // call wrapper — it will find and call the real tickMethod with correct `this`
+    const __tick = perfBegin();
     this._tickMethod.call(this);
+    perfEnd('Autobuyer_tickMethod', __tick);
     this.resetTime();
-    perfEnd('tick', __perf);
+    perfEnd('tickDue', __perf);
   }
 
   tickDue() {
     const __perf = perfBegin();
-    if (!this.isOn || !this._unlocked()) { perfEnd('tick', __perf); return; }
+    if (!this.isOn || !this._unlocked()) { perfEnd('tickDue', __perf); return; }
     if (!this.time) this.resetTime();
     const statTime = this.resetLayer ? player.stats[this.resetLayer].time : player.stats.General.totalTime;
     const remaining = (this.time && isDecimalLike(this.time)) ? this.time.sub(statTime) : dZero;
-    if (!isDecimalLike(remaining) || remaining.gt(Decimal.dZero)) { perfEnd('tick', __perf); return; }
+    if (!isDecimalLike(remaining) || remaining.gt(Decimal.dZero)) { perfEnd('tickDue', __perf); return; }
+    const __tick = perfBegin();
     this._tickMethod.call(this);
+    perfEnd('Autobuyer_tickMethod', __tick);
     this.resetTime();
-    perfEnd('tick', __perf);
+    perfEnd('tickDue', __perf);
   }
 }
 
@@ -222,13 +247,13 @@ export const autobuyers = {
     "YooA Dimension 3+": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 6),
-      interval: () => new Decimal(100).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_100.div(GameCache.autobuyerSpeed.value),
       tickMethod: makeDimTick("YooA", [2,3,4])
     },
     "YooA Upgrades": {
       type: "Buyer",
       unlocked: () => _hasChallenge("YooAmatter", 3) || gameLayers.YooAity.unlocked(),
-      interval: () => new Decimal(5).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_5.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllUpgrades() : maxAllUpgrades();
       }
@@ -236,7 +261,7 @@ export const autobuyers = {
     "YooA Dimension Rank": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 20),
-      interval: () => new Decimal(1e88).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1E88.div(GameCache.autobuyerSpeed.value),
       tickMethod: makeDimTick("YooA", [0,1,2,3,4], true)
     },
   },
@@ -244,19 +269,19 @@ export const autobuyers = {
     "YooAmatter Prestige": {
       type: "Prestiger",
       unlocked: () => _hasChallenge("YooAmatter", 4) || gameLayers.YooAity.unlocked(),
-      interval: () => new Decimal(10).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_10.div(GameCache.autobuyerSpeed.value),
       tickMethod: prestigeTick("YooAmatter")
     },
     "YooAmatter Formations": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 8),
-      interval: () => new Decimal(500).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_500.div(GameCache.autobuyerSpeed.value),
       tickMethod: makeDimTick("YooAmatter", [0,1,2,3,4])
     },
     "YooAmatter Upgrades": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 9),
-      interval: () => new Decimal(1995).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1995.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllYMUpgrades() : maxAllYMUpgrades();
       }
@@ -264,7 +289,7 @@ export const autobuyers = {
     "Spark Upgrades": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 10),
-      interval: () => new Decimal(5000).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_5000.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buySparkUpgrades() : maxSparkUpgrades();
       }
@@ -272,7 +297,7 @@ export const autobuyers = {
     "Arin Level": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 10),
-      interval: () => new Decimal(1999).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1999.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? arinSingleBuy() : arinBulkBuy();
       }
@@ -282,13 +307,13 @@ export const autobuyers = {
     "YooAity Prestige": {
       type: "Prestiger",
       unlocked: () => _hasMilestone("YooAity", 11),
-      interval: () => new Decimal(1e5).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1E5.div(GameCache.autobuyerSpeed.value),
       tickMethod: prestigeTick("YooAity")
     },
     "Arin Rank": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 17),
-      interval: () => new Decimal(1e18).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1E18.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? arinSingleRank() : arinRankBulkBuy();
       }
@@ -296,7 +321,7 @@ export const autobuyers = {
     "YooAity Upgrades": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 19),
-      interval: () => new Decimal(1e43).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1E43.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllYEUpgrades() : maxAllYEUpgrades();
       }
@@ -304,13 +329,13 @@ export const autobuyers = {
     "Shi-ah Echoes": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 19),
-      interval: () => new Decimal(1e43).div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_1E43.div(GameCache.autobuyerSpeed.value),
       tickMethod: makeDimTick("Shiah", [0,1,2,3,4,5,6])
     },
     "Seunghee Upgrades": {
       type: "Buyer",
       unlocked: () => _hasUpgrade("Mimi", 21),
-      interval: () => new Decimal("ee3").div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_EE3.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllSHUpgrades() : maxAllSHUpgrades();
       }
@@ -318,7 +343,7 @@ export const autobuyers = {
     "Yubin Upgrades": {
       type: "Buyer",
       unlocked: () => _hasUpgrade("Mimi", 21),
-      interval: () => new Decimal("ee3").div(GameCache.autobuyerSpeed.value),
+      interval: () => DEC_EE3.div(GameCache.autobuyerSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllYBUpgrades() : maxAllYBUpgrades();
       }
@@ -326,7 +351,7 @@ export const autobuyers = {
     "Arinium Upgrades (Arin-Proof)": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 22),
-      interval: () => new Decimal(5).div(GameCache.Arin_proofSpeed.value),
+      interval: () => DEC_5.div(GameCache.Arin_proofSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllARUpgrades() : maxAllARUpgrades();
       }
@@ -334,7 +359,7 @@ export const autobuyers = {
     "Hyojung Upgrades (Arin-Proof)": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 22),
-      interval: () => new Decimal(10).div(GameCache.Arin_proofSpeed.value),
+      interval: () => DEC_10.div(GameCache.Arin_proofSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllHJUpgrades() : maxAllHJUpgrades();
       }
@@ -342,7 +367,7 @@ export const autobuyers = {
     "Mimi Upgrades (Arin-Proof)": {
       type: "Buyer",
       unlocked: () => _hasMilestone("YooAity", 22),
-      interval: () => new Decimal(15).div(GameCache.Arin_proofSpeed.value),
+      interval: () => DEC_15.div(GameCache.Arin_proofSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllMMUpgrades() : maxAllMMUpgrades();
       }
@@ -350,7 +375,7 @@ export const autobuyers = {
     "Arin Tier (Arin-Proof)": {
       type: "Buyer",
       unlocked: () => _hasUpgrade("YooA_energy", 12),
-      interval: () => new Decimal(2e4).div(GameCache.Arin_proofSpeed.value),
+      interval: () => DEC_2E4.div(GameCache.Arin_proofSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? arinSingleTier() : arinTierBulkBuy();
       }
@@ -358,7 +383,7 @@ export const autobuyers = {
     "OH MY GIRL Upgrades (Arin-Proof)": {
       type: "Buyer",
       unlocked: () => _hasUpgrade("YooA_energy", 12),
-      interval: () => new Decimal(4e4).div(GameCache.Arin_proofSpeed.value),
+      interval: () => DEC_4E4.div(GameCache.Arin_proofSpeed.value),
       tickMethod: function() {
         this.autobuyerMode === "SINGLE" ? buyAllOMGUpgrades() : maxAllOMGUpgrades();
       }
@@ -401,6 +426,17 @@ export function updateAllAutobuyerTime() {
   }
 }
 
+export function invalidateAutobuyerIntervals() {
+  if (!player?.autobuyers) return;
+  for (const layerName in player.autobuyers) {
+    const layer = player.autobuyers[layerName];
+    for (const abName in layer) {
+      const ab = layer[abName];
+      if (ab) ab._cachedAutoIntervalVer = -1;
+    }
+  }
+}
+
 /* -------------------------------------------------
  * 🌸 YooA Autobuyer Caches
  * ------------------------------------------------- */
@@ -415,21 +451,21 @@ if (!GameCache._autobuyerCachesInit) {
     if (hasUpgrade('YooAmatter', 54)) speed = speed.mul(2);
     if (hasMilestone('YooAity', 11)) speed = speed.mul(2);
     return speed;
-  });
+  }, { persistent: true });
 
   // — Arin effects (VERY hot path)
-  GameCache.Arin_effect = new Lazy(() => getArinEffect());
-  GameCache.Arin_rankEffect = new Lazy(() => getArinRankEffect());
-  GameCache.Arin_tierEffect = new Lazy(() => getArinTierEffect());
+  GameCache.Arin_effect = new Lazy(() => getArinEffect(), { persistent: true });
+  GameCache.Arin_rankEffect = new Lazy(() => getArinRankEffect(), { persistent: true });
+  GameCache.Arin_tierEffect = new Lazy(() => getArinTierEffect(), { persistent: true });
   GameCache.Arinium_effect = new Lazy(() => getAriniumEffect());
 
   // — Arin costs
-  GameCache.Arin_cost = new Lazy(() => getArinCost());
-  GameCache.Arin_rankCost = new Lazy(() => getArinRankCost());
-  GameCache.Arin_tierCost = new Lazy(() => getArinTierCost());
+  GameCache.Arin_cost = new Lazy(() => getArinCost(), { persistent: true });
+  GameCache.Arin_rankCost = new Lazy(() => getArinRankCost(), { persistent: true });
+  GameCache.Arin_tierCost = new Lazy(() => getArinTierCost(), { persistent: true });
 
   // — Proof speed
-  GameCache.Arin_proofSpeed = new Lazy(() => GameCache.Arin_tierEffect.value[1]);
+  GameCache.Arin_proofSpeed = new Lazy(() => GameCache.Arin_tierEffect.value[1], { persistent: true });
 }
 
 // ——— Arin helpers (no caching; computed live) ———
@@ -584,6 +620,8 @@ export function arinSingleBuy() {
   if (curr.lt(cost)) return;
   if (!getArinParams().free.YooAmatter) player.YooAmatter.YooArium = curr.sub(cost).max(dZero);
   player.Arin.level = player.Arin.level.add(1);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 
@@ -593,6 +631,8 @@ export function arinSingleRank() {
   if (curr.lt(cost)) return;
   if (!getArinParams().free.YooAity) player.YooAity.amount = curr.sub(cost).max(dZero);
   player.Arin.rank = player.Arin.rank.add(1);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 
@@ -602,6 +642,8 @@ export function arinSingleTier() {
   if (curr.lt(cost)) return;
   if (!getArinParams().free.Miracle) player.YooAity.MiracleLight = curr.sub(cost).max(dZero);
   player.Arin.tier = player.Arin.tier.add(1);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 
@@ -624,6 +666,8 @@ export function arinBulkBuy() {
   const { free } = getArinParams();
   if (!free.YooAmatter) player.YooAmatter.YooArium = player.YooAmatter.YooArium.sub(bulk.purchasePrice).max(dZero);
   player.Arin.level = player.Arin.level.add(bulk.quantity);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 
@@ -633,6 +677,8 @@ export function arinRankBulkBuy() {
   const { free } = getArinParams();
   if (!free.YooAity) player.YooAity.amount = player.YooAity.amount.sub(bulk.purchasePrice).max(dZero);
   player.Arin.rank = player.Arin.rank.add(bulk.quantity);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 
@@ -642,6 +688,8 @@ export function arinTierBulkBuy() {
   const { free } = getArinParams();
   if (!free.Miracle) player.YooAity.MiracleLight = player.YooAity.MiracleLight.sub(bulk.purchasePrice).max(dZero);
   player.Arin.tier = player.Arin.tier.add(bulk.quantity);
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
   updateAllAutobuyerTime(player.autobuyers);
 }
 

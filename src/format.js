@@ -1,5 +1,7 @@
 // format.js (this has the code for cancer formatting and other notations) (this can format numbers up to 10^^1.8e308 and to 1 / 10^^1.8e308)
 
+import { perfBegin, perfCount, perfEnd } from "./incremental/performance.js";
+
 (() => {
   const commaRegex = /\B(?=(\d{3})+(?!\d))/g;
   const illions = [
@@ -56,6 +58,29 @@
 
   function toDecimal(x) {
     return isDecimalLike(x) ? x : new Decimal(x);
+  }
+
+  const FORMAT_CACHE_LIMIT = 4096;
+  const formatCache = new Map();
+  const formatGainCache = new Map();
+
+  function decimalCacheKey(x) {
+    if (isDecimalLike(x)) return `${x.sign}|${x.layer}|${x.mag}`;
+    return typeof x + "|" + String(x);
+  }
+
+  function cacheGet(map, key) {
+    const value = map.get(key);
+    if (value === undefined) return undefined;
+    map.delete(key);
+    map.set(key, value);
+    return value;
+  }
+
+  function cacheSet(map, key, value) {
+    map.set(key, value);
+    if (map.size > FORMAT_CACHE_LIMIT) map.delete(map.keys().next().value);
+    return value;
   }
 
   function pow10(e) { return D.pow(10, e); }
@@ -144,21 +169,32 @@
   }
 
   window.format = function format(decimalIn, precision = 2, notation = options.notation ? options.notation : "Scientific") {
-    if (notation === "Blind") return ""; // hahaha blind mode
-    if (notation === "YesNo") return toDecimal(decimalIn).eq(dZero) ? "NO" : "YES"; // hahaha YES / NO
-    if (notation === "YooA") return formatYooA(decimalIn, precision); // yooa format
-    if (notation === "Arin") return formatArin(decimalIn, precision); // arin format
-    if (notation.includes("Logarithm")) return formatLog(decimalIn, precision, notation);
-    if (notation.includes("Scientific") || notation.includes("Engineering")) return formatSciEng(decimalIn, precision, notation);
-    if (notation === "Standard") return formatStandard(decimalIn, precision, "short");
-    if (notation === "Standard (Long Scale)") return formatStandard(decimalIn, precision, "long");
-    if (notation === "Letters") return formatLetters(decimalIn, precision, letters);
-    if (notation === "Cancer") return formatLetters(decimalIn, precision, emoji);
-
-    // NEW: Catch the different IS-tropy display options!
-    if (notation === "IS-tropy (Icons)") return formatISTropy(decimalIn, precision, "Icons");
-    if (notation === "IS-tropy (Names)") return formatISTropy(decimalIn, precision, "Names");
-    if (notation === "IS-tropy (Both)") return formatISTropy(decimalIn, precision, "Both");
+    perfCount("formatCalls");
+    const __perf = perfBegin();
+    const key = `${notation}|${precision}|${decimalCacheKey(decimalIn)}`;
+    const cached = cacheGet(formatCache, key);
+    if (cached !== undefined) {
+      perfCount("formatCacheHits");
+      perfEnd("formatting", __perf);
+      return cached;
+    }
+    let out;
+    if (notation === "Blind") out = ""; // hahaha blind mode
+    else if (notation === "YesNo") out = toDecimal(decimalIn).eq(dZero) ? "NO" : "YES"; // hahaha YES / NO
+    else if (notation === "YooA") out = formatYooA(decimalIn, precision); // yooa format
+    else if (notation === "Arin") out = formatArin(decimalIn, precision); // arin format
+    else if (notation.includes("Logarithm")) out = formatLog(decimalIn, precision, notation);
+    else if (notation.includes("Scientific") || notation.includes("Engineering")) out = formatSciEng(decimalIn, precision, notation);
+    else if (notation === "Standard") out = formatStandard(decimalIn, precision, "short");
+    else if (notation === "Standard (Long Scale)") out = formatStandard(decimalIn, precision, "long");
+    else if (notation === "Letters") out = formatLetters(decimalIn, precision, letters);
+    else if (notation === "Cancer") out = formatLetters(decimalIn, precision, emoji);
+    else if (notation === "IS-tropy (Icons)") out = formatISTropy(decimalIn, precision, "Icons");
+    else if (notation === "IS-tropy (Names)") out = formatISTropy(decimalIn, precision, "Names");
+    else if (notation === "IS-tropy (Both)") out = formatISTropy(decimalIn, precision, "Both");
+    else out = String(decimalIn);
+    perfEnd("formatting", __perf);
+    return cacheSet(formatCache, key, out);
   }
 
   /*
@@ -782,14 +818,28 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
 
   // formatGain — optimized mostly numeric path & reuses format()
   window.formatGain = function formatGain(aIn, eIn, FPS, percent = false, DT = tet10(10)) {
+    perfCount("formatCalls");
+    const __perf = perfBegin();
+    const key = `${decimalCacheKey(aIn)}|${decimalCacheKey(eIn)}|${decimalCacheKey(FPS)}|${percent ? 1 : 0}|${decimalCacheKey(DT)}|${options.notation ? options.notation : "Scientific"}`;
+    const cached = cacheGet(formatGainCache, key);
+    if (cached !== undefined) {
+      perfCount("formatCacheHits");
+      perfEnd("formatting", __perf);
+      return cached;
+    }
     const a = toDecimal(aIn);
     const e = toDecimal(eIn);
     const g = a.add(e.div(FPS));
+    let out;
 
     if (!g.eq(a) || percent) {
       if (a.gte(DT)) {
         const oom = slog10(g).sub(slog10(a)).mul(FPS);
-        if (oom.gte(1e-3)) return `(+${format(oom)} OoMs^^2/s)`;
+        if (oom.gte(1e-3)) {
+          out = `(+${format(oom)} OoMs^^2/s)`;
+          perfEnd("formatting", __perf);
+          return cacheSet(formatGainCache, key, out);
+        }
       }
       if (a.gte("ee100")) {
         let tower = Math.floor(slog10(a).toNumber() - 1.3010299956639813);
@@ -800,15 +850,29 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
           oom = slogsub(g, tower).sub(slogsub(a, tower)).mul(FPS)
           if (oom.gte(1)) rated = true
         }
-        if (rated) return `(+${format(oom)} OoMs^${tower}/s)`
+        if (rated) {
+          out = `(+${format(oom)} OoMs^${tower}/s)`;
+          perfEnd("formatting", __perf);
+          return cacheSet(formatGainCache, key, out);
+        }
       }
       if (a.gte(1e100) || percent) {
         const oom = g.div(a).log10().mul(FPS);
-        if (oom.gte(10)) return `(+${format(oom)} OoMs/s)`;
-        if (oom.gte(Math.log10(2)) || percent) return `(+${format(oom.pow10().sub(1).mul(100))}%/s)`;
+        if (oom.gte(10)) {
+          out = `(+${format(oom)} OoMs/s)`;
+          perfEnd("formatting", __perf);
+          return cacheSet(formatGainCache, key, out);
+        }
+        if (oom.gte(Math.log10(2)) || percent) {
+          out = `(+${format(oom.pow10().sub(1).mul(100))}%/s)`;
+          perfEnd("formatting", __perf);
+          return cacheSet(formatGainCache, key, out);
+        }
       }
     }
-    return `(${e.lt(0) ? "" : "+"}${format(e)}/s)`;
+    out = `(${e.lt(0) ? "" : "+"}${format(e)}/s)`;
+    perfEnd("formatting", __perf);
+    return cacheSet(formatGainCache, key, out);
   };
 
   window.slogsub = function slogsub(n, sub) { return tet10(slog10(n).sub(sub)); };
@@ -1077,7 +1141,11 @@ Having a bunch of lowercase letters is as far as the notation goes elsewhere, bu
   window._formatHelpers = {
     isDecimalLike,
     toDecimal,
-    SAFE_NUM_MAG
+    SAFE_NUM_MAG,
+    clearFormatCache() {
+      formatCache.clear();
+      formatGainCache.clear();
+    }
   };
 
   // End IIFE

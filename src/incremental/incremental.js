@@ -5,7 +5,7 @@
 
 import Decimal from "./break_eternity.js";
 import { GameCache, GameDirty, Lazy } from "./cache.js";
-import { perfBegin, perfEnd, perfFrame } from "./performance.js";
+import { instrumentDecimal, perfBegin, perfEnd, perfFrame } from "./performance.js";
 import { load } from "./save.js";
 import {
   hasUpgrade,
@@ -40,6 +40,15 @@ const DEC_0_8 = new Decimal(0.8);
 const DEC_0_6 = new Decimal(0.6);
 const DEC_0_4 = new Decimal(0.4);
 const DEC_1_3 = new Decimal(1 / 3);
+const DEC_1_02 = new Decimal(1.02);
+const DEC_1_1 = new Decimal(1.1);
+const DEC_EE24 = new Decimal('ee24');
+const DEC_EE36 = new Decimal('ee36');
+const DEC_EE55555 = new Decimal('ee55555');
+const DEC_EEE46 = new Decimal('eee46');
+const DEC_EEE200 = new Decimal('eee200');
+
+instrumentDecimal(Decimal);
 
 // ---------------- small helpers optimized for hot path ----------------
 // prebind prototype method references (call style to avoid repeated property lookup)
@@ -258,8 +267,8 @@ function computeYooAExponent() {
   exponent = DEC_MUL.call(exponent, YM15Exponent);
 
   let gain = exponent;
-  if (inChallenge('YooAmatter', 1)) gain = DEC_MUL.call(gain, new Decimal(0.5));
-  if (inChallenge('YooAmatter', 3)) gain = DEC_MUL.call(gain, new Decimal(0.4));
+  if (inChallenge('YooAmatter', 1)) gain = DEC_MUL.call(gain, DEC_0_5);
+  if (inChallenge('YooAmatter', 3)) gain = DEC_MUL.call(gain, DEC_0_4);
   if (hasChallenge('YooAmatter', 1)) {
     gain = DEC_MUL.call(gain, challengeEffect('YooAmatter', 1)[0]);
   }
@@ -328,15 +337,15 @@ export function computeYooAGainBase2() {
   const powB = DEC_POW.call(DEC_0_4, power);
   const powC = DEC_POW.call(DEC_1_3, power);
 
-  if (DEC_GTE.call(gain, new Decimal('ee24'))) {
+  if (DEC_GTE.call(gain, DEC_EE24)) {
     const lg = DEC_LOG10.call(gain);
     gain = DEC_POW.call(lg.div(1e24), powA).mul(powA.recip().mul(1e24)).sub(powA.recip().sub(1).mul(1e24)).pow10();
   }
-  if (DEC_GTE.call(gain, new Decimal('ee36'))) {
+  if (DEC_GTE.call(gain, DEC_EE36)) {
     const lg = DEC_LOG10.call(gain);
     gain = DEC_POW.call(lg.div(1e36), powB).mul(powB.recip().mul(1e36)).sub(powB.recip().sub(1).mul(1e36)).pow10();
   }
-  if (DEC_GTE.call(gain, new Decimal('ee55555'))) {
+  if (DEC_GTE.call(gain, DEC_EE55555)) {
     const lg = DEC_LOG10.call(gain);
     gain = DEC_POW.call(lg.div('e55555'), powC).mul(powC.recip().mul('e55555')).sub(powC.recip().sub(1).mul('e55555')).pow10();
   }
@@ -350,11 +359,11 @@ export function computeYooAGain() {
   const powA = DEC_POW.call(DEC_0_8, power);
   const powB = DEC_POW.call(DEC_0_6, power);
 
-  if (DEC_GTE.call(gain, new Decimal('eee46'))) {
+  if (DEC_GTE.call(gain, DEC_EEE46)) {
     const lg = DEC_LOG10.call(DEC_LOG10.call(gain));
     gain = DEC_POW.call(lg.div(1e46), powA).mul(powA.recip().mul(1e46)).sub(powA.recip().sub(1).mul(1e46)).pow10().pow10();
   }
-  if (DEC_GTE.call(gain, new Decimal('eee200'))) {
+  if (DEC_GTE.call(gain, DEC_EEE200)) {
     const lg = DEC_LOG10.call(DEC_LOG10.call(gain));
     gain = DEC_POW.call(lg.div(1e200), powB).mul(powB.recip().mul(1e200)).sub(powB.recip().sub(1).mul(1e200)).pow10().pow10();
   }
@@ -426,9 +435,9 @@ export function computeAchievementMultiplier() {
       if (idx >= _achKeys.length) break;
       if (pAch[_achKeys[idx]]) countAch++; else rowComplete = false;
     }
-    if (rowComplete) base = DEC_MUL.call(base, new Decimal(1.1));
+    if (rowComplete) base = DEC_MUL.call(base, DEC_1_1);
   }
-  return DEC_MUL.call(base, DEC_POW.call(new Decimal(1.02), countAch));
+  return DEC_MUL.call(base, DEC_POW.call(DEC_1_02, countAch));
 }
 
 // IMPORTANT: do this once after functions are declared (prevents circular import / missing reference)
@@ -886,7 +895,9 @@ export function gameLoop() {
   const now = Date.now();
   calc((now - (date || Date.now())) / 1000);
   date = now;
+  const __ui = perfBegin();
   window.dispatchEvent(new CustomEvent('GAME_EVENT.UPDATE'));
+  perfEnd('uiUpdate', __ui);
   GameDirty.clearFrame();
   return perfEnd('gameLoop', __frame);
 }

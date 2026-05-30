@@ -14,6 +14,7 @@ import "./incremental/options.js";
 import "./incremental/save.js";
 import "./incremental/cloud.js";
 import "./incremental/offline.js"
+import { perfCount } from "./incremental/performance.js";
 
 Amplify.configure(awsExports);
 
@@ -22,16 +23,24 @@ const app = createApp(App)
 // ✨ YooA's stability spell: only patch the changing number, preserve the rest
 app.directive('html-stable', {
   beforeMount(el, binding) {
+    perfCount("domUpdates")
     el.innerHTML = binding.value
+    el.__yooaLastHTML = binding.value
   },
   updated(el, binding) {
     const newHTML = binding.value
+    if (el.__yooaLastHTML === newHTML || el.innerHTML === newHTML) {
+      el.__yooaLastHTML = newHTML
+      return
+    }
     const marker = '<span class="softcapped">'
     const idx = newHTML.indexOf(marker)
 
     // No softcap → just rewrite everything
     if (idx === -1) {
+      perfCount("domUpdates")
       el.innerHTML = newHTML
+      el.__yooaLastHTML = newHTML
       return
     }
 
@@ -49,7 +58,9 @@ app.directive('html-stable', {
     const softcapEl = el.querySelector('.softcapped')
     if (!softcapEl) {
       // Fallback if somehow missing
+      perfCount("domUpdates")
       el.innerHTML = newHTML
+      el.__yooaLastHTML = newHTML
       return
     }
 
@@ -62,7 +73,9 @@ app.directive('html-stable', {
     }
 
     // Insert the new "before" nodes right before the softcap
+    perfCount("domUpdates")
     newBeforeNodes.forEach(n => el.insertBefore(n, softcapEl))
+    el.__yooaLastHTML = newHTML
 
     // If you need to update anything after softcap, you can extend similarly.
     // But typically the "(softcapped)" is last, so we leave everything else untouched.
@@ -72,16 +85,24 @@ app.directive('html-stable', {
 // ✨ YooA's scaling enchantment: only patch the changing part, preserve the rest
 app.directive('html-scaled', {
   beforeMount(el, binding) {
+    perfCount("domUpdates");
     el.innerHTML = binding.value;
+    el.__yooaLastHTML = binding.value;
   },
   updated(el, binding) {
     const newHTML = binding.value;
+    if (el.__yooaLastHTML === newHTML || el.innerHTML === newHTML) {
+      el.__yooaLastHTML = newHTML;
+      return;
+    }
     const marker = '<span class="scaled">';
     const idx = newHTML.indexOf(marker);
 
     // No scaling marker → just rewrite everything
     if (idx === -1) {
+      perfCount("domUpdates");
       el.innerHTML = newHTML;
+      el.__yooaLastHTML = newHTML;
       return;
     }
 
@@ -99,7 +120,9 @@ app.directive('html-scaled', {
     const scaledEl = el.querySelector('.scaled');
     if (!scaledEl) {
       // Fallback if somehow missing
+      perfCount("domUpdates");
       el.innerHTML = newHTML;
+      el.__yooaLastHTML = newHTML;
       return;
     }
 
@@ -112,7 +135,9 @@ app.directive('html-scaled', {
     }
 
     // Insert the new "before" nodes right before the scaled marker
+    perfCount("domUpdates");
     newBeforeNodes.forEach(n => el.insertBefore(n, scaledEl));
+    el.__yooaLastHTML = newHTML;
 
     // Leave everything from <span class="scaled"> onward untouched
   }

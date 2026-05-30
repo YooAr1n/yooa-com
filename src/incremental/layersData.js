@@ -6760,6 +6760,19 @@ export const achievements = {
   const eventsToInvalidate = ['GAME_EVENT.UPDATE']; // per-tick invalidation will handle most
 
   function makeKey(...parts) { return parts.join('_'); }
+  function stableEffect(fn) {
+    const src = Function.prototype.toString.call(fn);
+    return !(
+      src.includes('player.') ||
+      src.includes('GameCache.') ||
+      src.includes('gameLayers.') ||
+      src.includes('this.base') ||
+      src.includes('getEffectiveAge') ||
+      src.includes('getSkillEffect') ||
+      src.includes('stream') ||
+      src.includes('songs.')
+    );
+  }
 
   // Hand-pick heavy layer-level functions you want cached
   const layerFuncs = [
@@ -6796,12 +6809,12 @@ export const achievements = {
         // only cache if there is a function `effect`
         if (u && typeof u.effect === 'function') {
           const key = makeKey(layerName, 'upg', upgId, 'effect');
-          GameCache[key] = new Lazy(() => u.effect());
+          GameCache[key] = new Lazy(() => u.effect(), stableEffect(u.effect) ? { persistent: true } : null);
         }
         // sometimes you compute base() and effect() separately — cache both if present
         if (u && typeof u.base === 'function') {
           const key = makeKey(layerName, 'upg', upgId, 'base');
-          GameCache[key] = new Lazy(() => u.base());
+          GameCache[key] = new Lazy(() => u.base(), stableEffect(u.base) ? { persistent: true } : null);
         }
       }
     }
@@ -6813,7 +6826,7 @@ export const achievements = {
         if (!m) continue;
         if (typeof m.effect === 'function') {
           const key = makeKey(layerName, 'milestone', mid, 'effect');
-          GameCache[key] = new Lazy(() => m.effect());
+          GameCache[key] = new Lazy(() => m.effect(), stableEffect(m.effect) ? { persistent: true } : null);
         }
       }
     }

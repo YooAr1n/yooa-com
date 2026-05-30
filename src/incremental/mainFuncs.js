@@ -8,7 +8,7 @@ import { generateNewProblem } from "@/components/comps/MathProblem.vue";
 import { resetAllDimensions } from "./dimensions.js";
 import { resetAllAutobuyerTime } from "./automation.js";
 import { gameLayers } from "./layersData.js";
-import { GameCache, GameDirty } from "./cache.js";
+import { GameCache, GameDirty, globalCacheVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // Cached Decimal constants
@@ -20,6 +20,8 @@ const D_HUGE = new Decimal(1e100);
 let UpgMeta = null;    // { layer: { id: metaObj } }
 let LayerNoCost = null; // { layer: bool }
 let ChallMeta = null;  // { layer: { id: metaObj } }
+const __effectTickMemoValue = Object.create(null);
+const __effectTickMemoVersion = Object.create(null);
 
 // Build upgrade meta once (cheap to call repeatedly)
 export function initUpgradeMeta() {
@@ -221,7 +223,13 @@ export function buyMaxUpgrade(layer, id) {
 // upgradeEffect — direct compute (no per-tick memo)
 export function upgradeEffect(layer, id) {
   const __perf = perfBegin();
-  const cached = GameCache[layer + '_upg_' + id + '_effect'];
+  const key = layer + '_upg_' + id + '_effect';
+  const cached = GameCache[key];
+  const memoVersion = cached && cached._volatile === false ? cached._version : globalCacheVersion;
+  if (__effectTickMemoVersion[key] === memoVersion) {
+    perfEnd('upgradeEffect', __perf);
+    return __effectTickMemoValue[key];
+  }
   let result;
   if (cached !== undefined) {
     result = cached.value;
@@ -229,18 +237,30 @@ export function upgradeEffect(layer, id) {
     const u = gameLayers[layer]?.upgrades?.[id];
     result = u?.effect ? u.effect() : dZero;
   }
-  perfEnd('updateEffect', __perf);
+  __effectTickMemoVersion[key] = cached && cached._volatile === false ? cached._version : globalCacheVersion;
+  __effectTickMemoValue[key] = result;
+  perfEnd('upgradeEffect', __perf);
   return result;
 }
 export function hasUpgrade(layer, id) { return getUpgLevels(layer, id).gte(dOne); }
 export function hasMilestone(layer, id) { return !!player.milestones[layer]?.[id]; }
 // milestoneEffect — prefer cache, fall back
 export function milestoneEffect(layer, id) {
-  const cached = GameCache[layer + '_milestone_' + id + '_effect'];
-  if (cached !== undefined) return cached.value;
+  const key = layer + '_milestone_' + id + '_effect';
+  if (__effectTickMemoVersion[key] === globalCacheVersion) return __effectTickMemoValue[key];
+  const cached = GameCache[key];
+  if (cached !== undefined) {
+    const value = cached.value;
+    __effectTickMemoVersion[key] = globalCacheVersion;
+    __effectTickMemoValue[key] = value;
+    return value;
+  }
 
   const m = gameLayers[layer]?.milestones?.[id];
-  return m?.effect ? m.effect() : dZero;
+  const value = m?.effect ? m.effect() : dZero;
+  __effectTickMemoVersion[key] = globalCacheVersion;
+  __effectTickMemoValue[key] = value;
+  return value;
 }
 
 // ------------------ Prestige ------------------
@@ -379,12 +399,22 @@ export function completeChallenge(layer, id) {
 // challengeEffect — prefer cache, fall back
 export function challengeEffect(layer, id) {
   // If you registered challenges (see note below), then use cached value:
-  const cached = GameCache[layer + '_challenge_' + id + '_rewardEffect'];
-  if (cached !== undefined) return cached.value;
+  const key = layer + '_challenge_' + id + '_rewardEffect';
+  if (__effectTickMemoVersion[key] === globalCacheVersion) return __effectTickMemoValue[key];
+  const cached = GameCache[key];
+  if (cached !== undefined) {
+    const value = cached.value;
+    __effectTickMemoVersion[key] = globalCacheVersion;
+    __effectTickMemoValue[key] = value;
+    return value;
+  }
 
   // Fallback to original
   const c = gameLayers[layer]?.challenges?.[id];
-  return c?.rewardEffect ? c.rewardEffect() : dZero;
+  const value = c?.rewardEffect ? c.rewardEffect() : dZero;
+  __effectTickMemoVersion[key] = globalCacheVersion;
+  __effectTickMemoValue[key] = value;
+  return value;
 }
 
 // exitOrComplete (keeps confirmation behaviour)
