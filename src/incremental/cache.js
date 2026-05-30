@@ -13,33 +13,43 @@ class Lazy {
   // event -> handler function (so we can remove it if an 'off' method exists)
   static _eventHandlers = new Map();
 
-  constructor(getValue) {
+  static _globalVersion = 0;
+
+  constructor(getValue, options = null) {
     this._getValue = getValue;
     this._value = Lazy.NO_VALUE; // not computed yet
+    this._version = -1;
+    this._volatile = !(options && options.persistent === true);
     this._events = null; // lazily-created Set of events this instance is subscribed to
     Lazy._registrar.add(this);
   }
 
   static invalidateAll() {
-    // local var micro-optimization for hot loops
+    globalCacheVersion++;
+    Lazy._globalVersion = globalCacheVersion;
+  }
+
+  static invalidateDerived() {
     const reg = Lazy._registrar;
     for (const obj of reg) {
-      obj.invalidate();
+      if (!obj._volatile) obj.invalidate();
     }
   }
 
   get value() {
     // fast check using sentinel
     let v = this._value;
-    if (v === Lazy.NO_VALUE) {
+    if (v === Lazy.NO_VALUE || (this._volatile && this._version !== Lazy._globalVersion)) {
       v = this._getValue();
       this._value = v;
+      this._version = Lazy._globalVersion;
     }
     return v;
   }
 
   invalidate() {
     this._value = Lazy.NO_VALUE;
+    this._version = -1;
   }
 
   /**
@@ -122,6 +132,30 @@ class Lazy {
 window.Lazy = Lazy;
 
 // Export the same GameCache placeholder
+export let globalCacheVersion = 0;
+export const GameDirty = {
+  currencies: true,
+  upgradeEffects: true,
+  multipliers: true,
+  generators: true,
+  layerGains: true,
+  formattedStrings: true,
+  markAll() {
+    this.currencies = true;
+    this.upgradeEffects = true;
+    this.multipliers = true;
+    this.generators = true;
+    this.layerGains = true;
+    this.formattedStrings = true;
+    Lazy.invalidateDerived();
+  },
+  clearFrame() {
+    this.currencies = false;
+    this.layerGains = false;
+    this.formattedStrings = false;
+  }
+};
 export const GameCache = {};
 window.GameCache = GameCache;
+window.GameDirty = GameDirty;
 export { Lazy };

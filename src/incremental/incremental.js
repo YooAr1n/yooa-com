@@ -4,7 +4,8 @@
 */
 
 import Decimal from "./break_eternity.js";
-import { GameCache, Lazy } from "./cache.js";
+import { GameCache, GameDirty, Lazy } from "./cache.js";
+import { perfBegin, perfEnd, perfFrame } from "./performance.js";
 import { load } from "./save.js";
 import {
   hasUpgrade,
@@ -55,6 +56,12 @@ const DEC_TO_STRING = DEC_PROTO.toString;
 
 let date = Date.now();
 window.date = date;
+let __loopHandle = null;
+let __loopRunning = false;
+let __hiddenTimer = null;
+let __lastSimAt = 0;
+let __simAccumulator = 0;
+const SIM_INTERVAL_MS = 1000/60; // 60 fps
 
 // ---------------- helper: advance tick (keeps existing name) ----------------
 export function nextYooATick() {
@@ -437,8 +444,36 @@ export function computeAchievementMultiplier() {
   GameCache.YooAmatterFormationMult = new Lazy(() => computeYooAmatterFormationMult());
   GameCache.ShiahEchoMult = new Lazy(() => computeShiahEchoMult());
 
-  GameCache.AchievementMult = new Lazy(() => computeAchievementMultiplier());
+  GameCache.AchievementMult = new Lazy(() => computeAchievementMultiplier(), { persistent: true });
+  GameCache.YooAmatterHarmonicsGain = new Lazy(() => gameLayers.YooAmatter.getYooAmatterHarmonicsGain());
+  GameCache.YooAmatterResetGain = new Lazy(() => gameLayers.YooAmatter.getResetGain());
+  GameCache.YooAityResetGain = new Lazy(() => gameLayers.YooAity.getResetGain());
+  GameCache.YooAitySeungheeGain = new Lazy(() => gameLayers.YooAity.getSeungheeGain());
+  GameCache.YooAityYubinGain = new Lazy(() => gameLayers.YooAity.getYubinGain());
+  GameCache.YooAityHyojungGain = new Lazy(() => gameLayers.YooAity.getHyojungGain());
+  GameCache.YooAityMimiGain = new Lazy(() => gameLayers.YooAity.getMimiGain());
+  GameCache.YooAityAgeGain = new Lazy(() => gameLayers.YooAity.getAgeGain());
+  GameCache.AriniumGain = new Lazy(() => getAriniumGain());
+  GameCache.OMGMiracleLightGain = new Lazy(() => gameLayers.OMG.getMiracleLightGain());
+  GameCache.OMGFanHeartGain = new Lazy(() => gameLayers.OMG.getFanHeartGain());
+  GameCache.OMGSparklesGains = new Lazy(() => precomputeSparklesGains());
 })();
+
+function precomputeSparklesGains() {
+  const OMG = gameLayers.OMG;
+  const keys = __OMGLights || Object.keys(player.YooAity.OMGLight);
+  __OMGLights = keys;
+  const out = {};
+  for (let i = 0, len = keys.length; i < len; ++i) {
+    const k = keys[i];
+    out[k] = {
+      vocals: OMG.getSparklesGain(k, 'vocals'),
+      dance: OMG.getSparklesGain(k, 'dance'),
+      charisma: OMG.getSparklesGain(k, 'charisma')
+    };
+  }
+  return out;
+}
 
 // ---------------- gainCurrency: parsed path now uses a local path cache Map ----------------
 const _pathCache = new Map();
@@ -463,7 +498,9 @@ export function gainCurrency(pl, currencyPath, gain, diff, percent) {
   const dotIdx = currencyPath.indexOf('.');
   if (dotIdx === -1) {
     const oldVal = pl[currencyPath];
-    pl[currencyPath] = DEC_ADD.call(oldVal, DEC_MUL.call(gain, diff));
+    const nextVal = DEC_ADD.call(oldVal, DEC_MUL.call(gain, diff));
+    pl[currencyPath] = nextVal;
+    if (!nextVal.eq(oldVal)) GameDirty.currencies = true;
     return formatGain(oldVal, gain, inv, percent);
   }
   const keys = _parsePath(currencyPath);
@@ -471,7 +508,9 @@ export function gainCurrency(pl, currencyPath, gain, diff, percent) {
   const len = keys.length - 1;
   for (let i = 0; i < len; ++i) obj = obj[keys[i]];
   const last = keys[len], oldVal = obj[last];
-  obj[last] = DEC_ADD.call(oldVal, DEC_MUL.call(gain, diff));
+  const nextVal = DEC_ADD.call(oldVal, DEC_MUL.call(gain, diff));
+  obj[last] = nextVal;
+  if (!nextVal.eq(oldVal)) GameDirty.currencies = true;
   return formatGain(oldVal, gain, inv, percent);
 }
 
@@ -495,12 +534,12 @@ export function hasAchievement(id) { return !!player.achievements[id]; }
 export function notifyAchievement(achievement) {
   // dispatch event as before
   window.dispatchEvent(new CustomEvent('achievement-unlocked', { detail: `${achievement.title} unlocked!` }));
-  // caches removed -> nothing else to invalidate
+  GameDirty.markAll();
 }
 export function notifyMilestone(milestone, layerName) {
   const name = typeof milestone.title === 'function' ? milestone.title() : milestone.title;
   window.dispatchEvent(new CustomEvent('milestone-unlocked', { detail: { message: `${name} unlocked!`, layerName } }));
-  // caches removed -> nothing else to invalidate
+  GameDirty.markAll();
 }
 
 export function notifySong(song) {
@@ -523,6 +562,7 @@ let __cachedInvDiff = null;
 const _dOne = Decimal.dOne;
 let _pDims, _pGain, _pStats, _pAutobuyers, _pAch, _pMilestones = null;
 export function calc(diff) {
+  const __perf = perfBegin();
   nextYooATick();
   // Invalidate caches once per tick so each cached value is computed at most once per tick.
   // (This is safe and simple: first access inside the tick will compute and subsequent accesses use the cached result.)
@@ -554,16 +594,16 @@ export function calc(diff) {
   const perSecondGain = __tickComputed.YooAPerSecond;
   const dimsYooAm = _pDims.YooAmatter;
   const dimsShiah = _pDims.Shiah;
-  const harmonicsGain = gameLayers.YooAmatter.getYooAmatterHarmonicsGain();
+  const harmonicsGain = GameCache.YooAmatterHarmonicsGain.value;
   const sparkGain = (dimsYooAm && dimsYooAm[0] && dimsYooAm[0].effect) || dZero;
   const emberGain = (dimsShiah && dimsShiah[0] && dimsShiah[0].effect) || dZero;
 
   const YooAityLayer = gameLayers.YooAity;
-  const SeungheeGain = (YooAityLayer && YooAityLayer.getSeungheeGain && YooAityLayer.getSeungheeGain()) || dZero;
-  const YubinGain = (YooAityLayer && YooAityLayer.getYubinGain && YooAityLayer.getYubinGain()) || dZero;
-  const HyojungGain = (YooAityLayer && YooAityLayer.getHyojungGain && YooAityLayer.getHyojungGain()) || dZero;
-  const MimiGain = (YooAityLayer && YooAityLayer.getMimiGain && YooAityLayer.getMimiGain()) || dZero;
-  const ageGain = (YooAityLayer && YooAityLayer.getAgeGain && YooAityLayer.getAgeGain()) || dZero;
+  const SeungheeGain = GameCache.YooAitySeungheeGain.value || dZero;
+  const YubinGain = GameCache.YooAityYubinGain.value || dZero;
+  const HyojungGain = GameCache.YooAityHyojungGain.value || dZero;
+  const MimiGain = GameCache.YooAityMimiGain.value || dZero;
+  const ageGain = GameCache.YooAityAgeGain.value || dZero;
 
 
   const frameBaseInc = DEC_MUL.call(ageGain, diff);
@@ -594,8 +634,8 @@ export function calc(diff) {
   }
 
 
-  const resetGainRaw = (gameLayers.YooAmatter && gameLayers.YooAmatter.getResetGain && gameLayers.YooAmatter.getResetGain()) || dZero;
-  const resetGainRaw2 = (YooAityLayer && YooAityLayer.getResetGain && YooAityLayer.getResetGain()) || dZero;
+  const resetGainRaw = GameCache.YooAmatterResetGain.value || dZero;
+  const resetGainRaw2 = GameCache.YooAityResetGain.value || dZero;
   const prestGain = DEC_DIV.call(resetGainRaw, d100);
   const prestGain2 = DEC_DIV.call(resetGainRaw2, d100);
 
@@ -607,12 +647,12 @@ export function calc(diff) {
   const SeungheeLightGain = upgradeEffect('OMG', 31);
   const YubinLightGain = upgradeEffect('OMG', 41);
   const YooAPower = gameLayers.YooA_energy.getYooAPower()
-  const AllocYooAGain = DEC_DIV.call(player.YooAity.OMGLight.YooA, new Decimal(100));
-  const AllocArinGain = DEC_DIV.call(player.YooAity.OMGLight.Arin, new Decimal(100));
-  const AllocSeungheeGain = DEC_DIV.call(player.YooAity.OMGLight.Seunghee, new Decimal(100));
-  const AllocYubinGain = DEC_DIV.call(player.YooAity.OMGLight.Yubin, new Decimal(100));
-  const AriniumGain = getAriniumGain();
-  const MiracleLightGain = (gameLayers.OMG && gameLayers.OMG.getMiracleLightGain && gameLayers.OMG.getMiracleLightGain()) || dZero;
+  const AllocYooAGain = DEC_DIV.call(player.YooAity.OMGLight.YooA, d100);
+  const AllocArinGain = DEC_DIV.call(player.YooAity.OMGLight.Arin, d100);
+  const AllocSeungheeGain = DEC_DIV.call(player.YooAity.OMGLight.Seunghee, d100);
+  const AllocYubinGain = DEC_DIV.call(player.YooAity.OMGLight.Yubin, d100);
+  const AriniumGain = GameCache.AriniumGain.value || dZero;
+  const MiracleLightGain = GameCache.OMGMiracleLightGain.value || dZero;
 
   // cached booleans per tick (avoid duplicate hasUpgrade calls)
   const hasY22 = hasUpgrade('YooAmatter', 22);
@@ -732,13 +772,15 @@ export function calc(diff) {
   const omgSparkles = pYooAity.OMGSparkles;
   if (OMGLights && OMGLights.length > 0) {
 
-    const _getSG = (k, s) => OMG.getSparklesGain(k, s);
+    const sparklesGains = GameCache.OMGSparklesGains.value;
     for (let i = 0, len = OMGLights.length; i < len; ++i) {
       const k = OMGLights[i];
       const sparkle = omgSparkles[k];
-      const sgVoc = _getSG(k, 'vocals').mul(diff);
-      const sgDance = _getSG(k, 'dance').mul(diff);
-      const sgChar = _getSG(k, 'charisma').mul(diff);
+      const gains = sparklesGains[k];
+      if (!gains) continue;
+      const sgVoc = gains.vocals.mul(diff);
+      const sgDance = gains.dance.mul(diff);
+      const sgChar = gains.charisma.mul(diff);
       sparkle.vocals = sparkle.vocals.add(sgVoc);
       sparkle.dance = sparkle.dance.add(sgDance);
       sparkle.charisma = sparkle.charisma.add(sgChar);
@@ -758,7 +800,7 @@ export function calc(diff) {
         const times = isAutomated ? Math.floor(playerStream.progress[currentAlbumKey] / songLength) : 1;
         playerStream.progress[currentAlbumKey] -= times * songLength;
         playerStream.streams[currentAlbumKey] = playerStream.streams[currentAlbumKey].add(times);
-        const fanGain = gameLayers.OMG.getFanHeartGain().mul(times)
+        const fanGain = GameCache.OMGFanHeartGain.value.mul(times)
         const moneyGain = gameLayers.Fandom.getMoneyGain(currentAlbum).mul(times)
         player.YooAity.FanHearts = player.YooAity.FanHearts.add(fanGain);
         player.stats.YooAity.totalFanHearts = player.stats.YooAity.totalFanHearts.add(fanGain);
@@ -821,8 +863,7 @@ export function calc(diff) {
     const abList = _pAutobuyers[layer];
     for (const k in abList) {
       const ab = abList[k];
-      const time = ab.timeToNextTick
-      if (ab && ab.isOn && time && time == 0) ab.tick();
+      if (ab && typeof ab.tickDue === 'function') ab.tickDue();
     }
   }
 
@@ -835,24 +876,60 @@ export function calc(diff) {
     }
   }
 
-  // clear per-dimension caches once at end of tick (dimension.resetCache still exists but it's fine)
-  for (const t in player.dimensions) {
-    const arr = player.dimensions[t];
-    for (let i = 0; i < arr.length; ++i) {
-      const d = arr[i];
-      if (d && d.resetCache) d.resetCache();
-    }
-  }
-
   __cachedInvDiff = null;
+  perfEnd('calc', __perf);
 }
 
 export function gameLoop() {
+  const __frame = perfBegin();
   if (typeof offline !== 'undefined' && offline.active) return;
   const now = Date.now();
   calc((now - (date || Date.now())) / 1000);
   date = now;
   window.dispatchEvent(new CustomEvent('GAME_EVENT.UPDATE'));
+  GameDirty.clearFrame();
+  return perfEnd('gameLoop', __frame);
+}
+
+function rafLoop(ts) {
+  if (!__loopRunning) return;
+  const __frame = perfBegin();
+  let scripting = 0;
+  if (typeof document !== 'undefined' && document.hidden) {
+    __hiddenTimer = window.setTimeout(rafLoop, 1000);
+    scripting += gameLoop() || 0;
+    perfFrame(__frame, scripting);
+    return;
+  }
+  if (!__lastSimAt) __lastSimAt = ts;
+  __simAccumulator += ts - __lastSimAt;
+  __lastSimAt = ts;
+  if (__simAccumulator >= SIM_INTERVAL_MS) {
+    scripting += gameLoop() || 0;
+    __simAccumulator = 0;
+  }
+  perfFrame(__frame, scripting);
+  __loopHandle = window.requestAnimationFrame(rafLoop);
+}
+
+export function startGameLoop() {
+  if (__loopRunning) return;
+  __loopRunning = true;
+  __lastSimAt = 0;
+  __simAccumulator = 0;
+  date = Date.now();
+  window.date = date;
+  __loopHandle = window.requestAnimationFrame(rafLoop);
+}
+
+export function stopGameLoop() {
+  __loopRunning = false;
+  if (__loopHandle !== null) window.cancelAnimationFrame(__loopHandle);
+  if (__hiddenTimer !== null) window.clearTimeout(__hiddenTimer);
+  __loopHandle = null;
+  __hiddenTimer = null;
+  __lastSimAt = 0;
+  __simAccumulator = 0;
 }
 
 const exportsObj = {

@@ -6,7 +6,8 @@ import {
 } from "./incremental.js";
 import { gameLayers } from "./layersData.js";
 import { hasMilestone, hasUpgrade, inChallenge, milestoneEffect, upgradeEffect } from "./mainFuncs.js";
-import { Lazy, GameCache } from "./cache.js"; // <- added cache primitives
+import { Lazy, GameCache, globalCacheVersion } from "./cache.js"; // <- added cache primitives
+import { perfBegin, perfEnd } from "./performance.js";
 
 // Local aliases (fewer property lookups)
 const dZero = Decimal.dZero;
@@ -144,6 +145,9 @@ export default class Dimension {
     this._cachedEffect = undefined;
     this._cachedRankEffect = undefined;
     this._cachedPower = undefined;
+    this._cachedMultVer = -1;
+    this._cachedEffectVer = -1;
+    this._cachedPowerVer = -1;
   }
 
   // simple accessors
@@ -175,8 +179,11 @@ export default class Dimension {
   }
 
   get mult() {
-    if (this._cachedMult !== undefined) return this._cachedMult;
-    if (this.tier === 2 && this.type === "YooA" && _inChallenge("YooAmatter", 2)) return this._cachedMult = dZero;
+    if (this._cachedMult !== undefined && this._cachedMultVer === globalCacheVersion) return this._cachedMult;
+    if (this.tier === 2 && this.type === "YooA" && _inChallenge("YooAmatter", 2)) {
+      this._cachedMultVer = globalCacheVersion;
+      return this._cachedMult = dZero;
+    }
     const basePerLvl = getDimMultPerLvl(this.type, this.tier) || CONST_1_01;
     let rankEff = dOne;
     if (this.type === "YooA") {
@@ -195,6 +202,7 @@ export default class Dimension {
         eff = eff.mul(uVal || dOne);
       }
     }
+    this._cachedMultVer = globalCacheVersion;
     return this._cachedMult = eff;
   }
 
@@ -207,13 +215,14 @@ export default class Dimension {
   }
 
   get effect() {
-    if (this._cachedEffect !== undefined) return this._cachedEffect;
+    if (this._cachedEffect !== undefined && this._cachedEffectVer === globalCacheVersion) return this._cachedEffect;
 
     const m = this.mult || dZero;
     const a = (this.amt || dZero);
     const isYooA1 = this.type === "YooA" && this.tier === 1;
 
     if ((!isYooA1 && a <= 0) || m <= 0) {
+      this._cachedEffectVer = globalCacheVersion;
       return this._cachedEffect = dZero;
     }
 
@@ -229,12 +238,16 @@ export default class Dimension {
 
     const result = isYooA1 ? eff.div(CONST_10).add(dOne) : eff.div(CONST_100);
 
+    this._cachedEffectVer = globalCacheVersion;
     return this._cachedEffect = result;
   }
 
   get power() {
-    if (this._cachedPower !== undefined) return this._cachedPower;
-    if (!this.powerUnlocked) return dZero;
+    if (this._cachedPower !== undefined && this._cachedPowerVer === globalCacheVersion) return this._cachedPower;
+    if (!this.powerUnlocked) {
+      this._cachedPowerVer = globalCacheVersion;
+      return this._cachedPower = dZero;
+    }
     const a = this.amt || dZero
     const l = this.level || dZero
     const r = this.rank || dZero
@@ -250,6 +263,7 @@ export default class Dimension {
     const t = this.type;
     if (t === "YooA") power = power.mul(GameCache.YooADimensionPowerMult.value || dOne)
 
+    this._cachedPowerVer = globalCacheVersion;
     return this._cachedPower = power
   }
 
@@ -483,19 +497,23 @@ export default class Dimension {
 
   // production per tick (hot)
   updateAmount(diff) {
+    const __perf = perfBegin();
     if (this.powerUnlocked) gainCurrency(player, this._energyPath, this.power, diff)
-    if (this.tier <= 1) return;
+    if (this.tier <= 1) { perfEnd('updateAmount', __perf); return; }
     // fast path: no amount
     if (this.amt <= 0) {
       player.gain[this.type].dimensions[this._gainIndex] = null;
+      perfEnd('updateAmount', __perf);
       return;
     }
     const eff = this.effect;
     if (!eff || eff <= 0) {
       player.gain[this.type].dimensions[this._gainIndex] = null;
+      perfEnd('updateAmount', __perf);
       return;
     }
     player.gain[this.type].dimensions[this._gainIndex] = gainCurrency(player, this._gainPath, eff, diff, true);
+    perfEnd('updateAmount', __perf);
   }
 
   // reset & caching
@@ -521,6 +539,9 @@ export default class Dimension {
     this._cachedRankMult = undefined;
     this._cachedRankEffect = undefined;
     this._cachedPower = undefined;
+    this._cachedMultVer = -1;
+    this._cachedEffectVer = -1;
+    this._cachedPowerVer = -1;
     this._cachedDimensionCost = undefined;
     this._cachedDimensionCostLevelRef = null;
     this._cachedDimensionRankCost = undefined;

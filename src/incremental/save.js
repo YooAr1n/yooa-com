@@ -2,7 +2,7 @@
 // Handles robust Decimal revival, Dimension & Autobuyer reconstruction,
 // and safe defaults merging for old saves.
 
-import { gameLoop, getStartAutobuyers, getStartDimensions, getStartPlayer, player } from "./incremental.js";
+import { gameLoop, getStartAutobuyers, getStartDimensions, getStartPlayer, player, startGameLoop } from "./incremental.js";
 import { getStartOptions } from './options.js';
 import Dimension from "./dimensions.js";
 import { generateNewProblem } from "@/components/comps/MathProblem.vue";
@@ -854,7 +854,7 @@ export function load() {
     if (options && options.offline) {
       try { simulateOffline(offline_t); } catch (e) { /* simulateOffline may be defined elsewhere */ }
     }
-    setInterval(gameLoop, 1000 / 60);
+    startGameLoop();
   }, 100);
 }
 

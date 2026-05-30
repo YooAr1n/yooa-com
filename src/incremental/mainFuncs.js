@@ -8,6 +8,8 @@ import { generateNewProblem } from "@/components/comps/MathProblem.vue";
 import { resetAllDimensions } from "./dimensions.js";
 import { resetAllAutobuyerTime } from "./automation.js";
 import { gameLayers } from "./layersData.js";
+import { GameCache, GameDirty } from "./cache.js";
+import { perfBegin, perfEnd } from "./performance.js";
 
 // Cached Decimal constants
 const dZero = Decimal.dZero;
@@ -166,6 +168,7 @@ export function buyUpgrade(layer, id) {
   if (!upgrades[layer]) upgrades[layer] = {};
   upgrades[layer][id] = lvl.eq(dZero) ? dOne : (maxL ? Decimal.min(lvl.add(dOne), maxL) : lvl.add(dOne));
 
+  GameDirty.markAll();
   if (meta.onBuy) meta.onBuy();
 }
 
@@ -210,26 +213,31 @@ export function buyMaxUpgrade(layer, id) {
   if (maxL && newLvl.gt(maxL)) newLvl = maxL;
   upgrades[layer][id] = newLvl;
 
+  GameDirty.markAll();
   if (meta.onBuy) meta.onBuy();
 }
 
 // quick wrappers
 // upgradeEffect — direct compute (no per-tick memo)
 export function upgradeEffect(layer, id) {
-  // try cache (returns value or undefined)
-  const cached = GameCache.getCached([layer, 'upg', String(id), 'effect']);
-  if (cached !== undefined) return cached;
-
-  // fallback: call the original function (unchanged behavior)
-  const u = gameLayers[layer]?.upgrades?.[id];
-  return u?.effect ? u.effect() : dZero;
+  const __perf = perfBegin();
+  const cached = GameCache[layer + '_upg_' + id + '_effect'];
+  let result;
+  if (cached !== undefined) {
+    result = cached.value;
+  } else {
+    const u = gameLayers[layer]?.upgrades?.[id];
+    result = u?.effect ? u.effect() : dZero;
+  }
+  perfEnd('updateEffect', __perf);
+  return result;
 }
 export function hasUpgrade(layer, id) { return getUpgLevels(layer, id).gte(dOne); }
 export function hasMilestone(layer, id) { return !!player.milestones[layer]?.[id]; }
 // milestoneEffect — prefer cache, fall back
 export function milestoneEffect(layer, id) {
-  const cached = GameCache.getCached([layer, 'milestone', String(id), 'effect']);
-  if (cached !== undefined) return cached;
+  const cached = GameCache[layer + '_milestone_' + id + '_effect'];
+  if (cached !== undefined) return cached.value;
 
   const m = gameLayers[layer]?.milestones?.[id];
   return m?.effect ? m.effect() : dZero;
@@ -365,13 +373,14 @@ export function completeChallenge(layer, id) {
   const cur = getChallLevels(layer, id);
   const mx = meta.maxLvl ? meta.maxLvl() : Decimal.dInf;
   player.challenges[layer][id] = cur.add(1).min(mx);
+  GameDirty.markAll();
 }
 
 // challengeEffect — prefer cache, fall back
 export function challengeEffect(layer, id) {
   // If you registered challenges (see note below), then use cached value:
-  const cached = GameCache.getCached([layer, 'challenge', String(id), 'rewardEffect']);
-  if (cached !== undefined) return cached;
+  const cached = GameCache[layer + '_challenge_' + id + '_rewardEffect'];
+  if (cached !== undefined) return cached.value;
 
   // Fallback to original
   const c = gameLayers[layer]?.challenges?.[id];

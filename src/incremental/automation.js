@@ -8,10 +8,12 @@ import { gameLayers } from "./layersData.js";
 import { buyAllYMUpgrades, buySparkUpgrades, maxAllYMUpgrades, maxSparkUpgrades } from "@/components/YooAmatter.vue";
 import { buyAllHJUpgrades, buyAllMMUpgrades, buyAllOMGUpgrades, buyAllSHUpgrades, buyAllYBUpgrades, buyAllYEUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllOMGUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from "@/components/YooAity.vue";
 import { buyAllARUpgrades, maxAllARUpgrades } from "@/components/Automation.vue";
-import { Lazy, GameCache } from "./cache.js";
+import { Lazy, GameCache, globalCacheVersion } from "./cache.js";
+import { perfBegin, perfEnd } from "./performance.js";
 
 // ——— Constants ———
 const dZero = Decimal.dZero;
+const DEC_0_1 = new Decimal(0.1);
 const BUYER_MODES = ["SINGLE", "MAX"];
 const PRESTIGER_BASE = ["AMOUNT", "TIME"];
 
@@ -94,6 +96,9 @@ export default class Autobuyer {
     // coerce amount to Decimal once (avoid allocating on each abAmount access)
     if (amount == null) this.amount = null;
     else this.amount = isDecimalLike(amount) ? amount : new Decimal(amount);
+
+    this._cachedAutoInterval = null;
+    this._cachedAutoIntervalVer = -1;
   }
 
   // helper (instance method alternative; keeps code compatible if other code expects it)
@@ -110,8 +115,13 @@ export default class Autobuyer {
 
   // autoInterval computed live
   get autoInterval() {
+    if (this._cachedAutoInterval && this._cachedAutoIntervalVer === globalCacheVersion) {
+      return this._cachedAutoInterval;
+    }
     const v = this._intervalFn();
-    return isDecimalLike(v) ? v : new Decimal(v || 0);
+    this._cachedAutoInterval = isDecimalLike(v) ? v : new Decimal(v || 0);
+    this._cachedAutoIntervalVer = globalCacheVersion;
+    return this._cachedAutoInterval;
   }
 
   get timeToNextTick() {
@@ -140,12 +150,26 @@ export default class Autobuyer {
   prestigeTime() { this.time = this.autoInterval; }
 
   tick() {
-    if (!this.isOn || !this._unlocked()) return;
+    const __perf = perfBegin();
+    if (!this.isOn || !this._unlocked()) { perfEnd('tick', __perf); return; }
     const ttn = this.timeToNextTick;
-    if (!isDecimalLike(ttn) || ttn.gt(Decimal.dZero)) return;
+    if (!isDecimalLike(ttn) || ttn.gt(Decimal.dZero)) { perfEnd('tick', __perf); return; }
     // call wrapper — it will find and call the real tickMethod with correct `this`
     this._tickMethod.call(this);
     this.resetTime();
+    perfEnd('tick', __perf);
+  }
+
+  tickDue() {
+    const __perf = perfBegin();
+    if (!this.isOn || !this._unlocked()) { perfEnd('tick', __perf); return; }
+    if (!this.time) this.resetTime();
+    const statTime = this.resetLayer ? player.stats[this.resetLayer].time : player.stats.General.totalTime;
+    const remaining = (this.time && isDecimalLike(this.time)) ? this.time.sub(statTime) : dZero;
+    if (!isDecimalLike(remaining) || remaining.gt(Decimal.dZero)) { perfEnd('tick', __perf); return; }
+    this._tickMethod.call(this);
+    this.resetTime();
+    perfEnd('tick', __perf);
   }
 }
 
@@ -159,7 +183,7 @@ export function prestigeTick(layerKey) {
     if (_inAnyChallenge()) return;
 
     const mode = ab.autobuyerMode;
-    const amt  = new Decimal(ab.abAmount);
+    const amt = ab.abAmount;
     const gain = gameLayers[layerKey].getResetGain();
 
     if (mode === "AMOUNT" && gain.gte(amt)) {
@@ -372,7 +396,7 @@ export function updateAllAutobuyerTime() {
         const st = isDecimalLike(statTime) ? statTime : new Decimal(statTime || 0);
         rem = bt.sub(st).max(Decimal.dZero);
       }
-      if (rem.gt(interval) && interval.gt(new Decimal(0.1))) b.resetTime();
+      if (rem.gt(interval) && interval.gt(DEC_0_1)) b.resetTime();
     }
   }
 }
