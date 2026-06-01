@@ -2129,7 +2129,6 @@ value: function mul(value) {
          * Exponentiation: Returns the result of 'this' ^ 'value' (often written as 'this' ** 'value' in programming languages).
          */
       }, {
-        // === optimized pow ===
         key: "pow",
         value: function pow(value) {
           // normalize input once

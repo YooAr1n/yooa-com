@@ -6806,15 +6806,20 @@ export const achievements = {
     if (layer.upgrades) {
       for (const upgId in layer.upgrades) {
         const u = layer.upgrades[upgId];
-        // only cache if there is a function `effect`
         if (u && typeof u.effect === 'function') {
           const key = makeKey(layerName, 'upg', upgId, 'effect');
-          GameCache[key] = new Lazy(() => u.effect(), stableEffect(u.effect) ? { persistent: true } : null);
+          const lazy = new Lazy(() => u._rawEffect(), { persistent: true });
+          GameCache[key] = lazy;
+          // Rename original and replace with cached version
+          u._rawEffect = u.effect;
+          u.effect = () => lazy.value;  // now all callers (Vue + mainFuncs) use cache
         }
-        // sometimes you compute base() and effect() separately — cache both if present
         if (u && typeof u.base === 'function') {
           const key = makeKey(layerName, 'upg', upgId, 'base');
-          GameCache[key] = new Lazy(() => u.base(), stableEffect(u.base) ? { persistent: true } : null);
+          const lazy = new Lazy(() => u._rawBase(), { persistent: true });
+          GameCache[key] = lazy;
+          u._rawBase = u.base;
+          u.base = () => lazy.value;
         }
       }
     }
@@ -6826,7 +6831,10 @@ export const achievements = {
         if (!m) continue;
         if (typeof m.effect === 'function') {
           const key = makeKey(layerName, 'milestone', mid, 'effect');
-          GameCache[key] = new Lazy(() => m.effect(), stableEffect(m.effect) ? { persistent: true } : null);
+          const lazy = new Lazy(() => m._rawEffect(), { persistent: true });
+          GameCache[key] = lazy;
+          m._rawEffect = m.effect;
+          m.effect = () => lazy.value;
         }
       }
     }

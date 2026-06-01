@@ -21,7 +21,8 @@ import Dimension from "./dimensions.js";
 import Autobuyer, {
   getAriniumEffect,
   getAriniumGain,
-  updateAllAutobuyerTime
+  updateAllAutobuyerTime,
+  flushAutobuyerInvalidation 
 } from "./automation.js";
 import { achievements, gameLayers } from "./layersData.js";
 import { songs } from "./songs.js";
@@ -120,8 +121,18 @@ function cloneDecimals(val) {
   return val; // primitive
 }
 
+export function resolveAllAutobuyerDefs() {
+  if (!player?.autobuyers) return;
+  for (const layerName in player.autobuyers) {
+    for (const name in player.autobuyers[layerName]) {
+      player.autobuyers[layerName][name]._getDef();  // triggers permanent cache
+    }
+  }
+}
+
 export function start() {
   load();
+  resolveAllAutobuyerDefs();
   precomputeMeta();
   precomputeAchievementList();
   precomputeMilestoneLists(gameLayers);
@@ -867,6 +878,8 @@ export function calc(diff) {
       }
     }
   }
+
+  flushAutobuyerInvalidation();
 
   for (const layer in _pAutobuyers) {
     const abList = _pAutobuyers[layer];

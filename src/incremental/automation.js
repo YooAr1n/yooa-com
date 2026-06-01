@@ -97,8 +97,19 @@ export default class Autobuyer {
     this._def = null;
     this._getDef = () => {
       if (this._def) return this._def;
-      const layerDefs = (typeof autobuyers !== 'undefined' && autobuyers[this.layer]) ? autobuyers[this.layer] : null;
-      return (this._def = layerDefs ? layerDefs[this.name] : undefined);
+      // autobuyers may not exist yet at construction time, so defer
+      if (typeof autobuyers === 'undefined') return null;
+      const layerDefs = autobuyers[this.layer];
+      if (!layerDefs) return null;
+      const d = layerDefs[this.name];
+      if (d) {
+        // Permanently cache — the definition object never changes
+        this._def = d;
+        // Pre-bind the unlocked and interval functions directly to avoid wrapper closures
+        this._unlocked = typeof d.unlocked === 'function' ? d.unlocked : () => false;
+        this._intervalFn = typeof d.interval === 'function' ? d.interval : () => Decimal.dZero;
+      }
+      return d || null;
     };
 
     this._unlocked = () => {
@@ -125,6 +136,8 @@ export default class Autobuyer {
 
     this._cachedAutoInterval = null;
     this._cachedAutoIntervalVer = -1;
+    this._cachedModeStr = null;
+    this._cachedModeVal = -1;  // the mode integer at time of caching
   }
 
   // helper (instance method alternative; keeps code compatible if other code expects it)
@@ -159,9 +172,15 @@ export default class Autobuyer {
   set tickTime(v) { this.time = v; }
 
   get autobuyerMode() {
+    // mode is an integer that only changes on toggleMode() call
+    if (this._cachedModeVal === this.mode && this._cachedModeStr !== null) {
+      return this._cachedModeStr;
+    }
     const def = this._getDef();
-    const defType = def && def.type ? def.type : null;
-    return autobuyerModeName(this.name, defType, this.mode);
+    const defType = def?.type ?? null;
+    this._cachedModeStr = autobuyerModeName(this.name, defType, this.mode);
+    this._cachedModeVal = this.mode;
+    return this._cachedModeStr;
   }
 
   resetTime() {
@@ -184,17 +203,38 @@ export default class Autobuyer {
   }
 
   tickDue() {
-    const __perf = perfBegin();
-    if (!this.isOn || !this._unlocked()) { perfEnd('tickDue', __perf); return; }
-    if (!this.time) this.resetTime();
-    const statTime = this.resetLayer ? player.stats[this.resetLayer].time : player.stats.General.totalTime;
-    const remaining = (this.time && isDecimalLike(this.time)) ? this.time.sub(statTime) : dZero;
-    if (!isDecimalLike(remaining) || remaining.gt(Decimal.dZero)) { perfEnd('tickDue', __perf); return; }
-    const __tick = perfBegin();
-    this._tickMethod.call(this);
-    perfEnd('Autobuyer_tickMethod', __tick);
-    this.resetTime();
-    perfEnd('tickDue', __perf);
+    if (!this.isOn) return;
+
+    // Single def resolution for this entire call
+    const d = this._getDef();
+    if (!d) return;
+
+    // _unlocked is now the def's unlocked fn directly (no wrapper)
+    if (!this._unlocked()) return;
+
+    if (!this.time) {
+      // Initialize time without a separate resetTime() call
+      const statTime = this.resetLayer
+        ? player.stats[this.resetLayer].time
+        : player.stats.General.totalTime;
+      this.time = statTime.add(this.autoInterval);
+      return;
+    }
+
+    const statTime = this.resetLayer
+      ? player.stats[this.resetLayer].time
+      : player.stats.General.totalTime;
+
+    // Inline the remaining check — avoids timeToNextTick getter which does max/min
+    const remaining = this.time.sub(statTime);
+    if (remaining.sign > 0) return;  // sign check: no .gt() call, no allocation
+
+    // tickMethod: call the def's function directly (skip _tickMethod wrapper)
+    d.tickMethod.call(this);
+
+    // resetTime inline — reuse statTime already fetched above
+    const iv = this.autoInterval;
+    this.time = statTime.add(iv);
   }
 }
 
@@ -466,6 +506,11 @@ if (!GameCache._autobuyerCachesInit) {
 
   // — Proof speed
   GameCache.Arin_proofSpeed = new Lazy(() => GameCache.Arin_tierEffect.value[1], { persistent: true });
+
+  GameCache.ArinRankAutobuyerRecip = new Lazy(() => {
+    const ab = player?.autobuyers?.YooAity?.['Arin Rank'];
+    return ab ? ab.autoInterval.recip() : Decimal.dZero;
+  }, { persistent: true });
 }
 
 // ——— Arin helpers (no caching; computed live) ———
@@ -538,7 +583,7 @@ export function getArinTierInvCost(x) {
 }
 
 export function getAriniumGain() {
-  let base = player.autobuyers?.YooAity?.['Arin Rank']?.autoInterval?.recip() || Decimal.dZero;
+  let base = GameCache.ArinRankAutobuyerRecip.value;
   base = base.div(1e11).sub(0.2).max(0).add(1).log10().dilate(1.5);
   base = base.mul(upgradeEffect("Arinium", 16)).mul(gameLayers.YooAity.getHyojungEffect()[1]).mul(gameLayers.OMG.getMiracleLightEffect()[0]);
   if (hasUpgrade("Arinium", 13)) base = base.mul(6.18);
@@ -614,15 +659,28 @@ export function getAriniumEffect() {
 }
 
 // ——— Purchases ———
+// Module-level flag
+let _pendingInvalidation = false;
+
+function _scheduleInvalidation() {
+  _pendingInvalidation = true;
+}
+
+export function flushAutobuyerInvalidation() {
+  if (!_pendingInvalidation) return;
+  _pendingInvalidation = false;
+  GameDirty.markAll();
+  invalidateAutobuyerIntervals();
+  updateAllAutobuyerTime();
+}
+
 export function arinSingleBuy() {
   const cost = GameCache.Arin_cost.value;
   const curr = player.YooAmatter.YooArium;
   if (curr.lt(cost)) return;
   if (!getArinParams().free.YooAmatter) player.YooAmatter.YooArium = curr.sub(cost).max(dZero);
   player.Arin.level = player.Arin.level.add(1);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 export function arinSingleRank() {
@@ -631,9 +689,7 @@ export function arinSingleRank() {
   if (curr.lt(cost)) return;
   if (!getArinParams().free.YooAity) player.YooAity.amount = curr.sub(cost).max(dZero);
   player.Arin.rank = player.Arin.rank.add(1);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 export function arinSingleTier() {
@@ -642,9 +698,7 @@ export function arinSingleTier() {
   if (curr.lt(cost)) return;
   if (!getArinParams().free.Miracle) player.YooAity.MiracleLight = curr.sub(cost).max(dZero);
   player.Arin.tier = player.Arin.tier.add(1);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 function arinDoBulkBuy(layerKey, resourceKey, costFn, invFn, levelRef) {
@@ -666,9 +720,7 @@ export function arinBulkBuy() {
   const { free } = getArinParams();
   if (!free.YooAmatter) player.YooAmatter.YooArium = player.YooAmatter.YooArium.sub(bulk.purchasePrice).max(dZero);
   player.Arin.level = player.Arin.level.add(bulk.quantity);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 export function arinRankBulkBuy() {
@@ -677,9 +729,7 @@ export function arinRankBulkBuy() {
   const { free } = getArinParams();
   if (!free.YooAity) player.YooAity.amount = player.YooAity.amount.sub(bulk.purchasePrice).max(dZero);
   player.Arin.rank = player.Arin.rank.add(bulk.quantity);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 export function arinTierBulkBuy() {
@@ -688,9 +738,7 @@ export function arinTierBulkBuy() {
   const { free } = getArinParams();
   if (!free.Miracle) player.YooAity.MiracleLight = player.YooAity.MiracleLight.sub(bulk.purchasePrice).max(dZero);
   player.Arin.tier = player.Arin.tier.add(bulk.quantity);
-  GameDirty.markAll();
-  invalidateAutobuyerIntervals();
-  updateAllAutobuyerTime(player.autobuyers);
+  _scheduleInvalidation();
 }
 
 // ——— Reset autobuyer timers ———

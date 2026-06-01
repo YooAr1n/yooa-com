@@ -8,7 +8,7 @@ import { generateNewProblem } from "@/components/comps/MathProblem.vue";
 import { resetAllDimensions } from "./dimensions.js";
 import { resetAllAutobuyerTime } from "./automation.js";
 import { gameLayers } from "./layersData.js";
-import { GameCache, GameDirty, globalCacheVersion } from "./cache.js";
+import { GameCache, GameDirty, globalCacheVersion, upgradeEffectVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // Cached Decimal constants
@@ -224,20 +224,20 @@ export function buyMaxUpgrade(layer, id) {
 export function upgradeEffect(layer, id) {
   const __perf = perfBegin();
   const key = layer + '_upg_' + id + '_effect';
-  const cached = GameCache[key];
-  const memoVersion = cached && cached._volatile === false ? cached._version : globalCacheVersion;
-  if (__effectTickMemoVersion[key] === memoVersion) {
+  // upgradeEffectVersion only bumps on markAll(), not every tick
+  if (__effectTickMemoVersion[key] === upgradeEffectVersion) {
     perfEnd('upgradeEffect', __perf);
     return __effectTickMemoValue[key];
   }
   let result;
+  const cached = GameCache[key];
   if (cached !== undefined) {
     result = cached.value;
   } else {
     const u = gameLayers[layer]?.upgrades?.[id];
-    result = u?.effect ? u.effect() : dZero;
+    result = u?.effect ? u.effect() : Decimal.dZero;
   }
-  __effectTickMemoVersion[key] = cached && cached._volatile === false ? cached._version : globalCacheVersion;
+  __effectTickMemoVersion[key] = upgradeEffectVersion;
   __effectTickMemoValue[key] = result;
   perfEnd('upgradeEffect', __perf);
   return result;
@@ -247,18 +247,11 @@ export function hasMilestone(layer, id) { return !!player.milestones[layer]?.[id
 // milestoneEffect — prefer cache, fall back
 export function milestoneEffect(layer, id) {
   const key = layer + '_milestone_' + id + '_effect';
-  if (__effectTickMemoVersion[key] === globalCacheVersion) return __effectTickMemoValue[key];
+  if (__effectTickMemoVersion[key] === upgradeEffectVersion) return __effectTickMemoValue[key];
   const cached = GameCache[key];
-  if (cached !== undefined) {
-    const value = cached.value;
-    __effectTickMemoVersion[key] = globalCacheVersion;
-    __effectTickMemoValue[key] = value;
-    return value;
-  }
-
-  const m = gameLayers[layer]?.milestones?.[id];
-  const value = m?.effect ? m.effect() : dZero;
-  __effectTickMemoVersion[key] = globalCacheVersion;
+  const value = cached !== undefined ? cached.value
+    : (gameLayers[layer]?.milestones?.[id]?.effect?.() ?? Decimal.dZero);
+  __effectTickMemoVersion[key] = upgradeEffectVersion;
   __effectTickMemoValue[key] = value;
   return value;
 }
@@ -398,21 +391,12 @@ export function completeChallenge(layer, id) {
 
 // challengeEffect — prefer cache, fall back
 export function challengeEffect(layer, id) {
-  // If you registered challenges (see note below), then use cached value:
   const key = layer + '_challenge_' + id + '_rewardEffect';
-  if (__effectTickMemoVersion[key] === globalCacheVersion) return __effectTickMemoValue[key];
+  if (__effectTickMemoVersion[key] === upgradeEffectVersion) return __effectTickMemoValue[key];
   const cached = GameCache[key];
-  if (cached !== undefined) {
-    const value = cached.value;
-    __effectTickMemoVersion[key] = globalCacheVersion;
-    __effectTickMemoValue[key] = value;
-    return value;
-  }
-
-  // Fallback to original
-  const c = gameLayers[layer]?.challenges?.[id];
-  const value = c?.rewardEffect ? c.rewardEffect() : dZero;
-  __effectTickMemoVersion[key] = globalCacheVersion;
+  const value = cached !== undefined ? cached.value
+    : (gameLayers[layer]?.challenges?.[id]?.rewardEffect?.() ?? Decimal.dZero);
+  __effectTickMemoVersion[key] = upgradeEffectVersion;
   __effectTickMemoValue[key] = value;
   return value;
 }

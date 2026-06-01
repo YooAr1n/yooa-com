@@ -6,7 +6,7 @@ import {
 } from "./incremental.js";
 import { gameLayers } from "./layersData.js";
 import { hasMilestone, hasUpgrade, inChallenge, milestoneEffect, upgradeEffect } from "./mainFuncs.js";
-import { Lazy, GameCache, globalCacheVersion } from "./cache.js"; // <- added cache primitives
+import { Lazy, GameCache, globalCacheVersion, upgradeEffectVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // Local aliases (fewer property lookups)
@@ -148,6 +148,7 @@ export default class Dimension {
     this._cachedMultVer = -1;
     this._cachedEffectVer = -1;
     this._cachedPowerVer = -1;
+    this._cachedRankMultVer = -1;
   }
 
   // simple accessors
@@ -179,7 +180,10 @@ export default class Dimension {
   }
 
   get mult() {
-    if (this._cachedMult !== undefined && this._cachedMultVer === globalCacheVersion) return this._cachedMult;
+    // upgradeEffectVersion only changes on markAll() → safe to cache mult across ticks
+    if (this._cachedMult !== undefined && this._cachedMultVer === upgradeEffectVersion) {
+      return this._cachedMult;
+    }
     if (this.tier === 2 && this.type === "YooA" && _inChallenge("YooAmatter", 2)) {
       this._cachedMultVer = globalCacheVersion;
       return this._cachedMult = dZero;
@@ -202,12 +206,19 @@ export default class Dimension {
         eff = eff.mul(uVal || dOne);
       }
     }
-    this._cachedMultVer = globalCacheVersion;
+    this._cachedMultVer = upgradeEffectVersion;
     return this._cachedMult = eff;
   }
 
   get rankMult() {
-    return this._cachedRankMult !== undefined ? this._cachedRankMult : (this._cachedRankMult = (getDimMultPerRank(this.type, this.tier) || CONST_1_05).pow(this.rank || dZero));
+    // rankMult depends on this.rank which changes on harmonize — use upgradeEffectVersion
+    // (harmonize calls resetCache() which clears _cachedRankMult anyway)
+    if (this._cachedRankMult !== undefined && this._cachedRankMultVer === upgradeEffectVersion) {
+      return this._cachedRankMult;
+    }
+    const val = (getDimMultPerRank(this.type, this.tier) || CONST_1_05).pow(this.rank || Decimal.dZero);
+    this._cachedRankMultVer = upgradeEffectVersion;
+    return this._cachedRankMult = val;
   }
 
   get rankEffect() {
@@ -542,6 +553,7 @@ export default class Dimension {
     this._cachedMultVer = -1;
     this._cachedEffectVer = -1;
     this._cachedPowerVer = -1;
+    this._cachedRankMultVer = -1;
     this._cachedDimensionCost = undefined;
     this._cachedDimensionCostLevelRef = null;
     this._cachedDimensionRankCost = undefined;
@@ -565,32 +577,37 @@ function _getOrCreateLazyMap(mapName, key, factory) {
 export function getDimMultPerLvl(type, tier) {
   // key by type+tier
   const key = `${type}|${tier}`;
-  const lazy = _getOrCreateLazyMap("dimMultPerLvl", key, () => {
-    // compute body copied from original function
-    let base = type === "YooA" ? CONST_1_01 : (type === "YooAmatter" ? CONST_1_5 : CONST_2);
+  let lazy = GameCache.dimMultPerLvl?.[key];
+  if (!lazy) {
+    if (!GameCache.dimMultPerLvl) GameCache.dimMultPerLvl = {};
+    lazy = new Lazy(() => {
+      // compute body copied from original function
+      let base = type === "YooA" ? CONST_1_01 : (type === "YooAmatter" ? CONST_1_5 : CONST_2);
 
-    if (type === "YooA") {
-      if (_hasUpgrade("YooAmatter", 14)) base = base.add(_upgradeEffect("YooAmatter", 14));
-      if (_hasUpgrade("YooAmatter", 43)) base = base.add(_upgradeEffect("YooAmatter", 43));
+      if (type === "YooA") {
+        if (_hasUpgrade("YooAmatter", 14)) base = base.add(_upgradeEffect("YooAmatter", 14));
+        if (_hasUpgrade("YooAmatter", 43)) base = base.add(_upgradeEffect("YooAmatter", 43));
 
-      if (tier < 3) return base;
+        if (tier < 3) return base;
 
-      if (_hasUpgrade("YooAmatter", 13)) base = base.pow(3);
-      if (_hasUpgrade("YooAity", 11)) base = base.pow(_upgradeEffect("YooAity", 11)[0]);
+        if (_hasUpgrade("YooAmatter", 13)) base = base.pow(3);
+        if (_hasUpgrade("YooAity", 11)) base = base.pow(_upgradeEffect("YooAity", 11)[0]);
 
-      return base.pow(_upgradeEffect("sparks", 11)[0].add(1));
-    }
+        return base.pow(_upgradeEffect("sparks", 11)[0].add(1));
+      }
 
-    if (type === "YooAmatter") {
-      return base.add(_upgradeEffect("sparks", 11)[1]);
-    }
+      if (type === "YooAmatter") {
+        return base.add(_upgradeEffect("sparks", 11)[1]);
+      }
 
-    if (type === "Shiah" && _hasUpgrade("Yubin", 24)) {
-      return base.add("9.17e1995");
-    }
+      if (type === "Shiah" && _hasUpgrade("Yubin", 24)) {
+        return base.add("9.17e1995");
+      }
 
-    return base;
-  });
+      return base;
+    }, { persistent: true })
+    GameCache.dimMultPerLvl[key] = lazy;
+  }
   return lazy.value;
 }
 
@@ -682,28 +699,37 @@ export function getHighestRankedTier(dimensions) {
 
 export function getScalingStart(type) {
   const key = `${type}|scale`;
-  const lazy = _getOrCreateLazyMap("scalingStart", key, () => {
-    // compute body copied from original function
-    let start = LEVEL_SCALE_THRESHOLD[type] || dZero;
-    if (type === "YooA") {
-      if (_hasMilestone("YooAity", 12)) start = start.add(1e4);
-      if (_hasMilestone("YooAity", 13)) start = start.add(8e4);
-      if (_hasUpgrade("YooAity", 41)) start = start.add(_upgradeEffect("YooAity", 41));
-    } else if (type === "YooAmatter" && _hasUpgrade("YooAity", 42)) {
-      start = start.add(_upgradeEffect("YooAity", 42));
-    }
-    return start;
-  });
+  let lazy = GameCache.scalingStart?.[key];
+  if (!lazy) {
+    if (!GameCache.scalingStart) GameCache.scalingStart = {};
+    lazy = new Lazy(() => {
+      // compute body copied from original function
+      let start = LEVEL_SCALE_THRESHOLD[type] || dZero;
+      if (type === "YooA") {
+        if (_hasMilestone("YooAity", 12)) start = start.add(1e4);
+        if (_hasMilestone("YooAity", 13)) start = start.add(8e4);
+        if (_hasUpgrade("YooAity", 41)) start = start.add(_upgradeEffect("YooAity", 41));
+      } else if (type === "YooAmatter" && _hasUpgrade("YooAity", 42)) {
+        start = start.add(_upgradeEffect("YooAity", 42));
+      }
+      return start;
+    }, { persistent: true });
+    GameCache.scalingStart[key] = lazy;
+  }
   return lazy.value;
 }
 
 export function getRankScalingStart(type) {
   const key = `${type}|rankScale`;
-  const lazy = _getOrCreateLazyMap("rankScalingStart", key, () => {
-    // compute body copied from original function
-    let start = RANK_SCALE_THRESHOLD[type] || dZero;
-    return start;
-  });
+  let lazy = GameCache.rankScalingStart?.[key];
+  if (!lazy) {
+    if (!GameCache.rankScalingStart) GameCache.rankScalingStart = {};
+    lazy = new Lazy(() => {
+      let start = RANK_SCALE_THRESHOLD[type] || Decimal.dZero;
+      return start;
+    }, { persistent: true });
+    GameCache.rankScalingStart[key] = lazy;
+  }
   return lazy.value;
 }
 

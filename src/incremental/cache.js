@@ -133,6 +133,10 @@ window.Lazy = Lazy;
 
 // Export the same GameCache placeholder
 export let globalCacheVersion = 0;
+// Separate dirty counter for upgrade effects — only increments on markAll()
+// (not every tick like globalCacheVersion)
+export let upgradeEffectVersion = 0;
+export function bumpUpgradeEffectVersion() { upgradeEffectVersion++; }
 export const GameDirty = {
   currencies: true,
   upgradeEffects: true,
@@ -147,6 +151,7 @@ export const GameDirty = {
     this.generators = true;
     this.layerGains = true;
     this.formattedStrings = true;
+    bumpUpgradeEffectVersion();   // <-- add this line
     Lazy.invalidateDerived();
   },
   clearFrame() {
