@@ -21,7 +21,6 @@ import Dimension from "./dimensions.js";
 import Autobuyer, {
   getAriniumEffect,
   getAriniumGain,
-  updateAllAutobuyerTime,
   flushAutobuyerInvalidation 
 } from "./automation.js";
 import { achievements, gameLayers } from "./layersData.js";
@@ -72,10 +71,12 @@ let __hiddenTimer = null;
 let __lastSimAt = 0;
 let __simAccumulator = 0;
 const SIM_INTERVAL_MS = 1000/60; // 60 fps
+const UPDATE_EVENT = typeof Event !== "undefined" ? new Event("GAME_EVENT.UPDATE") : null;
 
 // ---------------- helper: advance tick (keeps existing name) ----------------
 export function nextYooATick() {
-  updateAllAutobuyerTime();
+  // Timer correction is only needed after rules/costs/speeds change; purchases
+  // call flushAutobuyerInvalidation(), which runs the expensive repair pass.
 }
 
 // ---------------- precompute helpers ----------------
@@ -534,6 +535,16 @@ export function gainCurrency(pl, currencyPath, gain, diff, percent) {
   return formatGain(oldVal, gain, inv, percent);
 }
 
+export function gainCurrencyDirect(obj, key, gain, diff, percent) {
+  if (!obj || !key) return '';
+  if (!isDecimalLike(gain)) gain = gain == null ? dZero : new Decimal(gain);
+  const oldVal = obj[key];
+  const nextVal = DEC_ADD.call(oldVal, DEC_MUL.call(gain, diff));
+  obj[key] = nextVal;
+  if (!nextVal.eq(oldVal)) GameDirty.currencies = true;
+  return formatGain(oldVal, gain, __cachedInvDiff || DEC_DIV.call(dOne, diff), percent);
+}
+
 /* (START) Helper functions for various checks that CHATGPT ALWAYS REMOVES - DONT REMOVE*/
 export function inAnyChallenge() {
   const ic = player.inChallenge; return ic[0] !== '' || ic[1] !== '';
@@ -655,26 +666,12 @@ export function calc(diff) {
 
 
   const resetGainRaw = GameCache.YooAmatterResetGain.value || dZero;
-  const resetGainRaw2 = GameCache.YooAityResetGain.value || dZero;
   const prestGain = DEC_DIV.call(resetGainRaw, d100);
-  const prestGain2 = DEC_DIV.call(resetGainRaw2, d100);
-
-  const ascGain = upgradeEffect('YooAity', 15);
-  const ariumGain = upgradeEffect('YooAmatter', 42);
-  const chroniumGain = upgradeEffect('YooAity', 35);
-  const YooALightGain = upgradeEffect('OMG', 11);
-  const ArinLightGain = upgradeEffect('OMG', 21);
-  const SeungheeLightGain = upgradeEffect('OMG', 31);
-  const YubinLightGain = upgradeEffect('OMG', 41);
-  const YooAPower = gameLayers.YooA_energy.getYooAPower()
-  const AllocYooAGain = DEC_DIV.call(player.YooAity.OMGLight.YooA, d100);
-  const AllocArinGain = DEC_DIV.call(player.YooAity.OMGLight.Arin, d100);
-  const AllocSeungheeGain = DEC_DIV.call(player.YooAity.OMGLight.Seunghee, d100);
-  const AllocYubinGain = DEC_DIV.call(player.YooAity.OMGLight.Yubin, d100);
   const AriniumGain = GameCache.AriniumGain.value || dZero;
   const MiracleLightGain = GameCache.OMGMiracleLightGain.value || dZero;
 
   // cached booleans per tick (avoid duplicate hasUpgrade calls)
+  const hasY45 = hasUpgrade("YooAmatter", 45);
   const hasY22 = hasUpgrade('YooAmatter', 22);
   const hasU13 = hasUpgrade('YooAity', 13);
   const hasU15 = hasUpgrade('YooAity', 15);
@@ -694,6 +691,18 @@ export function calc(diff) {
   const u22 = hasY22 ? upgradeEffect('YooAmatter', 22) : dZero;
   const u13 = hasU13 ? upgradeEffect('YooAity', 13) : dZero;
   const m23 = hasM23 ? milestoneEffect('YooAity', 23) : dZero;
+  const ascGain = hasU15 ? upgradeEffect('YooAity', 15) : dZero;
+  const ariumGain = hasY42 ? upgradeEffect('YooAmatter', 42) : dZero;
+  const chroniumGain = hasU35 ? upgradeEffect('YooAity', 35) : dZero;
+  const YooALightGain = hasOMG11 ? upgradeEffect('OMG', 11) : dZero;
+  const ArinLightGain = hasOMG21 ? upgradeEffect('OMG', 21) : dZero;
+  const SeungheeLightGain = hasOMG31 ? upgradeEffect('OMG', 31) : dZero;
+  const YubinLightGain = hasOMG41 ? upgradeEffect('OMG', 41) : dZero;
+  const YooAPower = hasY45 ? gameLayers.YooA_energy.getYooAPower() : dZero;
+  const AllocYooAGain = hasOMG31 ? DEC_DIV.call(player.YooAity.OMGLight.YooA, d100) : dZero;
+  const AllocArinGain = hasMIR13 ? DEC_DIV.call(player.YooAity.OMGLight.Arin, d100) : dZero;
+  const AllocSeungheeGain = hasMIR23 ? DEC_DIV.call(player.YooAity.OMGLight.Seunghee, d100) : dZero;
+  const AllocYubinGain = hasAR33 ? DEC_DIV.call(player.YooAity.OMGLight.Yubin, d100) : dZero;
 
   const diffMul = diff; // small local alias
   const u22Delta = u22.mul(diffMul);
@@ -840,7 +849,7 @@ export function calc(diff) {
     }
   }
 
-  if (player.dimensions.YooA[0].powerUnlocked) player.YooA.energy = player.YooA.energy.add(YooAEnergyGainDelta)
+  if (hasY45) player.YooA.energy = player.YooA.energy.add(YooAEnergyGainDelta)
 
   if (__achKeysArray) {
     for (let ai = 0, alen = __achKeysArray.length; ai < alen; ++ai) {
@@ -909,7 +918,7 @@ export function gameLoop() {
   calc((now - (date || Date.now())) / 1000);
   date = now;
   const __ui = perfBegin();
-  window.dispatchEvent(new CustomEvent('GAME_EVENT.UPDATE'));
+  window.dispatchEvent(UPDATE_EVENT || new Event("GAME_EVENT.UPDATE"));
   perfEnd('uiUpdate', __ui);
   GameDirty.clearFrame();
   return perfEnd('gameLoop', __frame);

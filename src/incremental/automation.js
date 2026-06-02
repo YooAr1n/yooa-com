@@ -8,7 +8,7 @@ import { gameLayers } from "./layersData.js";
 import { buyAllYMUpgrades, buySparkUpgrades, maxAllYMUpgrades, maxSparkUpgrades } from "@/components/YooAmatter.vue";
 import { buyAllHJUpgrades, buyAllMMUpgrades, buyAllOMGUpgrades, buyAllSHUpgrades, buyAllYBUpgrades, buyAllYEUpgrades, maxAllHJUpgrades, maxAllMMUpgrades, maxAllOMGUpgrades, maxAllSHUpgrades, maxAllYBUpgrades, maxAllYEUpgrades } from "@/components/YooAity.vue";
 import { buyAllARUpgrades, maxAllARUpgrades } from "@/components/Automation.vue";
-import { Lazy, GameCache, GameDirty, globalCacheVersion } from "./cache.js";
+import { Lazy, GameCache, GameDirty, upgradeEffectVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // ——— Constants ———
@@ -136,6 +136,8 @@ export default class Autobuyer {
 
     this._cachedAutoInterval = null;
     this._cachedAutoIntervalVer = -1;
+    this._cachedUnlocked = false;
+    this._cachedUnlockedVer = -1;
     this._cachedModeStr = null;
     this._cachedModeVal = -1;  // the mode integer at time of caching
   }
@@ -154,13 +156,20 @@ export default class Autobuyer {
 
   // autoInterval computed live
   get autoInterval() {
-    if (this._cachedAutoInterval && this._cachedAutoIntervalVer === globalCacheVersion) {
+    if (this._cachedAutoInterval && this._cachedAutoIntervalVer === upgradeEffectVersion) {
       return this._cachedAutoInterval;
     }
     const v = this._intervalFn();
     this._cachedAutoInterval = isDecimalLike(v) ? v : new Decimal(v || 0);
-    this._cachedAutoIntervalVer = globalCacheVersion;
+    this._cachedAutoIntervalVer = upgradeEffectVersion;
     return this._cachedAutoInterval;
+  }
+
+  get isUnlockedCached() {
+    if (this._cachedUnlockedVer === upgradeEffectVersion) return this._cachedUnlocked;
+    this._cachedUnlocked = !!this._unlocked();
+    this._cachedUnlockedVer = upgradeEffectVersion;
+    return this._cachedUnlocked;
   }
 
   get timeToNextTick() {
@@ -191,7 +200,7 @@ export default class Autobuyer {
 
   tick() {
     const __perf = perfBegin();
-    if (!this.isOn || !this._unlocked()) { perfEnd('tickDue', __perf); return; }
+    if (!this.isOn || !this.isUnlockedCached) { perfEnd('tickDue', __perf); return; }
     const ttn = this.timeToNextTick;
     if (!isDecimalLike(ttn) || ttn.gt(Decimal.dZero)) { perfEnd('tickDue', __perf); return; }
     // call wrapper — it will find and call the real tickMethod with correct `this`
@@ -209,8 +218,8 @@ export default class Autobuyer {
     const d = this._getDef();
     if (!d) return;
 
-    // _unlocked is now the def's unlocked fn directly (no wrapper)
-    if (!this._unlocked()) return;
+    // Unlock state changes only when purchases/resets bump upgradeEffectVersion.
+    if (!this.isUnlockedCached) return;
 
     if (!this.time) {
       // Initialize time without a separate resetTime() call

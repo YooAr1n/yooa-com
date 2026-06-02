@@ -242,7 +242,13 @@ export function upgradeEffect(layer, id) {
   perfEnd('upgradeEffect', __perf);
   return result;
 }
-export function hasUpgrade(layer, id) { return getUpgLevels(layer, id).gte(dOne); }
+export function hasUpgrade(layer, id) {
+  const lvl = player.upgrades[layer]?.[id];
+  if (lvl === undefined || lvl === null) return false;
+  if (typeof lvl === "number") return lvl >= 1;
+  if (lvl.sign !== undefined) return lvl.sign > 0;
+  return lvl.gte ? lvl.gte(dOne) : !!lvl;
+}
 export function hasMilestone(layer, id) { return !!player.milestones[layer]?.[id]; }
 // milestoneEffect — prefer cache, fall back
 export function milestoneEffect(layer, id) {
@@ -366,7 +372,13 @@ export function canCompleteChallenge(layer, id) {
   return have.gte(goalVal);
 }
 
-export function hasChallenge(layer, id) { return getChallLevels(layer, id).gte(dOne); }
+export function hasChallenge(layer, id) {
+  const lvl = player.challenges[layer]?.[id];
+  if (lvl === undefined || lvl === null) return false;
+  if (typeof lvl === "number") return lvl >= 1;
+  if (lvl.sign !== undefined) return lvl.sign > 0;
+  return lvl.gte ? lvl.gte(dOne) : !!lvl;
+}
 
 export function inChallenge(layer, id) {
   return String(player.inChallenge[0]) === String(layer) && String(player.inChallenge[1]) === String(id);

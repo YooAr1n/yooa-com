@@ -1,12 +1,12 @@
 // 🌸 YooA's Performance Patch for Dimension Module (cache-enabled)
 import Decimal from "./break_eternity.js";
 import {
-  gainCurrency,
+  gainCurrencyDirect,
   hasAchievement
 } from "./incremental.js";
 import { gameLayers } from "./layersData.js";
 import { hasMilestone, hasUpgrade, inChallenge, milestoneEffect, upgradeEffect } from "./mainFuncs.js";
-import { Lazy, GameCache, globalCacheVersion, upgradeEffectVersion } from "./cache.js";
+import { Lazy, GameCache, GameDirty, globalCacheVersion, upgradeEffectVersion } from "./cache.js";
 import { perfBegin, perfEnd } from "./performance.js";
 
 // Local aliases (fewer property lookups)
@@ -149,6 +149,12 @@ export default class Dimension {
     this._cachedEffectVer = -1;
     this._cachedPowerVer = -1;
     this._cachedRankMultVer = -1;
+    this._cachedUnlockedVer = -1;
+    this._cachedUnlocked = false;
+    this._cachedRankUnlockedVer = -1;
+    this._cachedRankUnlocked = false;
+    this._cachedPowerUnlockedVer = -1;
+    this._cachedPowerUnlocked = false;
   }
 
   // simple accessors
@@ -279,18 +285,30 @@ export default class Dimension {
   }
 
   get unlocked() {
-    if (this.type === "YooA") return this.tier < 3 || hasAchievement(18);
-    if (this.type === "YooAmatter") return _hasUpgrade("YooAmatter", 44);
-    if (this.type === "Shiah") return true;
-    return false;
+    if (this._cachedUnlockedVer === upgradeEffectVersion) return this._cachedUnlocked;
+    let value = false;
+    if (this.type === "YooA") value = this.tier < 3 || hasAchievement(18);
+    else if (this.type === "YooAmatter") value = _hasUpgrade("YooAmatter", 44);
+    else if (this.type === "Shiah") value = true;
+    this._cachedUnlockedVer = upgradeEffectVersion;
+    this._cachedUnlocked = value;
+    return value;
   }
 
   get rankUnlocked() {
-    return (this.type === "YooA") ? _hasMilestone("YooAity", 14) : (this.type === "YooAmatter") ? _hasUpgrade("YooAmatter", 55) : false;
+    if (this._cachedRankUnlockedVer === upgradeEffectVersion) return this._cachedRankUnlocked;
+    const value = (this.type === "YooA") ? _hasMilestone("YooAity", 14) : (this.type === "YooAmatter") ? _hasUpgrade("YooAmatter", 55) : false;
+    this._cachedRankUnlockedVer = upgradeEffectVersion;
+    this._cachedRankUnlocked = value;
+    return value;
   }
 
   get powerUnlocked() {
-    return (this.type === "YooA") ? _hasUpgrade("YooAmatter", 45) : false;
+    if (this._cachedPowerUnlockedVer === upgradeEffectVersion) return this._cachedPowerUnlocked;
+    const value = (this.type === "YooA") ? _hasUpgrade("YooAmatter", 45) : false;
+    this._cachedPowerUnlockedVer = upgradeEffectVersion;
+    this._cachedPowerUnlocked = value;
+    return value;
   }
 
   get effectDisplay() {
@@ -509,21 +527,28 @@ export default class Dimension {
   // production per tick (hot)
   updateAmount(diff) {
     const __perf = perfBegin();
-    if (this.powerUnlocked) gainCurrency(player, this._energyPath, this.power, diff)
+    if (this.powerUnlocked) {
+      const power = this.power;
+      if (power.sign !== 0) {
+        this.energy = this.energy.add(power.mul(diff));
+        GameDirty.currencies = true;
+      }
+    }
     if (this.tier <= 1) { perfEnd('updateAmount', __perf); return; }
     // fast path: no amount
-    if (this.amt <= 0) {
+    if (this.amt.sign <= 0) {
       player.gain[this.type].dimensions[this._gainIndex] = null;
       perfEnd('updateAmount', __perf);
       return;
     }
     const eff = this.effect;
-    if (!eff || eff <= 0) {
+    if (!eff || eff.sign <= 0) {
       player.gain[this.type].dimensions[this._gainIndex] = null;
       perfEnd('updateAmount', __perf);
       return;
     }
-    player.gain[this.type].dimensions[this._gainIndex] = gainCurrency(player, this._gainPath, eff, diff, true);
+    const target = player.dimensions[this.type][this._gainIndex];
+    player.gain[this.type].dimensions[this._gainIndex] = gainCurrencyDirect(target, "amt", eff, diff, true);
     perfEnd('updateAmount', __perf);
   }
 
